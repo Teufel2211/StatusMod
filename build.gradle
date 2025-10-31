@@ -1,15 +1,38 @@
 plugins {
     id 'fabric-loom' version '1.1.8'
-    id 'java'
+    id 'maven-publish'
 }
 
-group = 'com.example.statusmod'
-version = '1.0.0'
+group = 'de.teufel.statusmod'
+archivesBaseName = 'statusmod'
 
 base {
-    archivesName = 'statusmod'
+    archivesName = archivesBaseName
 }
 
+import java.util.regex.*
+
+// ---- 🔄 Version-Auto-Inkrement ----
+def versionFile = file("version.txt")
+
+if (!versionFile.exists()) {
+    versionFile.text = "1.0.0"
+}
+
+def versionText = versionFile.text.trim()
+def matcher = Pattern.compile("(\\d+)\\.(\\d+)\\.(\\d+)").matcher(versionText)
+
+if (matcher.matches()) {
+    def major = matcher.group(1).toInteger()
+    def minor = matcher.group(2).toInteger()
+    def patch = matcher.group(3).toInteger() + 1
+    project.version = "${major}.${minor}.${patch}"
+    versionFile.text = project.version
+} else {
+    throw new GradleException("Ungültige Version in version.txt: ${versionText}")
+}
+
+// ---- 🧱 Java-Konfiguration ----
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
@@ -17,30 +40,34 @@ java {
     withSourcesJar()
 }
 
+// ---- 📦 Repositories ----
 repositories {
     mavenCentral()
     maven { url = 'https://maven.fabricmc.net/' }
 }
 
+// ---- ⚙️ Abhängigkeiten ----
 dependencies {
-    // Minecraft + Yarn Mappings
-    minecraft "com.mojang:minecraft:1.21.10"
-    mappings "net.fabricmc:yarn:1.21.10+build.1:v2"
+    minecraft "com.mojang:minecraft:1.21.1"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:0.16.0"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.107.0+1.21.1"
+}
 
-    // Fabric Loader + API (funktioniert für 1.21.10)
-    modImplementation "net.fabricmc:fabric-loader:0.16.10"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:0.110.5+1.21.10"
-
-    // Optional: Gson (für JSON-Speicher)
-    implementation "com.google.code.gson:gson:2.10.1"
+// ---- 🏗️ Build-Konfiguration ----
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
+    options.encoding = "UTF-8"
 }
 
 jar {
     from("LICENSE") {
-        rename { "${it}_${base.archivesName}.txt" }
+        rename { "${it}_${archivesBaseName}" }
     }
 }

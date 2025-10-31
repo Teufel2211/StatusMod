@@ -1,52 +1,62 @@
-name: Build & Publish
+name: Build & Publish Mod
 
 on:
   push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Java
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
-      - name: Build with Gradle
+          java-version: 21
+          distribution: temurin
+
+      - name: Build Mod
         run: ./gradlew build
-      - name: Upload artifact
+
+      - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: statusmod-jar
+          name: mod-jar
           path: build/libs/*.jar
 
-  publish:
+  release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Download artifact
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
-          name: statusmod-jar
-      # Modrinth upload (Benötigt MODRINTH_TOKEN secret)
-      - name: Upload to Modrinth
-        if: ${{ secrets.MODRINTH_TOKEN != '' }}
-        uses: RubixDev/modrinth-upload@v1
+          name: mod-jar
+          path: build/libs
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          api_key: ${{ secrets.MODRINTH_TOKEN }}
-          project_id: 'nlde8cvK'
-          file: build/libs/statusmod-*.jar
-          version_number: ${{ github.ref_name }}
-      # CurseForge upload (Benötigt CF_TOKEN + PROJECT_ID)
-      - name: Upload to CurseForge
-        if: ${{ secrets.CURSEFORGE_TOKEN != '' }}
-        uses: itsmeow/curseforge-uploader@v3
+          files: build/libs/*.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Modrinth and CurseForge
+        uses: Kir-Antipov/mc-publish@v3.3
         with:
-          token: ${{ secrets.CURSEFORGE_TOKEN }}
-          project_id: '1374062'
-          file_path: build/libs/statusmod-*.jar
+          version-type: release
+          modrinth-id: nlde8cvK
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          curseforge-id: 2hkfay0i
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: build/libs/*.jar
+          game-versions: 1.21.1
+          loaders: fabric
