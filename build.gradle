@@ -4,35 +4,13 @@ plugins {
 }
 
 group = 'de.teufel.statusmod'
-archivesBaseName = 'statusmod'
 
 base {
-    archivesName = archivesBaseName
+    archivesName = 'statusmod'
 }
 
-import java.util.regex.*
+version = '1.0.0'
 
-// ---- 🔄 Version-Auto-Inkrement ----
-def versionFile = file("version.txt")
-
-if (!versionFile.exists()) {
-    versionFile.text = "1.0.0"
-}
-
-def versionText = versionFile.text.trim()
-def matcher = Pattern.compile("(\\d+)\\.(\\d+)\\.(\\d+)").matcher(versionText)
-
-if (matcher.matches()) {
-    def major = matcher.group(1).toInteger()
-    def minor = matcher.group(2).toInteger()
-    def patch = matcher.group(3).toInteger() + 1
-    project.version = "${major}.${minor}.${patch}"
-    versionFile.text = project.version
-} else {
-    throw new GradleException("Ungültige Version in version.txt: ${versionText}")
-}
-
-// ---- 🧱 Java-Konfiguration ----
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
@@ -40,21 +18,18 @@ java {
     withSourcesJar()
 }
 
-// ---- 📦 Repositories ----
 repositories {
     mavenCentral()
-    maven { url = 'https://maven.fabricmc.net/' }
+    maven { url = "https://maven.fabricmc.net/" }
 }
 
-// ---- ⚙️ Abhängigkeiten ----
 dependencies {
-    minecraft "com.mojang:minecraft:1.21.1"
-    mappings loom.officialMojangMappings()
-    modImplementation "net.fabricmc:fabric-loader:0.16.0"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:0.107.0+1.21.1"
+    minecraft("com.mojang:minecraft:1.21.1")
+    mappings(loom.officialMojangMappings())
+    modImplementation("net.fabricmc:fabric-loader:0.16.0")
+    modImplementation("net.fabricmc.fabric-api:fabric-api:0.107.0+1.21.1")
 }
 
-// ---- 🏗️ Build-Konfiguration ----
 processResources {
     inputs.property "version", project.version
     filesMatching("fabric.mod.json") {
@@ -68,6 +43,6 @@ tasks.withType(JavaCompile).configureEach {
 
 jar {
     from("LICENSE") {
-        rename { "${it}_${archivesBaseName}" }
+        rename { "${it}_${base.archivesName.get()}" }
     }
 }
