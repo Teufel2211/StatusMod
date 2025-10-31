@@ -1,29 +1,46 @@
 plugins {
-    id 'fabric-loom' version '1.1.8' // passe bei Bedarf an
+    id 'fabric-loom' version '1.1.8'
     id 'java'
 }
 
-group = 'com.example'
+group = 'com.example.statusmod'
+version = '1.0.0'
+
 base {
     archivesName = 'statusmod'
 }
-version = '1.0.5'
 
-
-sourceCompatibility = '21'
-targetCompatibility = '21'
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+    withSourcesJar()
+}
 
 repositories {
     mavenCentral()
-    maven { url 'https://maven.fabricmc.net/' }
+    maven { url = 'https://maven.fabricmc.net/' }
 }
 
 dependencies {
+    // Minecraft + Yarn Mappings
     minecraft "com.mojang:minecraft:1.21.10"
-    mappings "net.fabricmc:yarn:1.21.10+build.1:v2" // oder die passende yarn build
-    modImplementation "net.fabricmc:fabric-api:0.???+1.21.10" // setze passende Fabric API Version
+    mappings "net.fabricmc:yarn:1.21.10+build.1:v2"
+
+    // Fabric Loader + API (funktioniert für 1.21.10)
+    modImplementation "net.fabricmc:fabric-loader:0.16.10"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.110.5+1.21.10"
+
+    // Optional: Gson (für JSON-Speicher)
+    implementation "com.google.code.gson:gson:2.10.1"
 }
 
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+}
+
+jar {
+    from("LICENSE") {
+        rename { "${it}_${base.archivesName}.txt" }
+    }
 }
