@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "statusmod",
+  "version": "${version}",
+  "name": "StatusMod",
+  "description": "Zeigt /status in der Tab-Liste an (Farben deutsch/englisch, /settings).",
+  "authors": ["Teufel"],
+  "entrypoints": {
+    "main": [
+      "com.example.statusmod.StatusMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.17.2",
+    "fabric": "*"
+  }
+}

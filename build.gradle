@@ -1,0 +1,29 @@
+plugins {
+    id 'fabric-loom' version '1.1.8' // passe bei Bedarf an
+    id 'java'
+}
+
+group = 'com.example'
+base {
+    archivesName = 'statusmod'
+}
+version = '1.0.5'
+
+
+sourceCompatibility = '21'
+targetCompatibility = '21'
+
+repositories {
+    mavenCentral()
+    maven { url 'https://maven.fabricmc.net/' }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:1.21.10"
+    mappings "net.fabricmc:yarn:1.21.10+build.1:v2" // oder die passende yarn build
+    modImplementation "net.fabricmc:fabric-api:0.???+1.21.10" // setze passende Fabric API Version
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
