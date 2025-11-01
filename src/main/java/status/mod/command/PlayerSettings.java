@@ -1,8 +1,8 @@
-package com.example.statusmod.storage;
+package com.teufel.statusmod.storage;
 
 public class PlayerSettings {
     public boolean brackets = false;
-    public boolean beforeName = false; // default: hinter dem Namen -> false
-    public String status = ""; // aktuell gesetzter Status text
-    public String color = "reset"; // color key
+    public boolean beforeName = false; // default: behind name (false)
+    public String status = "";
+    public String color = "reset";
 }

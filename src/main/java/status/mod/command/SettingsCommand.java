@@ -1,17 +1,19 @@
-package com.example.statusmod.command;
+package com.teufel.statusmod.command;
 
-import com.example.statusmod.StatusMod;
-import com.example.statusmod.storage.PlayerSettings;
-import com.mojang.brigadier.arguments.StringArgumentType;
+import com.teufel.statusmod.StatusMod;
+import com.teufel.statusmod.storage.PlayerSettings;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
+
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.CommandDispatcher;
 
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
 public class SettingsCommand {
-    public static void register(com.mojang.brigadier.CommandDispatcher<ServerCommandSource> dispatcher) {
+    public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
         dispatcher.register(literal("settings")
                 .then(literal("brackets")
                         .then(argument("value", StringArgumentType.word())
@@ -44,7 +46,6 @@ public class SettingsCommand {
         s.brackets = value;
         StatusMod.storage.put(uuid, s);
         p.sendMessage(Text.literal("Eckige Klammern: " + (value ? "AN" : "AUS")), false);
-        // re-apply status to update team
         applyStatusToTeam(p, s);
     }
 
@@ -58,7 +59,27 @@ public class SettingsCommand {
     }
 
     private static void applyStatusToTeam(ServerPlayerEntity p, PlayerSettings s) {
-        // gleiche Logik wie in StatusCommand.setStatus() um Prefix/Suffix zu aktualisieren
-        // (aus Platzgründen hier verkürzt — implementiere analog)
+        try {
+            MinecraftServer server = p.getServer();
+            net.minecraft.scoreboard.ServerScoreboard scoreboard = server.getScoreboard();
+            String teamName = "status_" + p.getUuidAsString().substring(0, 8);
+            net.minecraft.scoreboard.Team team = scoreboard.getTeam(teamName);
+            if (team == null) team = scoreboard.addTeam(teamName);
+
+            net.minecraft.text.Text txt = net.minecraft.text.Text.literal((s.brackets ? "[" : "") + s.status + (s.brackets ? "]" : ""));
+            net.minecraft.util.Formatting f = com.teufel.statusmod.util.ColorMapper.get(s.color);
+            txt = txt.copy().styled(st -> st.withColor(f == null ? net.minecraft.util.Formatting.RESET : f));
+
+            if (s.beforeName) {
+                team.setPrefix(txt);
+                team.setSuffix(net.minecraft.text.Text.empty());
+            } else {
+                team.setPrefix(net.minecraft.text.Text.empty());
+                team.setSuffix(txt);
+            }
+            scoreboard.addPlayerToTeam(p.getEntityName(), team);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

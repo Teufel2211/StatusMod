@@ -1,18 +1,19 @@
 plugins {
-    id 'fabric-loom' version '1.1.8'
+    // Updated to match mod build metadata which expects Loom 1.11.7
+    id 'fabric-loom' version '1.11.7'
     id 'maven-publish'
 }
 
-group = 'de.teufel.statusmod'
+group = 'com.teufel.statusmod'
+version = '1.0.0'
 
 base {
     archivesName = 'statusmod'
 }
 
-version = '1.0.0'
-
 java {
     toolchain {
+        // Use Java 21 for toolchain to match common Fabric tooling and avoid classfile compatibility issues
         languageVersion = JavaLanguageVersion.of(21)
     }
     withSourcesJar()
@@ -20,29 +21,26 @@ java {
 
 repositories {
     mavenCentral()
-    maven { url = "https://maven.fabricmc.net/" }
+    maven { url "https://maven.fabricmc.net/" }
 }
 
 dependencies {
-    minecraft("com.mojang:minecraft:1.21.1")
-    mappings(loom.officialMojangMappings())
-    modImplementation("net.fabricmc:fabric-loader:0.16.0")
-    modImplementation("net.fabricmc.fabric-api:fabric-api:0.107.0+1.21.1")
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    mappings loom.officialMojangMappings()
+
+    modImplementation "net.fabricmc:fabric-loader:${loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+
+    implementation "com.mojang:brigadier:1.0.18"
 }
 
 processResources {
     inputs.property "version", project.version
     filesMatching("fabric.mod.json") {
-        expand "version": project.version
+        expand "version": project.version, "modid": "statusmod", "name": "Teufel"
     }
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
-}
-
-jar {
-    from("LICENSE") {
-        rename { "${it}_${base.archivesName.get()}" }
-    }
 }
