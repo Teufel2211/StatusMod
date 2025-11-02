@@ -30,11 +30,20 @@ def upload_modrinth(jar_path, project_id, token, version):
     # Minimal fields: version_number, game_versions[], loaders[] and the file multipart.
     # Modrinth expects multipart/form-data. This may need adjusting depending on Modrinth API changes.
     files = {'file': open(jar_path, 'rb')}
+    # infer version from provided value or from jar filename
+    if not version:
+        basename = os.path.basename(jar_path)
+        if '-' in basename:
+            inferred = basename.rsplit('-', 1)[-1]
+            inferred = inferred.rsplit('.', 1)[0]
+            version = inferred
+        else:
+            version = 'unspecified'
     data = {
-        'version_number': version.lstrip('v') if version else 'unspecified',
+        'version_number': version.lstrip('v'),
         'game_versions[]': '1.21.10',
         'loaders[]': 'fabric',
-        'name': os.path.basename(jar_path),
+        'name': f"StatusMod {version.lstrip('v')}",
         'changelog': 'Automated upload from GitHub Actions'
     }
     print(f"Uploading to Modrinth: {jar_path} -> project {project_id}")
@@ -56,9 +65,18 @@ def upload_curseforge(jar_path, project_id, api_key, version):
     # Optionally read JAVA version and environment from env vars
     java_version = os.environ.get('CURSEFORGE_JAVA_VERSION', '')
     environment = os.environ.get('CURSEFORGE_ENVIRONMENT', '')
+    # infer version if not provided
+    if not version:
+        basename = os.path.basename(jar_path)
+        if '-' in basename:
+            inferred = basename.rsplit('-', 1)[-1]
+            inferred = inferred.rsplit('.', 1)[0]
+            version = inferred
+        else:
+            version = 'unspecified'
     data = {
         'changelog': 'Automated upload from GitHub Actions',
-        'displayName': os.path.basename(jar_path),
+        'displayName': f"StatusMod {version.lstrip('v')}",
         'releaseType': 'release',
         # gameVersions[] is the accepted parameter for API to indicate Minecraft versions
         'gameVersions[]': '1.21.10'
