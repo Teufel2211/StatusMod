@@ -53,8 +53,11 @@ jobs:
 
       - name: Create and push tag for this version
         if: always()
+        env:
+          PUBLISH_PAT: ${{ secrets.PUBLISH_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -e
+          set -euo pipefail
           TAG="v$(cat version.txt)"
           echo "Creating tag $TAG"
           git config user.name "github-actions[bot]"
@@ -64,7 +67,15 @@ jobs:
             echo "Tag $TAG already exists on remote — skipping"
           else
             git tag "$TAG"
-            git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" "$TAG"
+            # prefer PUBLISH_PAT (personal access token) if provided, fallback to GITHUB_TOKEN
+            if [ -n "$PUBLISH_PAT" ]; then
+              TOKEN="$PUBLISH_PAT"
+              echo "Using PUBLISH_PAT to push tag"
+            else
+              TOKEN="$GITHUB_TOKEN"
+              echo "Using GITHUB_TOKEN to push tag"
+            fi
+            git push "https://x-access-token:$TOKEN@github.com/${{ github.repository }}.git" "$TAG"
           fi
 
       - name: Create GitHub Release
