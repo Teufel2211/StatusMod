@@ -12,6 +12,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      artifact_version: ${{ steps.get_version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,6 +35,20 @@ jobs:
         with:
           name: statusmod-jar
           path: build/libs/*.jar
+
+      - name: Determine artifact version
+        id: get_version
+        run: |
+          set -euo pipefail
+          # pick the first non-sources jar
+          JAR=$(ls build/libs/*.jar | grep -v '\-sources\.jar' | head -n1)
+          echo "Found jar: $JAR"
+          BASENAME=$(basename "$JAR")
+          NAME="${BASENAME%.*}"
+          # assume the version is the suffix after the last '-' in the basename
+          VERSION="${NAME##*-}"
+          echo "Detected version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
   publish:
     needs: build
@@ -57,9 +73,14 @@ jobs:
         env:
           PUBLISH_PAT: ${{ secrets.PUBLISH_PAT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_VERSION: ${{ needs.build.outputs.artifact_version }}
         run: |
           set -euo pipefail
-          TAG="v$(cat version.txt)"
+          if [ -n "$ARTIFACT_VERSION" ]; then
+            TAG="v$ARTIFACT_VERSION"
+          else
+            TAG="v$(cat version.txt)"
+          fi
           echo "Creating tag $TAG"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
