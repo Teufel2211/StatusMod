@@ -23,7 +23,7 @@ jobs:
           java-version: '21'
 
       - name: Build
-        run: ./gradlew clean build --no-daemon
+        run: ./gradlew clean build --no-daemon -Dorg.gradle.java.home="$JAVA_HOME"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
