@@ -1,0 +1,42 @@
+name: Bump patch version
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  bump-version:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read current version
+        id: read
+        run: |
+          version=$(cat version.txt | tr -d '\n')
+          echo "current=$version" >> $GITHUB_OUTPUT
+
+      - name: Bump patch
+        id: bump
+        run: |
+          version=${{ steps.read.outputs.current }}
+          IFS='.' read -r major minor patch <<< "$version"
+          patch=$((patch + 1))
+          new_version="$major.$minor.$patch"
+          echo $new_version > version.txt
+          echo "new=$new_version" >> $GITHUB_OUTPUT
+
+      - name: Commit and push version bump
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.new }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add version.txt
+          git commit -m "chore: bump version to $NEW_VERSION [skip ci]" || echo "No changes to commit"
+          git push origin HEAD:main

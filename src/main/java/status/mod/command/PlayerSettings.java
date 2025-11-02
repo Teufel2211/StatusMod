@@ -1,8 +1,2 @@
-package com.teufel.statusmod.storage;
+// legacy placeholder (moved to com.teufel.statusmod.storage.PlayerSettings). Empty to avoid duplicate types during transition.
 
-public class PlayerSettings {
-    public boolean brackets = false;
-    public boolean beforeName = false; // default: behind name (false)
-    public String status = "";
-    public String color = "reset";
-}

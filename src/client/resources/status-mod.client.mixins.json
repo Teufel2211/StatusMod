@@ -1,6 +1,6 @@
 {
 	"required": true,
-	"package": "status.mod.mixin.client",
+	"package": "com.teufel.statusmod.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"ExampleClientMixin"

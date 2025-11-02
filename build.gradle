@@ -1,11 +1,24 @@
+// Use legacy buildscript classpath for fabric-loom to ensure resolution from Fabric Maven
+buildscript {
+    repositories {
+        maven { url "https://maven.fabricmc.net/" }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath "net.fabricmc:fabric-loom:1.11.7"
+    }
+}
+
 plugins {
-    // Updated to match mod build metadata which expects Loom 1.11.7
-    id 'fabric-loom' version '1.11.7'
     id 'maven-publish'
 }
 
+apply plugin: 'fabric-loom'
+
 group = 'com.teufel.statusmod'
-version = '1.0.0'
+// Read version from version.txt so CI can bump it automatically
+version = file('version.txt').text.trim()
 
 base {
     archivesName = 'statusmod'

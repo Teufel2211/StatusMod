@@ -1,0 +1,84 @@
+package com.teufel.statusmod.command;
+
+import com.teufel.statusmod.StatusMod;
+import com.teufel.statusmod.storage.PlayerSettings;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.network.chat.Component;
+
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.commands.Commands;
+
+public class SettingsCommand {
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+    dispatcher.register(Commands.literal("settings")
+        .then(Commands.literal("brackets")
+            .then(Commands.argument("value", StringArgumentType.word())
+                .executes(ctx -> {
+                    ServerPlayer p = ctx.getSource().getPlayer();
+                    String v = StringArgumentType.getString(ctx, "value");
+                    boolean b = v.equalsIgnoreCase("on") || v.equalsIgnoreCase("true") || v.equalsIgnoreCase("ein") || v.equalsIgnoreCase("an");
+                    toggleBrackets(p, b);
+                    return 1;
+                })
+            )
+        )
+        .then(Commands.literal("position")
+            .then(Commands.argument("value", StringArgumentType.word())
+                .executes(ctx -> {
+                                ServerPlayer p = ctx.getSource().getPlayer();
+                    String v = StringArgumentType.getString(ctx, "value");
+                    boolean before = v.equalsIgnoreCase("before") || v.equalsIgnoreCase("vor") || v.equalsIgnoreCase("vorn");
+                    setPosition(p, before);
+                    return 1;
+                })
+            )
+        )
+    );
+    }
+
+    private static void toggleBrackets(ServerPlayer p, boolean value) {
+    String uuid = p.nameAndId().id().toString();
+        PlayerSettings s = StatusMod.storage.forPlayer(uuid);
+        s.brackets = value;
+        StatusMod.storage.put(uuid, s);
+        p.displayClientMessage(Component.literal("Eckige Klammern: " + (value ? "AN" : "AUS")), false);
+        applyStatusToTeam(p, s);
+    }
+
+    private static void setPosition(ServerPlayer p, boolean before) {
+    String uuid = p.nameAndId().id().toString();
+        PlayerSettings s = StatusMod.storage.forPlayer(uuid);
+        s.beforeName = before;
+        StatusMod.storage.put(uuid, s);
+        p.displayClientMessage(Component.literal("Position: " + (before ? "vor dem Namen" : "hinter dem Namen")), false);
+        applyStatusToTeam(p, s);
+    }
+
+    private static void applyStatusToTeam(ServerPlayer p, PlayerSettings s) {
+        try {
+            MinecraftServer server = p.level().getServer();
+            net.minecraft.server.ServerScoreboard scoreboard = server.getScoreboard();
+            String teamName = "status_" + p.nameAndId().id().toString().substring(0, 8);
+            net.minecraft.world.scores.PlayerTeam team = scoreboard.getPlayerTeam(teamName);
+            if (team == null) team = scoreboard.addPlayerTeam(teamName);
+
+            net.minecraft.network.chat.Component base = net.minecraft.network.chat.Component.literal((s.brackets ? "[" : "") + s.status + (s.brackets ? "]" : ""));
+            net.minecraft.ChatFormatting f = com.teufel.statusmod.util.ColorMapper.get(s.color);
+            net.minecraft.network.chat.Component colored = base.copy().withStyle(st -> st.withColor(f == null ? net.minecraft.ChatFormatting.RESET : f));
+
+            if (s.beforeName) {
+                team.setPlayerPrefix(colored.copy().append(net.minecraft.network.chat.Component.literal(" ")));
+                team.setPlayerSuffix(net.minecraft.network.chat.Component.empty());
+            } else {
+                team.setPlayerPrefix(net.minecraft.network.chat.Component.empty());
+                team.setPlayerSuffix(net.minecraft.network.chat.Component.literal(" ").append(colored));
+            }
+            scoreboard.addPlayerToTeam(p.getScoreboardName(), team);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
