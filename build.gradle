@@ -57,3 +57,13 @@ processResources {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
 }
+
+// Write the project version into build/version.txt so CI can read the exact version
+tasks.register('writeVersion') {
+    doLast {
+        def outFile = file("${buildDir}/version.txt")
+        outFile.parentFile.mkdirs()
+        outFile.text = project.version.toString()
+        println "Wrote version ${project.version} to ${outFile}"
+    }
+}

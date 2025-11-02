@@ -32,10 +32,10 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Build
-        run: ./gradlew clean build --no-daemon -Dorg.gradle.java.home="$JAVA_HOME"
+      - name: Build (and write version file)
+        run: ./gradlew clean build writeVersion --no-daemon -Dorg.gradle.java.home="$JAVA_HOME"
 
-      - name: Select runtime JAR
+      - name: Select runtime JAR and read version
         id: build_select_jar
         run: |
           set -euo pipefail
@@ -46,9 +46,15 @@ jobs:
             exit 1
           fi
           echo "Found runtime jar: $JAR"
-          BASENAME=$(basename "$JAR")
-          NAME="${BASENAME%.*}"
-          VERSION="${NAME##*-}"
+          # read the version written by the Gradle task
+          if [ -f build/version.txt ]; then
+            VERSION=$(cat build/version.txt | tr -d '\n')
+          else
+            # fallback: infer from jar filename
+            BASENAME=$(basename "$JAR")
+            NAME="${BASENAME%.*}"
+            VERSION="${NAME##*-}"
+          fi
           echo "Detected version: $VERSION"
           echo "jar=$JAR" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
