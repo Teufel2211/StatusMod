@@ -74,22 +74,29 @@ def upload_curseforge(jar_path, project_id, api_key, version):
             version = inferred
         else:
             version = 'unspecified'
-    data = {
-        'changelog': 'Automated upload from GitHub Actions',
-        'displayName': f"StatusMod {version.lstrip('v')}",
-        'releaseType': 'release',
-        # gameVersions[] is the accepted parameter for API to indicate Minecraft versions
-        'gameVersions[]': '1.21.10'
-    }
+    # Build multipart form data as a list of tuples so we can include repeated keys like gameVersions[]
+    data = [
+        ('changelog', 'Automated upload from GitHub Actions'),
+        ('displayName', f"StatusMod {version.lstrip('v')}"),
+        ('releaseType', 'release'),
+        ('gameVersions[]', '1.21.10'),
+    ]
     if java_version:
-        data['javaVersion'] = java_version
+        data.append(('javaVersion', java_version))
     if environment:
-        data['environment'] = environment
+        data.append(('environment', environment))
+
     print(f"Uploading to CurseForge: {jar_path} -> project {project_id}")
     try:
         resp = requests.post(url, headers=headers, files=files, data=data, timeout=120)
         print('CurseForge response:', resp.status_code)
-        print(resp.text)
+        # try to pretty-print JSON response when available
+        try:
+            print(resp.json())
+        except Exception:
+            print(resp.text)
+        if resp.status_code >= 400:
+            print('CurseForge upload returned error; check project ID (must be numeric) and API key permissions')
     finally:
         files['file'].close()
 
