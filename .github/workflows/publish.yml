@@ -15,7 +15,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      artifact_version: ${{ steps.get_version.outputs.version }}
+      artifact_version: ${{ steps.build_select_jar.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,25 +32,29 @@ jobs:
       - name: Build
         run: ./gradlew clean build --no-daemon -Dorg.gradle.java.home="$JAVA_HOME"
 
+      - name: Select runtime JAR
+        id: build_select_jar
+        run: |
+          set -euo pipefail
+          # choose the first non-sources jar
+          JAR=$(ls build/libs/*.jar | grep -v '\-sources\.jar' | head -n1)
+          if [ -z "$JAR" ]; then
+            echo "No runtime JAR found in build/libs" >&2
+            exit 1
+          fi
+          echo "Found runtime jar: $JAR"
+          BASENAME=$(basename "$JAR")
+          NAME="${BASENAME%.*}"
+          VERSION="${NAME##*-}"
+          echo "Detected version: $VERSION"
+          echo "jar=$JAR" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: statusmod-jar
-          path: build/libs/*.jar
-
-      - name: Determine artifact version
-        id: get_version
-        run: |
-          set -euo pipefail
-          # pick the first non-sources jar
-          JAR=$(ls build/libs/*.jar | grep -v '\-sources\.jar' | head -n1)
-          echo "Found jar: $JAR"
-          BASENAME=$(basename "$JAR")
-          NAME="${BASENAME%.*}"
-          # assume the version is the suffix after the last '-' in the basename
-          VERSION="${NAME##*-}"
-          echo "Detected version: $VERSION"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          path: ${{ steps.build_select_jar.outputs.jar }}
 
   publish:
     needs: build
@@ -72,6 +76,19 @@ jobs:
         with:
           name: statusmod-jar
           path: build/libs
+
+      - name: Select runtime JAR
+        id: select_jar
+        run: |
+          set -euo pipefail
+          # choose the first non-sources jar
+          JAR=$(ls build/libs/*.jar | grep -v '\-sources\.jar' | head -n1)
+          if [ -z "$JAR" ]; then
+            echo "No runtime JAR found in build/libs" >&2
+            exit 1
+          fi
+          echo "Found runtime jar: $JAR"
+          echo "jar=$JAR" >> "$GITHUB_OUTPUT"
 
       - id: create_tag
         name: Create and push tag for this version
@@ -120,7 +137,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.create_tag.outputs.tag }}
-          files: build/libs/*.jar
+          files: ${{ steps.select_jar.outputs.jar }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -132,6 +149,26 @@ jobs:
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
-          files: build/libs/*.jar
+          files: ${{ steps.select_jar.outputs.jar }}
           game-versions: 1.21.10
           loaders: fabric
+
+      - name: Upload via fallback script (direct API)
+        if: always()
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          CURSEFORGE_JAVA_VERSION: ${{ secrets.CURSEFORGE_JAVA_VERSION }}
+          CURSEFORGE_ENVIRONMENT: ${{ secrets.CURSEFORGE_ENVIRONMENT }}
+          VERSION: ${{ steps.create_tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # allow optional secret overrides; provide sensible defaults
+          CF_JAVA="${CURSEFORGE_JAVA_VERSION:-21}"
+          CF_ENV="${CURSEFORGE_ENVIRONMENT:-client}"
+          echo "Using CurseForge Java version: $CF_JAVA, environment: $CF_ENV"
+          export CURSEFORGE_JAVA_VERSION="$CF_JAVA"
+          export CURSEFORGE_ENVIRONMENT="$CF_ENV"
+          python ./.github/scripts/upload_release.py "${{ steps.select_jar.outputs.jar }}"

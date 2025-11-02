@@ -52,11 +52,21 @@ def upload_curseforge(jar_path, project_id, api_key, version):
     url = f"https://api.curseforge.com/v1/mods/{project_id}/files"
     headers = {'x-api-key': api_key}
     files = {'file': open(jar_path, 'rb')}
+    # CurseForge requires game version(s) and it's helpful to include java version & description
+    # Optionally read JAVA version and environment from env vars
+    java_version = os.environ.get('CURSEFORGE_JAVA_VERSION', '')
+    environment = os.environ.get('CURSEFORGE_ENVIRONMENT', '')
     data = {
         'changelog': 'Automated upload from GitHub Actions',
         'displayName': os.path.basename(jar_path),
-        'releaseType': 'release'
+        'releaseType': 'release',
+        # gameVersions[] is the accepted parameter for API to indicate Minecraft versions
+        'gameVersions[]': '1.21.10'
     }
+    if java_version:
+        data['javaVersion'] = java_version
+    if environment:
+        data['environment'] = environment
     print(f"Uploading to CurseForge: {jar_path} -> project {project_id}")
     try:
         resp = requests.post(url, headers=headers, files=files, data=data, timeout=120)
