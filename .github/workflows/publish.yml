@@ -51,7 +51,8 @@ jobs:
           name: statusmod-jar
           path: build/libs
 
-      - name: Create and push tag for this version
+      - id: create_tag
+        name: Create and push tag for this version
         if: always()
         env:
           PUBLISH_PAT: ${{ secrets.PUBLISH_PAT }}
@@ -77,10 +78,13 @@ jobs:
             fi
             git push "https://x-access-token:$TOKEN@github.com/${{ github.repository }}.git" "$TAG"
           fi
+          # export the tag to GITHUB_OUTPUT so later steps can reference it
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.create_tag.outputs.tag }}
           files: build/libs/*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
