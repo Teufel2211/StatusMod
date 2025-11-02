@@ -51,13 +51,6 @@ jobs:
           name: statusmod-jar
           path: build/libs
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/libs/*.jar
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Create and push tag for this version
         if: always()
         run: |
@@ -73,6 +66,13 @@ jobs:
             git tag "$TAG"
             git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" "$TAG"
           fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/libs/*.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload to Modrinth & CurseForge (mc-publish)
         uses: Kir-Antipov/mc-publish@v3.3
