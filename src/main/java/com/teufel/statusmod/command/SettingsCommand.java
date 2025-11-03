@@ -8,6 +8,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.network.chat.Component;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.Commands;
 
@@ -36,6 +37,16 @@ public class SettingsCommand {
                 })
             )
         )
+        .then(Commands.literal("words")
+            .then(Commands.argument("value", IntegerArgumentType.integer(1))
+                .executes(ctx -> {
+                    ServerPlayer p = ctx.getSource().getPlayer();
+                    int v = IntegerArgumentType.getInteger(ctx, "value");
+                    setWords(p, v);
+                    return 1;
+                })
+            )
+        )
     );
     }
 
@@ -54,6 +65,15 @@ public class SettingsCommand {
         s.beforeName = before;
         StatusMod.storage.put(uuid, s);
         p.displayClientMessage(Component.literal("Position: " + (before ? "vor dem Namen" : "hinter dem Namen")), false);
+        applyStatusToTeam(p, s);
+    }
+
+    private static void setWords(ServerPlayer p, int words) {
+    String uuid = p.nameAndId().id().toString();
+        PlayerSettings s = StatusMod.storage.forPlayer(uuid);
+        s.statusWords = Math.max(1, words);
+        StatusMod.storage.put(uuid, s);
+        p.displayClientMessage(Component.literal("Anzahl Status-Wörter: " + s.statusWords), false);
         applyStatusToTeam(p, s);
     }
 

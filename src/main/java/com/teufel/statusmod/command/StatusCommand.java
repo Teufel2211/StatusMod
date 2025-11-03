@@ -45,9 +45,47 @@ public class StatusCommand {
             String uuid = player.nameAndId().id().toString();
 
             PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
+            // Determine parsing based on player's configured status word count
+            int n = settings.statusWords <= 0 ? 1 : settings.statusWords;
+
+            // If caller didn't supply an explicit color argument (uses default "reset"),
+            // try to parse the color as the token after the configured number of words.
+            if (colorKey == null || "reset".equalsIgnoreCase(colorKey)) {
+                String[] tokens = status == null ? new String[0] : status.trim().split("\\s+");
+                if (tokens.length < n) {
+                    src.sendFailure(Component.literal("Bitte mindestens " + n + " Wörter für den Status angeben."));
+                    return;
+                }
+                if (tokens.length > n) {
+                    // next token after the n status words is treated as the color key
+                    colorKey = tokens[n];
+                } else {
+                    colorKey = "reset";
+                }
+                // rebuild status from the first n tokens to ensure consistent spacing
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < n; i++) {
+                    if (i > 0) sb.append(' ');
+                    sb.append(tokens[i]);
+                }
+                status = sb.toString();
+            } else {
+                // explicit color argument provided: ensure there are at least n words
+                String[] tokens = status == null ? new String[0] : status.trim().split("\\s+");
+                if (tokens.length < n) {
+                    src.sendFailure(Component.literal("Bitte mindestens " + n + " Wörter für den Status angeben."));
+                    return;
+                }
+                // keep the full status as-is when color is provided separately
+            }
+
             settings.status = status;
             settings.color = colorKey;
             StatusMod.storage.put(uuid, settings);
+
+            // make final copies for lambda usage later
+            final String finalStatus = status;
+            final String finalColor = colorKey;
 
             MinecraftServer server = src.getServer();
             net.minecraft.server.ServerScoreboard scoreboard = server.getScoreboard();
@@ -55,8 +93,8 @@ public class StatusCommand {
             PlayerTeam team = scoreboard.getPlayerTeam(teamName);
             if (team == null) team = scoreboard.addPlayerTeam(teamName);
 
-            ChatFormatting f = ColorMapper.get(colorKey);
-            Component base = Component.literal((settings.brackets ? "[" : "") + status + (settings.brackets ? "]" : ""));
+            ChatFormatting f = ColorMapper.get(finalColor);
+            Component base = Component.literal((settings.brackets ? "[" : "") + finalStatus + (settings.brackets ? "]" : ""));
             Component colored = base.copy().withStyle(s -> s.withColor(f == null ? ChatFormatting.RESET : f));
 
             if (settings.beforeName) {
@@ -74,7 +112,7 @@ public class StatusCommand {
             scoreboard.removePlayerFromTeam(playerName, team); // safe
             scoreboard.addPlayerToTeam(playerName, team);
 
-            src.sendSuccess(() -> Component.literal("Status gesetzt: " + status + " (" + colorKey + ")"), false);
+            src.sendSuccess(() -> Component.literal("Status gesetzt: " + finalStatus + " (" + finalColor + ")"), false);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Setzen des Status.")); } catch(Exception ignore){}
             e.printStackTrace();
