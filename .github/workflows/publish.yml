@@ -60,12 +60,13 @@ jobs:
           fi
 
           # prefer explicit filenames if they exist, otherwise fall back to the candidate jar
-          JAR1="build/libs/statusmod-${VERSION}.jar"
-          JAR2="build/libs/status-mod-${VERSION}.jar"
-          if [ -f "$JAR1" ]; then
-            JAR="$JAR1"
-          elif [ -f "$JAR2" ]; then
-            JAR="$JAR2"
+          JAR_UNHYP="build/libs/statusmod-${VERSION}.jar"
+          JAR_HYP="build/libs/status-mod-${VERSION}.jar"
+          # prefer the hyphenated name (status-mod-<version>.jar) if available
+          if [ -f "$JAR_HYP" ]; then
+            JAR="$JAR_HYP"
+          elif [ -f "$JAR_UNHYP" ]; then
+            JAR="$JAR_UNHYP"
           else
             echo "No runtime JAR matching explicit names for version $VERSION; using candidate jar: $CANDIDATE"
             JAR="$CANDIDATE"
@@ -136,12 +137,13 @@ jobs:
             # Prefer the version propagated from the build job when selecting the runtime JAR
             if [ -n "${VERSION:-}" ]; then
               echo "Using artifact version from build: $VERSION"
-              JAR1="build/libs/statusmod-${VERSION}.jar"
-              JAR2="build/libs/status-mod-${VERSION}.jar"
-              if [ -f "$JAR1" ]; then
-                JAR="$JAR1"
-              elif [ -f "$JAR2" ]; then
-                JAR="$JAR2"
+              JAR_UNHYP="build/libs/statusmod-${VERSION}.jar"
+              JAR_HYP="build/libs/status-mod-${VERSION}.jar"
+              # prefer hyphenated filename first
+              if [ -f "$JAR_HYP" ]; then
+                JAR="$JAR_HYP"
+              elif [ -f "$JAR_UNHYP" ]; then
+                JAR="$JAR_UNHYP"
               else
                 echo "No runtime JAR matching statusmod-${VERSION}.jar or status-mod-${VERSION}.jar found in build/libs." >&2
                 echo "Available jars:" >&2
