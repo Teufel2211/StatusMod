@@ -21,7 +21,7 @@ group = 'com.teufel.statusmod'
 version = file('version.txt').text.trim()
 
 base {
-    archivesName = 'statusmod'
+    archivesName = 'status-mod'
 }
 
 java {
