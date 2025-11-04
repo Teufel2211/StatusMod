@@ -59,6 +59,19 @@ jobs:
           echo "jar=$JAR" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Dump processed fabric.mod.json and verify icon inside JAR
+        if: always()
+        run: |
+          set -euo pipefail
+          echo "-- build/resources/main/fabric.mod.json --"
+          if [ -f build/resources/main/fabric.mod.json ]; then
+            cat build/resources/main/fabric.mod.json
+          else
+            echo "No processed fabric.mod.json found at build/resources/main/fabric.mod.json"
+          fi
+          echo "-- JAR contents (search for icon & fabric.mod.json) --"
+          jar tf "$JAR" | grep -E 'fabric.mod.json|assets/.*/icon.png' || true
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
