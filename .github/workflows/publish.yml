@@ -50,12 +50,26 @@ jobs:
           if [ -f build/version.txt ]; then
             VERSION=$(cat build/version.txt | tr -d '\n')
           else
-            # fallback: infer from jar filename
-            BASENAME=$(basename "$JAR")
-            NAME="${BASENAME%.*}"
-            VERSION="${NAME##*-}"
+            echo "No build/version.txt found; cannot enforce explicit jar name." >&2
+            echo "Available jars:" >&2
+            ls -la build/libs || true
+            exit 1
           fi
           echo "Detected version: $VERSION"
+          # prefer explicit names: statusmod-<version>.jar or status-mod-<version>.jar
+          JAR1="build/libs/statusmod-${VERSION}.jar"
+          JAR2="build/libs/status-mod-${VERSION}.jar"
+          if [ -f "$JAR1" ]; then
+            JAR="$JAR1"
+          elif [ -f "$JAR2" ]; then
+            JAR="$JAR2"
+          else
+            echo "No runtime JAR matching statusmod-${VERSION}.jar or status-mod-${VERSION}.jar found." >&2
+            echo "Available jars:" >&2
+            ls -la build/libs || true
+            exit 1
+          fi
+          echo "Selected runtime jar: $JAR"
           echo "jar=$JAR" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
@@ -104,10 +118,25 @@ jobs:
         id: select_jar
         run: |
           set -euo pipefail
-          # choose the first non-sources jar
-          JAR=$(ls build/libs/*.jar | grep -v '\-sources\.jar' | head -n1)
-          if [ -z "$JAR" ]; then
-            echo "No runtime JAR found in build/libs" >&2
+          # enforce explicit runtime jar names using the built version
+          if [ -f build/version.txt ]; then
+            VERSION=$(cat build/version.txt | tr -d '\n')
+          else
+            echo "No build/version.txt found in artifact — cannot determine version to enforce filename." >&2
+            echo "Available jars:" >&2
+            ls -la build/libs || true
+            exit 1
+          fi
+          JAR1="build/libs/statusmod-${VERSION}.jar"
+          JAR2="build/libs/status-mod-${VERSION}.jar"
+          if [ -f "$JAR1" ]; then
+            JAR="$JAR1"
+          elif [ -f "$JAR2" ]; then
+            JAR="$JAR2"
+          else
+            echo "No runtime JAR matching statusmod-${VERSION}.jar or status-mod-${VERSION}.jar found in build/libs." >&2
+            echo "Available jars:" >&2
+            ls -la build/libs || true
             exit 1
           fi
           echo "Found runtime jar: $JAR"
