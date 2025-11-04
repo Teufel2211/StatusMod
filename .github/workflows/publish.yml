@@ -119,48 +119,35 @@ jobs:
 
       - name: Select runtime JAR
         id: select_jar
+        env:
+          VERSION: ${{ needs.build.outputs.artifact_version }}
         run: |
           set -euo pipefail
-          # enforce explicit runtime jar names using the built version
-          if [ -f build/version.txt ]; then
-            VERSION=$(cat build/version.txt | tr -d '\n')
-          else
-            echo "No build/version.txt found in artifact — cannot determine version to enforce filename." >&2
-            echo "Available jars:" >&2
-            ls -la build/libs || true
-            exit 1
-          fi
-          env:
-            VERSION: ${{ needs.build.outputs.artifact_version }}
-          run: |
-            set -euo pipefail
-            # Prefer the version propagated from the build job when selecting the runtime JAR
-            if [ -n "${VERSION:-}" ]; then
-              echo "Using artifact version from build: $VERSION"
-              JAR_UNHYP="build/libs/statusmod-${VERSION}.jar"
-              JAR_HYP="build/libs/status-mod-${VERSION}.jar"
-              # prefer hyphenated filename first
-              if [ -f "$JAR_HYP" ]; then
-                JAR="$JAR_HYP"
-              elif [ -f "$JAR_UNHYP" ]; then
-                JAR="$JAR_UNHYP"
-              else
-                echo "No runtime JAR matching statusmod-${VERSION}.jar or status-mod-${VERSION}.jar found in build/libs." >&2
-                echo "Available jars:" >&2
-                ls -la build/libs || true
-                exit 1
-              fi
+          # Prefer the version propagated from the build job when selecting the runtime JAR
+          if [ -n "${VERSION:-}" ]; then
+            echo "Using artifact version from build: $VERSION"
+            JAR_HYP="build/libs/status-mod-${VERSION}.jar"
+            JAR_UNHYP="build/libs/statusmod-${VERSION}.jar"
+            if [ -f "$JAR_HYP" ]; then
+              JAR="$JAR_HYP"
+            elif [ -f "$JAR_UNHYP" ]; then
+              JAR="$JAR_UNHYP"
             else
-              # fallback: choose the first non-sources jar
-              JAR=$(ls build/libs/*.jar | grep -v '\-sources\.jar' | head -n1 || true)
-              if [ -z "$JAR" ]; then
-                echo "No runtime JAR found in build/libs" >&2
-                ls -la build/libs || true
-                exit 1
-              fi
+              echo "No runtime JAR matching expected names for version $VERSION; listing available jars:" >&2
+              ls -la build/libs || true
+              exit 1
             fi
-            echo "Found runtime jar: $JAR"
-            echo "jar=$JAR" >> "$GITHUB_OUTPUT"
+          else
+            # fallback: choose the first non-sources jar
+            JAR=$(ls build/libs/*.jar | grep -v '\-sources\.jar' | head -n1 || true)
+            if [ -z "$JAR" ]; then
+              echo "No runtime JAR found in build/libs" >&2
+              ls -la build/libs || true
+              exit 1
+            fi
+          fi
+          echo "Found runtime jar: $JAR"
+          echo "jar=$JAR" >> "$GITHUB_OUTPUT"
 
       - id: create_tag
         name: Create and push tag for this version
