@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "id": "statusmod",
-  "version": "1.0.0",
-  "name": "Teufel",
+  "id": "${modid}",
+  "version": "${version}",
+  "name": "${name}",
   "description": "Zeigt Status in der Tab-Liste via /status und bietet /settings.",
   "authors": ["Teufel"],
   "contact": {},

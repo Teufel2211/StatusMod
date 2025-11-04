@@ -50,7 +50,8 @@ dependencies {
 processResources {
     inputs.property "version", project.version
     filesMatching("fabric.mod.json") {
-        expand "version": project.version, "modid": "statusmod", "name": "Teufel"
+        // Use a mod id that matches the assets folder so the icon and assets are packaged correctly
+        expand "version": project.version, "modid": "status-mod", "name": "Status Mod"
     }
 }
 
