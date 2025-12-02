@@ -126,16 +126,21 @@ jobs:
             exit 0
           fi
           echo "Uploading to Modrinth: $JAR (version $VERSION)"
+          cat > /tmp/modrinth.json <<EOF
+          {
+            "version_number": "$VERSION",
+            "version_type": "release",
+            "loaders": ["fabric"],
+            "game_versions": ["${{ github.ref_name }}"],
+            "name": "StatusMod $VERSION",
+            "changelog": "Automatisch gebaut und veröffentlicht.",
+            "project_id": "$MODRINTH_PROJECT_ID"
+          }
+          EOF
           curl -X POST "https://api.modrinth.com/v2/version" \
             -H "Authorization: $MODRINTH_TOKEN" \
-            -F "file=@$JAR" \
-            -F "version_number=$VERSION" \
-            -F "name=StatusMod $VERSION" \
-            -F "changelog=Automatisch gebaut und veröffentlicht." \
-            -F "game_versions=[\"${{ github.ref_name }}\"]" \
-            -F "loaders=[\"fabric\"]" \
-            -F "version_type=release" \
-            -F "project_id=$MODRINTH_PROJECT_ID"
+            -F "data=@/tmp/modrinth.json" \
+            -F "file=@$JAR"
           echo "Modrinth upload completed"
 
       - name: Publish to CurseForge
@@ -146,6 +151,7 @@ jobs:
         run: |
           set +e
           JAR=${{ steps.jar_path.outputs.jar }}
+          VERSION=$(cat version.txt 2>/dev/null || echo "${{ github.ref_name }}")
           if [ -z "$CURSEFORGE_TOKEN" ] || [ -z "$CURSEFORGE_PROJECT_ID" ]; then
             echo "CurseForge secrets not set, skipping"
             exit 0
@@ -153,11 +159,12 @@ jobs:
           echo "Uploading to CurseForge: $JAR"
           curl -X POST "https://minecraft.curseforge.com/api/v1/mods/$CURSEFORGE_PROJECT_ID/files" \
             -H "x-api-key: $CURSEFORGE_TOKEN" \
+            -H "Content-Type: multipart/form-data" \
             -F "file=@$JAR" \
+            -F "displayName=StatusMod $VERSION" \
             -F "changelog=Automatisch gebaut und veröffentlicht." \
             -F "changelogType=text" \
-            -F "displayName=StatusMod" \
-            -F "gameVersions=[]" \
+            -F "gameVersions=[\"${{ github.ref_name }}\"]" \
             -F "releaseType=release"
           echo "CurseForge upload completed"
 
