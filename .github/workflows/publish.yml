@@ -95,34 +95,25 @@ jobs:
           name: statusmod-jar
           path: artifacts
 
-      - name: Verify artifact
+      - name: Store JAR path
+        id: jar_path
         run: |
-          echo "Listing artifacts:"
-          ls -laR artifacts || true
+          JAR=$(find artifacts -name "*.jar" -not -name "*-sources.jar" | head -n1)
+          if [ -z "$JAR" ]; then
+            echo "No JAR file found in artifacts"
+            exit 1
+          fi
+          echo "jar=$JAR" >> "$GITHUB_OUTPUT"
+          echo "Found JAR: $JAR"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: StatusMod ${{ github.ref_name }}
-          files: artifacts/*.jar
+          files: ${{ steps.jar_path.outputs.jar }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout `main` branch for version bump
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Confirm version match
-        run: |
-          set -euo pipefail
-          TAG_NAME="${{ github.ref_name }}"
-          VERSION=${TAG_NAME#v}
-          echo "Release tag: $TAG_NAME (version: $VERSION)"
-          echo "Version.txt should be: $VERSION"
 
       - name: Upload to Modrinth
         if: env.MODRINTH_TOKEN != '' && env.MODRINTH_PROJECT_ID != ''
@@ -131,12 +122,7 @@ jobs:
           MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
         run: |
           set -euo pipefail
-          JAR=$(find artifacts -name "*.jar" -not -name "*-sources.jar" | head -n1)
-          if [ -z "$JAR" ]; then
-            echo "No JAR file found in artifacts"
-            exit 1
-          fi
-          
+          JAR="${{ steps.jar_path.outputs.jar }}"
           VERSION=${{ github.ref_name }}
           VERSION=${VERSION#v}
           
@@ -154,12 +140,7 @@ jobs:
           CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
         run: |
           set -euo pipefail
-          JAR=$(find artifacts -name "*.jar" -not -name "*-sources.jar" | head -n1)
-          if [ -z "$JAR" ]; then
-            echo "No JAR file found in artifacts"
-            exit 1
-          fi
-          
+          JAR="${{ steps.jar_path.outputs.jar }}"
           VERSION=${{ github.ref_name }}
           VERSION=${VERSION#v}
           
