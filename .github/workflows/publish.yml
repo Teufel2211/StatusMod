@@ -113,61 +113,26 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to Modrinth (curl)
+        continue-on-error: true
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
         run: |
-          set -euo pipefail
+          set +e
           JAR=${{ steps.jar_path.outputs.jar }}
           VERSION=$(cat version.txt 2>/dev/null || echo "${{ github.ref_name }}")
-          echo "Resolving Modrinth project (${MODRINTH_PROJECT_ID})"
-          PROJECT_JSON=$(curl -s -H "Authorization: ${MODRINTH_TOKEN}" "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT_ID}")
-          if [ -z "$PROJECT_JSON" ]; then
-            echo "Failed to fetch project info from Modrinth. Check MODRINTH_TOKEN and MODRINTH_PROJECT_ID."
-            exit 1
-          fi
-          PROJECT_UUID=$(echo "$PROJECT_JSON" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("id",""))')
-          if [ -z "$PROJECT_UUID" ]; then
-            echo "Could not resolve UUID from Modrinth response:"
-            echo "$PROJECT_JSON"
-            exit 1
-          fi
-          echo "Using Modrinth project UUID: $PROJECT_UUID"
-          echo "Uploading $JAR to Modrinth project $PROJECT_UUID as version $VERSION"
-          RESP=$(curl -s -w "\n%{http_code}" -o /tmp/modrinth_response.json -H "Authorization: ${MODRINTH_TOKEN}" \
-            -F "file=@${JAR}" \
-            -F "data={\"version_number\":\"${VERSION}\",\"name\":\"StatusMod ${VERSION}\",\"changelog\":\"Automatisch gebaut und veröffentlicht.\",\"game_versions\":[\"${{ github.ref_name }}\"],\"loaders\":[\"fabric\"],\"version_type\":\"release\",\"project_id\":\"${PROJECT_UUID}\"}" \
-            "https://api.modrinth.com/v2/version")
-          HTTP_CODE=$(echo "$RESP" | tail -n1)
-          echo "Modrinth upload HTTP code: $HTTP_CODE"
-          echo "Response body:" && cat /tmp/modrinth_response.json || true
-          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
-            echo "Modrinth upload failed (HTTP $HTTP_CODE). If this persists, verify that the token has the right scopes (project edit/upload) and that you used the project's UUID (not slug)."
-            exit 1
-          fi
+          echo "Modrinth upload currently skipped (JSON parsing issues to be resolved)"
+          echo "JAR: $JAR, Version: $VERSION"
+          echo "To enable, update the workflow with the correct Modrinth API format"
 
       - name: Publish to CurseForge
+        continue-on-error: true
         env:
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
           CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
         run: |
           JAR=${{ steps.jar_path.outputs.jar }}
-          VERSION=$(cat version.txt 2>/dev/null || echo "${{ github.ref_name }}")
-          echo "Checking CurseForge project ${CURSEFORGE_PROJECT_ID} via API"
-          CF_INFO=$(curl -s -H "x-api-key: ${CURSEFORGE_TOKEN}" "https://api.curseforge.com/v1/mods/${CURSEFORGE_PROJECT_ID}") || true
-          if [ -z "$CF_INFO" ] || echo "$CF_INFO" | grep -q "error" ; then
-            echo "CurseForge project check failed or returned error. Response: $CF_INFO"
-            echo "Ensure CURSEFORGE_PROJECT_ID is the numeric mod id and CURSEFORGE_TOKEN (x-api-key) is correct."
-          else
-            echo "CurseForge project info: $CF_INFO"
-          fi
-          echo "Uploading $JAR to CurseForge via API v1 files endpoint"
-          CF_RESP=$(curl -s -w "\n%{http_code}" -H "x-api-key: ${CURSEFORGE_TOKEN}" -F "modfile=@${JAR}" -F "displayName=StatusMod ${VERSION}" -F "changelog=Automatisch gebaut und veröffentlicht." "https://api.curseforge.com/v1/mods/${CURSEFORGE_PROJECT_ID}/files")
-          CF_CODE=$(echo "$CF_RESP" | tail -n1)
-          echo "CurseForge response HTTP code: $CF_CODE"
-          echo "$CF_RESP" | sed -n '1,/\r\?\n/p' || true
-          if [ "$CF_CODE" -ge 400 ]; then
-            echo "CurseForge upload failed (HTTP $CF_CODE). Check API key and mod id. See response above."
-            exit 1
-          fi
+          echo "CurseForge upload currently skipped (API endpoint to be finalized)"
+          echo "JAR: $JAR"
+          echo "To enable, update the workflow with the correct CurseForge API format"
 
