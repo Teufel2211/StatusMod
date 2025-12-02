@@ -136,13 +136,8 @@ jobs:
           echo "Uploading $JAR to Modrinth project $PROJECT_UUID as version $VERSION"
           RESP=$(curl -s -w "\n%{http_code}" -o /tmp/modrinth_response.json -H "Authorization: ${MODRINTH_TOKEN}" \
             -F "file=@${JAR}" \
-            -F "version_number=${VERSION}" \
-            -F "name=StatusMod ${VERSION}" \
-            -F "changelog=Automatisch gebaut und veröffentlicht." \
-            -F "game_versions=[\"${{ github.ref_name }}\"]" \
-            -F "loaders=[\"fabric\"]" \
-            -F "version_type=release" \
-            "https://api.modrinth.com/v2/project/${PROJECT_UUID}/version")
+            -F "data={\"version_number\":\"${VERSION}\",\"name\":\"StatusMod ${VERSION}\",\"changelog\":\"Automatisch gebaut und veröffentlicht.\",\"game_versions\":[\"${{ github.ref_name }}\"],\"loaders\":[\"fabric\"],\"version_type\":\"release\",\"project_id\":\"${PROJECT_UUID}\"}" \
+            "https://api.modrinth.com/v2/version")
           HTTP_CODE=$(echo "$RESP" | tail -n1)
           echo "Modrinth upload HTTP code: $HTTP_CODE"
           echo "Response body:" && cat /tmp/modrinth_response.json || true
