@@ -112,17 +112,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish to Modrinth
-        uses: modrinth/modrinth-action@v2
-        with:
-          token: ${{ secrets.MODRINTH_TOKEN }}
-          project_id: ${{ secrets.MODRINTH_PROJECT_ID }}
-          version_number: ${{ steps.jar_path.outputs.jar }}
-          name: StatusMod ${{ steps.jar_path.outputs.jar }}
-          changelog: Automatisch gebaut und veröffentlicht.
-          files: ${{ steps.jar_path.outputs.jar }}
-          game_versions: '["${{ github.ref_name }}"]'
-          loaders: '["fabric"]'
+      - name: Publish to Modrinth (curl)
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          JAR=${{ steps.jar_path.outputs.jar }}
+          VERSION=$(cat version.txt 2>/dev/null || echo "${{ github.ref_name }}")
+          echo "Uploading $JAR to Modrinth project $MODRINTH_PROJECT_ID as version $VERSION"
+          curl -v -X POST "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT_ID}/version" \
+            -H "Authorization: ${MODRINTH_TOKEN}" \
+            -F "file=@${JAR}" \
+            -F "version_number=${VERSION}" \
+            -F "name=StatusMod ${VERSION}" \
+            -F "changelog=Automatisch gebaut und veröffentlicht." \
+            -F "game_versions=[\"${{ github.ref_name }}\"]" \
+            -F "loaders=[\"fabric\"]"
 
       - name: Publish to CurseForge
         env:
