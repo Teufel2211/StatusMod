@@ -96,6 +96,11 @@ jobs:
           name: statusmod-jar
           path: build/libs
 
+      - name: Verify artifact
+        run: |
+          echo "Listing build/libs:"
+          ls -laR build/libs || true
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -121,50 +126,48 @@ jobs:
           echo "Version.txt should be: $VERSION"
 
       - name: Upload to Modrinth
-        if: env.MODRINTH_TOKEN != ''
+        if: secrets.MODRINTH_TOKEN != '' && secrets.MODRINTH_PROJECT_ID != ''
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
         run: |
           set -euo pipefail
-          JAR=$(ls build/libs/*.jar | grep -v '\-sources\.jar' | head -n1)
+          JAR=$(find build/libs -name "*.jar" -not -name "*-sources.jar" | head -n1)
+          if [ -z "$JAR" ]; then
+            echo "No JAR file found"
+            exit 1
+          fi
+          
           VERSION=${{ github.ref_name }}
           VERSION=${VERSION#v}
-          
-          # Get Modrinth project ID from environment or use a placeholder
-          PROJECT_ID="${{ secrets.MODRINTH_PROJECT_ID }}"
-          if [ -z "$PROJECT_ID" ]; then
-            echo "Skipping Modrinth upload: MODRINTH_PROJECT_ID not set"
-            exit 0
-          fi
           
           echo "Uploading to Modrinth: $JAR (version: $VERSION)"
           curl -X POST \
             -H "Authorization: $MODRINTH_TOKEN" \
-            -F "data={\"project_id\":\"$PROJECT_ID\",\"version_number\":\"$VERSION\",\"version_type\":\"release\",\"loaders\":[\"fabric\"],\"game_versions\":[\"1.21.10\"],\"files\":[{\"is_primary\":true}]}" \
+            -F "data={\"project_id\":\"$MODRINTH_PROJECT_ID\",\"version_number\":\"$VERSION\",\"version_type\":\"release\",\"loaders\":[\"fabric\"],\"game_versions\":[\"1.21.10\"],\"files\":[{\"is_primary\":true}]}" \
             -F "files=@$JAR" \
-            https://api.modrinth.com/v2/version || echo "Modrinth upload failed or skipped"
+            https://api.modrinth.com/v2/version
 
       - name: Upload to CurseForge
-        if: env.CURSEFORGE_TOKEN != ''
+        if: secrets.CURSEFORGE_TOKEN != '' && secrets.CURSEFORGE_PROJECT_ID != ''
         env:
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
         run: |
           set -euo pipefail
-          JAR=$(ls build/libs/*.jar | grep -v '\-sources\.jar' | head -n1)
+          JAR=$(find build/libs -name "*.jar" -not -name "*-sources.jar" | head -n1)
+          if [ -z "$JAR" ]; then
+            echo "No JAR file found"
+            exit 1
+          fi
+          
           VERSION=${{ github.ref_name }}
           VERSION=${VERSION#v}
-          
-          # Get CurseForge project ID from environment or use a placeholder
-          PROJECT_ID="${{ secrets.CURSEFORGE_PROJECT_ID }}"
-          if [ -z "$PROJECT_ID" ]; then
-            echo "Skipping CurseForge upload: CURSEFORGE_PROJECT_ID not set"
-            exit 0
-          fi
           
           echo "Uploading to CurseForge: $JAR (version: $VERSION)"
           curl -X POST \
             -H "X-API-Token: $CURSEFORGE_TOKEN" \
             -F "file=@$JAR" \
             -F "type=alpha" \
-            https://minecraft.curseforge.com/api/projects/$PROJECT_ID/upload-file || echo "CurseForge upload failed or skipped"
+            https://minecraft.curseforge.com/api/projects/$CURSEFORGE_PROJECT_ID/upload-file
 
