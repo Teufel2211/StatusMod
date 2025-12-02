@@ -9,9 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        mc_version: ["1.19.4", "1.20.2", "1.21.10"]
 
     steps:
       - name: Checkout
@@ -23,40 +20,15 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Show environment
-        run: |
-          echo "Matrix Minecraft version: ${{ matrix.mc_version }}"
-
-      - name: Configure gradle properties for MC version
-        run: |
-          MC=${{ matrix.mc_version }}
-          echo "Configuring build for Minecraft ${MC}"
-          case "${MC}" in
-            1.19* ) FABRIC_API="0.81.0+${MC}"; YARN="${MC}+build.1" ;;
-            1.20* ) FABRIC_API="0.127.0+${MC}"; YARN="${MC}+build.1" ;;
-            1.21* ) FABRIC_API="0.136.0+${MC}"; YARN="${MC}+build.1" ;;
-            *) FABRIC_API="0.136.0+1.21.10"; YARN="1.21.10+build.1" ;;
-          esac
-          echo "Using fabric_api_version=${FABRIC_API} and yarn_mappings=${YARN}"
-          # replace properties in gradle.properties
-          sed -i "s/^minecraft_version=.*/minecraft_version=${MC}/" gradle.properties
-          sed -i "s/^fabric_api_version=.*/fabric_api_version=${FABRIC_API}/" gradle.properties
-          sed -i "s/^yarn_mappings=.*/yarn_mappings=${YARN}/" gradle.properties
-          echo "Adjusted gradle.properties:" && cat gradle.properties
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
 
       - name: Run Gradle build
-        run: |
-          chmod +x ./gradlew
-          ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" clean build --no-daemon --stacktrace
+        run: ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" clean build --no-daemon
 
       - name: Upload build artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: mod-${{ matrix.mc_version }}
+          name: statusmod-jar
           path: build/libs/*.jar
-
-      - name: Show note on compatibility
-        run: |
-          echo "Note: The workflow attempts to build for the requested Minecraft versions by updating gradle.properties." 
-          echo "If a build fails for a specific version, adjust the fabric_api_version / yarn_mappings values in this workflow to correct versions."
