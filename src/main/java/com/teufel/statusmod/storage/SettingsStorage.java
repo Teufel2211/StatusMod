@@ -40,6 +40,7 @@ public class SettingsStorage {
             Type t = new TypeToken<Map<String, PlayerSettings>>(){}.getType();
             FileReader fr = new FileReader(file);
             map = gson.fromJson(fr, t);
+            if (map == null) map = new HashMap<>();
             fr.close();
         } catch (Exception e) {
             e.printStackTrace();
@@ -48,6 +49,10 @@ public class SettingsStorage {
 
     public synchronized void save() {
         try {
+            // ensure parent directory exists
+            File parent = file.getParentFile();
+            if (parent != null && !parent.exists()) parent.mkdirs();
+            if (map == null) map = new HashMap<>();
             FileWriter fw = new FileWriter(file);
             gson.toJson(map, fw);
             fw.close();

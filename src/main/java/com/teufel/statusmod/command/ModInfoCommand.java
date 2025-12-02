@@ -19,15 +19,9 @@ public class ModInfoCommand {
                         Component title = Component.literal("StatusMod — Informationen");
                         src.sendSuccess(() -> title, false);
 
-                        Component web = Component.literal("[Website]")
-                                .withStyle(s -> s.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, WEBSITE))
-                                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal("Open website"))));
-
-                        Component issues = Component.literal("[Issues]")
-                                .withStyle(s -> s.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, ISSUES))
-                                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal("Open issue tracker"))));
-
-                        src.sendSuccess(() -> Component.literal(" ").append(web).append(Component.literal(" ")).append(issues), false);
+                        // Send plain links so all mappings compile reliably; clients can click the link in chat
+                        src.sendSuccess(() -> Component.literal("Website: " + WEBSITE), false);
+                        src.sendSuccess(() -> Component.literal("Issues: " + ISSUES), false);
                     } catch (Exception e) {
                         src.sendFailure(Component.literal("Fehler beim Anzeigen der Mod-Informationen."));
                         e.printStackTrace();
