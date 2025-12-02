@@ -112,21 +112,25 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload to Modrinth (skipped - requires proper API format)
-        if: env.MODRINTH_TOKEN != '' && env.MODRINTH_PROJECT_ID != ''
-        env:
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
-        run: |
-          echo "Modrinth upload requires proper API integration - use Modrinth's official action or REST API documentation"
-          echo "Skipping for now - release is available on GitHub"
+      - name: Publish to Modrinth
+        uses: modrinth/action-publish@v1
+        with:
+          token: ${{ secrets.MODRINTH_TOKEN }}
+          project_id: ${{ secrets.MODRINTH_PROJECT_ID }}
+          version_number: ${{ steps.jar_path.outputs.jar }}
+          version_name: StatusMod ${{ steps.jar_path.outputs.jar }}
+          changelog: Automatisch gebaut und veröffentlicht.
+          files: ${{ steps.jar_path.outputs.jar }}
+          game_versions: '["${{ github.ref_name }}"]'
+          loaders: '["fabric"]'
 
-      - name: Upload to CurseForge (skipped - requires proper API format)
-        if: env.CURSEFORGE_TOKEN != '' && env.CURSEFORGE_PROJECT_ID != ''
-        env:
-          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
-          CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
-        run: |
-          echo "CurseForge upload requires proper API integration - use CurseForge's official action or REST API documentation"
-          echo "Skipping for now - release is available on GitHub"
+      - name: Publish to CurseForge
+        uses: CurseForge/curseforge-upload@v1.1.0
+        with:
+          api-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          project-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          file-path: ${{ steps.jar_path.outputs.jar }}
+          changelog: Automatisch gebaut und veröffentlicht.
+          game-versions: '["${{ github.ref_name }}"]'
+          release-type: release
 
