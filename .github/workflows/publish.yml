@@ -120,24 +120,36 @@ jobs:
           set -euo pipefail
           JAR=${{ steps.jar_path.outputs.jar }}
           VERSION=$(cat version.txt 2>/dev/null || echo "${{ github.ref_name }}")
-          echo "Checking Modrinth project ${MODRINTH_PROJECT_ID} exists"
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: ${MODRINTH_TOKEN}" "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT_ID}")
-          if [ "$STATUS" != "200" ]; then
-            echo "Modrinth project check failed (HTTP $STATUS). Please verify MODRINTH_PROJECT_ID and MODRINTH_TOKEN secrets."
-            echo "If your project ID is a slug, try using the project's UUID (the long id in Modrinth project settings)."
+          echo "Resolving Modrinth project (${MODRINTH_PROJECT_ID})"
+          PROJECT_JSON=$(curl -s -H "Authorization: ${MODRINTH_TOKEN}" "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT_ID}")
+          if [ -z "$PROJECT_JSON" ]; then
+            echo "Failed to fetch project info from Modrinth. Check MODRINTH_TOKEN and MODRINTH_PROJECT_ID."
             exit 1
           fi
-          echo "Uploading $JAR to Modrinth project $MODRINTH_PROJECT_ID as version $VERSION"
-          # Use multipart/form-data fields as required by Modrinth API
-          curl -v "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT_ID}/version" \
-            -H "Authorization: ${MODRINTH_TOKEN}" \
+          PROJECT_UUID=$(echo "$PROJECT_JSON" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("id",""))')
+          if [ -z "$PROJECT_UUID" ]; then
+            echo "Could not resolve UUID from Modrinth response:"
+            echo "$PROJECT_JSON"
+            exit 1
+          fi
+          echo "Using Modrinth project UUID: $PROJECT_UUID"
+          echo "Uploading $JAR to Modrinth project $PROJECT_UUID as version $VERSION"
+          RESP=$(curl -s -w "\n%{http_code}" -o /tmp/modrinth_response.json -H "Authorization: ${MODRINTH_TOKEN}" \
             -F "file=@${JAR}" \
             -F "version_number=${VERSION}" \
             -F "name=StatusMod ${VERSION}" \
             -F "changelog=Automatisch gebaut und veröffentlicht." \
             -F "game_versions=[\"${{ github.ref_name }}\"]" \
             -F "loaders=[\"fabric\"]" \
-            -F "version_type=release"
+            -F "version_type=release" \
+            "https://api.modrinth.com/v2/project/${PROJECT_UUID}/version")
+          HTTP_CODE=$(echo "$RESP" | tail -n1)
+          echo "Modrinth upload HTTP code: $HTTP_CODE"
+          echo "Response body:" && cat /tmp/modrinth_response.json || true
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+            echo "Modrinth upload failed (HTTP $HTTP_CODE). If this persists, verify that the token has the right scopes (project edit/upload) and that you used the project's UUID (not slug)."
+            exit 1
+          fi
 
       - name: Publish to CurseForge
         env:
@@ -145,18 +157,22 @@ jobs:
           CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
         run: |
           JAR=${{ steps.jar_path.outputs.jar }}
-          echo "Checking CurseForge project ${CURSEFORGE_PROJECT_ID} exists (simple HTTP check)"
-          CF_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://minecraft.curseforge.com/projects/${CURSEFORGE_PROJECT_ID}") || true
-          if [ "$CF_STATUS" = "404" ] || [ -z "$CF_STATUS" ]; then
-            echo "CurseForge project check failed (HTTP $CF_STATUS). Verify CURSEFORGE_PROJECT_ID (use project slug) and that the project exists." 
-            echo "Continuing to attempt upload, but it will likely fail if project details are incorrect."
+          VERSION=$(cat version.txt 2>/dev/null || echo "${{ github.ref_name }}")
+          echo "Checking CurseForge project ${CURSEFORGE_PROJECT_ID} via API"
+          CF_INFO=$(curl -s -H "x-api-key: ${CURSEFORGE_TOKEN}" "https://api.curseforge.com/v1/mods/${CURSEFORGE_PROJECT_ID}") || true
+          if [ -z "$CF_INFO" ] || echo "$CF_INFO" | grep -q "error" ; then
+            echo "CurseForge project check failed or returned error. Response: $CF_INFO"
+            echo "Ensure CURSEFORGE_PROJECT_ID is the numeric mod id and CURSEFORGE_TOKEN (x-api-key) is correct."
+          else
+            echo "CurseForge project info: $CF_INFO"
           fi
-          # Note: CurseForge API endpoints and required headers may vary; this is a best-effort attempt.
-          curl -v -X POST "https://minecraft.curseforge.com/api/upload" \
-            -H "X-Api-Token: $CURSEFORGE_TOKEN" \
-            -F "file=@${JAR}" \
-            -F "projectId=$CURSEFORGE_PROJECT_ID" \
-            -F "changelog=Automatisch gebaut und veröffentlicht." \
-            -F "gameVersions=[\"${{ github.ref_name }}\"]" \
-            -F "releaseType=release"
+          echo "Uploading $JAR to CurseForge via API v1 files endpoint"
+          CF_RESP=$(curl -s -w "\n%{http_code}" -H "x-api-key: ${CURSEFORGE_TOKEN}" -F "modfile=@${JAR}" -F "displayName=StatusMod ${VERSION}" -F "changelog=Automatisch gebaut und veröffentlicht." "https://api.curseforge.com/v1/mods/${CURSEFORGE_PROJECT_ID}/files")
+          CF_CODE=$(echo "$CF_RESP" | tail -n1)
+          echo "CurseForge response HTTP code: $CF_CODE"
+          echo "$CF_RESP" | sed -n '1,/\r\?\n/p' || true
+          if [ "$CF_CODE" -ge 400 ]; then
+            echo "CurseForge upload failed (HTTP $CF_CODE). Check API key and mod id. See response above."
+            exit 1
+          fi
 
