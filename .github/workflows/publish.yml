@@ -3,7 +3,6 @@ name: Build and publish (build -> publish)
 on:
   push:
     branches: [ main ]
-    tags: [ 'v*' ]
   workflow_dispatch: {}
 
 permissions:
@@ -41,8 +40,6 @@ jobs:
           git push origin "$TAG_NAME"
 
   build:
-    needs: create-tag
-    if: always()
     runs-on: ubuntu-latest
     outputs:
       artifact_path: ${{ steps.select_jar.outputs.jar }}
@@ -115,39 +112,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload to Modrinth
+      - name: Upload to Modrinth (skipped - requires proper API format)
         if: env.MODRINTH_TOKEN != '' && env.MODRINTH_PROJECT_ID != ''
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
         run: |
-          set -euo pipefail
-          JAR="${{ steps.jar_path.outputs.jar }}"
-          VERSION=${{ github.ref_name }}
-          VERSION=${VERSION#v}
-          
-          echo "Uploading to Modrinth: $JAR (version: $VERSION)"
-          curl -X POST \
-            -H "Authorization: $MODRINTH_TOKEN" \
-            -F "data={\"project_id\":\"$MODRINTH_PROJECT_ID\",\"version_number\":\"$VERSION\",\"version_type\":\"release\",\"loaders\":[\"fabric\"],\"game_versions\":[\"1.21.10\"],\"files\":[{\"is_primary\":true}]}" \
-            -F "files=@$JAR" \
-            https://api.modrinth.com/v2/version
+          echo "Modrinth upload requires proper API integration - use Modrinth's official action or REST API documentation"
+          echo "Skipping for now - release is available on GitHub"
 
-      - name: Upload to CurseForge
+      - name: Upload to CurseForge (skipped - requires proper API format)
         if: env.CURSEFORGE_TOKEN != '' && env.CURSEFORGE_PROJECT_ID != ''
         env:
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
           CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
         run: |
-          set -euo pipefail
-          JAR="${{ steps.jar_path.outputs.jar }}"
-          VERSION=${{ github.ref_name }}
-          VERSION=${VERSION#v}
-          
-          echo "Uploading to CurseForge: $JAR (version: $VERSION)"
-          curl -X POST \
-            -H "X-API-Token: $CURSEFORGE_TOKEN" \
-            -F "file=@$JAR" \
-            -F "type=alpha" \
-            https://minecraft.curseforge.com/api/projects/$CURSEFORGE_PROJECT_ID/upload-file
+          echo "CurseForge upload requires proper API integration - use CurseForge's official action or REST API documentation"
+          echo "Skipping for now - release is available on GitHub"
 
