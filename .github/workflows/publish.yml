@@ -194,6 +194,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Check required publish secrets
+        run: |
+          set -euo pipefail
+          test -n "${{ secrets.MODRINTH_TOKEN }}" || (echo "MODRINTH_TOKEN missing" >&2; exit 1)
+          test -n "${{ secrets.MODRINTH_PROJECT_ID }}" || (echo "MODRINTH_PROJECT_ID missing" >&2; exit 1)
+          test -n "${{ secrets.CURSEFORGE_TOKEN }}" || (echo "CURSEFORGE_TOKEN missing" >&2; exit 1)
+          test -n "${{ secrets.CURSEFORGE_PROJECT_ID }}" || (echo "CURSEFORGE_PROJECT_ID missing" >&2; exit 1)
+
       - name: Upload to Modrinth & CurseForge (mc-publish)
         uses: Kir-Antipov/mc-publish@v3.3
         with:
@@ -216,6 +224,14 @@ jobs:
           CURSEFORGE_JAVA_VERSION: ${{ secrets.CURSEFORGE_JAVA_VERSION }}
           CURSEFORGE_ENVIRONMENT: ${{ secrets.CURSEFORGE_ENVIRONMENT }}
           VERSION: ${{ steps.create_tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          echo "Preparing fallback uploader..."
+      - name: Install Python deps for fallback uploader
+        if: always()
+        run: python -m pip install --upgrade pip requests
+      - name: Run fallback uploader script
+        if: always()
         run: |
           set -euo pipefail
           # allow optional secret overrides; provide sensible defaults

@@ -51,32 +51,51 @@ Known issues / Gradle + Java compatibility
 ```powershell
 $env:JAVA_HOME = 'C:\Path\To\jdk-21'
 # then run gradle using the wrapper:
-.\gradlew.bat build --no-daemon
+```instructions
+StatusMod — concise guide for AI coding agents
+
+- Project: Fabric mod (Gradle + `fabric-loom`). Primary source roots:
+  - Server: `src/main/java/com/teufel/statusmod/`
+  - Client: `src/client/java/com/teufel/statusmod/`
+  - Resources & mixins: `src/main/resources/` and `src/client/resources/`
+
+**Entrypoints**
+- `src/main/java/com/teufel/statusmod/StatusMod.java`: server-side `ModInitializer`. Owns `SettingsStorage` and registers commands (see `onInitialize`).
+- `src/client/java/com/teufel/statusmod/StatusModClient.java`: client-side `ClientModInitializer` for rendering/client hooks.
+
+**Commands & patterns**
+- Commands live in `src/main/java/com/teufel/statusmod/command/` and use Brigadier.
+- Typical argument patterns: `StringArgumentType.greedyString()` for multi-word statuses, `word()` for single tokens.
+- Team naming: teams are created as `status_<first8OfUuid>`; scoreboard updates use `scoreboard.addPlayerToTeam(entityName, team)`.
+- Style/status text: `com.teufel.statusmod.util.ColorMapper` → returns `Formatting` used with `Text.styled(...)`.
+
+**Storage**
+- `SettingsStorage` persists to `config/statusmod/players.json` (Gson). Writes are synchronous and saved on each change; shutdown hook flushes file.
+- When adding fields to `PlayerSettings`, update `PlayerSettings.java`, `SettingsStorage.java`, and any JSON readers — read missing fields with defaults to avoid migration breakage.
+
+**Server vs Client**
+- Keep server logic under `src/main/java/...` and client-only code under `src/client/java/...`.
+- Register server commands in `StatusMod.onInitialize()` (use `CommandRegistrationCallback.EVENT`).
+
+**Build / run (Windows PowerShell)**
+- Build JAR: `.`\`gradlew.bat build`
+- If tooling errors appear (Gradle / fabric-loom vs JDK version), prefer running the wrapper under JDK21 (set `org.gradle.java.home` in `gradle.properties` or set `$env:JAVA_HOME` for the terminal). `build.gradle` may declare a higher toolchain; Gradle itself is more stable when run under JDK21 for Fabric tooling.
+
+**Files to reference when editing**
+- `build.gradle` — plugin versions, toolchain, resource processing.
+- `src/main/java/com/teufel/statusmod/StatusMod.java` — command registration and storage access.
+- `src/main/java/com/teufel/statusmod/command/StatusCommand.java` — scoreboard/team prefix & suffix application.
+- `src/main/java/com/teufel/statusmod/storage/SettingsStorage.java` & `PlayerSettings.java` — JSON schema and lifecycle.
+
+**Quick examples**
+- Persist settings: `StatusMod.storage.forPlayer(uuid)`, modify fields, then `StatusMod.storage.put(uuid, settings)`.
+- Create team name: `String teamName = "status_" + uuid.toString().replaceAll("-","").substring(0,8);`
+- Set colored prefix: see `StatusCommand.setStatus(...)` — `Text.of(...).styled(s -> s.withColor(ColorMapper.get(key)))`.
+
+**Conventions & gotchas**
+- Responses currently contain hard-coded German text — keep localization in-place unless intentionally changing language.
+- Many command handlers catch `Exception` and `e.printStackTrace()`; follow existing error-handling conventions for consistency.
+- Storage has no automatic migration — handle schema changes defensively.
+
+If you want, I can expand this into a checklist for adding new commands or for a storage migration guide. Reply with any areas you want expanded or any local environment details (JDK path) and I'll iterate.
 ```
-
-  - Alternative: Downgrade `fabric-loom` in `build.gradle` to a version compatible with your installed Gradle (not recommended unless necessary). Look up compatible versions in the Fabric Loom release notes.
-
-If you run into "Unsupported class file major version 69" while Gradle is using Java 25, that indicates a tooling (Groovy/ASM) mismatch — the practical workaround is to run Gradle under Java 21 (or use the Gradle version bundled with the project wrapper that matches toolchain expectations). If you want, I can add an automated wrapper update or a note in `gradlew` invocation scripts.
-
-If any of these references are stale or you want extra conventions (code style, tests, CI), tell me what to include and I will update this file.
-
-VS Code / Workspace settings to pin Gradle's Java (JDK 21)
-- Quick summary: the most reliable way to force Gradle to use a specific JDK for this project is to set `org.gradle.java.home` in the project's `gradle.properties` or to configure your workspace's Java runtime in VS Code. Below are two options you can use together.
-
-1) Temporary (per-terminal) - PowerShell
-
-```powershell
-$env:JAVA_HOME = 'C:\\Path\\To\\jdk-21'
-.\gradlew.bat clean build --no-daemon
-```
-
-2) Persistent for this workspace
-- Add to project `gradle.properties` (workspace project root):
-
-```
-org.gradle.java.home=C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.0
-```
-
-- Or use the included workspace settings file `.vscode/settings.json` (example added). The workspace file sets the Java runtime used by VS Code's Java extension and the Gradle extension. Update the paths to match your installed JDK 21.
-
-If you want, I can also update `gradle.properties` in this project to point to your JDK21 path if you provide it; otherwise the `.vscode/settings.json` + temporary PowerShell approach is usually enough.
