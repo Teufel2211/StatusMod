@@ -120,3 +120,51 @@ jobs:
           echo "Release tag: $TAG_NAME (version: $VERSION)"
           echo "Version.txt should be: $VERSION"
 
+      - name: Upload to Modrinth
+        if: env.MODRINTH_TOKEN != ''
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          JAR=$(ls build/libs/*.jar | grep -v '\-sources\.jar' | head -n1)
+          VERSION=${{ github.ref_name }}
+          VERSION=${VERSION#v}
+          
+          # Get Modrinth project ID from environment or use a placeholder
+          PROJECT_ID="${{ secrets.MODRINTH_PROJECT_ID }}"
+          if [ -z "$PROJECT_ID" ]; then
+            echo "Skipping Modrinth upload: MODRINTH_PROJECT_ID not set"
+            exit 0
+          fi
+          
+          echo "Uploading to Modrinth: $JAR (version: $VERSION)"
+          curl -X POST \
+            -H "Authorization: $MODRINTH_TOKEN" \
+            -F "data={\"project_id\":\"$PROJECT_ID\",\"version_number\":\"$VERSION\",\"version_type\":\"release\",\"loaders\":[\"fabric\"],\"game_versions\":[\"1.21.10\"],\"files\":[{\"is_primary\":true}]}" \
+            -F "files=@$JAR" \
+            https://api.modrinth.com/v2/version || echo "Modrinth upload failed or skipped"
+
+      - name: Upload to CurseForge
+        if: env.CURSEFORGE_TOKEN != ''
+        env:
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+        run: |
+          set -euo pipefail
+          JAR=$(ls build/libs/*.jar | grep -v '\-sources\.jar' | head -n1)
+          VERSION=${{ github.ref_name }}
+          VERSION=${VERSION#v}
+          
+          # Get CurseForge project ID from environment or use a placeholder
+          PROJECT_ID="${{ secrets.CURSEFORGE_PROJECT_ID }}"
+          if [ -z "$PROJECT_ID" ]; then
+            echo "Skipping CurseForge upload: CURSEFORGE_PROJECT_ID not set"
+            exit 0
+          fi
+          
+          echo "Uploading to CurseForge: $JAR (version: $VERSION)"
+          curl -X POST \
+            -H "X-API-Token: $CURSEFORGE_TOKEN" \
+            -F "file=@$JAR" \
+            -F "type=alpha" \
+            https://minecraft.curseforge.com/api/projects/$PROJECT_ID/upload-file || echo "CurseForge upload failed or skipped"
+
