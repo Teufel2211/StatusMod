@@ -47,7 +47,7 @@ jobs:
       - name: Run Gradle build
         run: |
           chmod +x ./gradlew
-          ./gradlew clean build --no-daemon --stacktrace
+          ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" clean build --no-daemon --stacktrace
 
       - name: Upload build artifact
         if: success()

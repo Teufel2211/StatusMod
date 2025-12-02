@@ -27,7 +27,7 @@ jobs:
           java-version: '21'
 
       - name: Build
-        run: ./gradlew clean build --no-daemon
+        run: ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" clean build --no-daemon
 
       - name: Select runtime jar
         id: select_jar
