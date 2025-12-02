@@ -121,9 +121,22 @@ jobs:
           set +e
           JAR=${{ steps.jar_path.outputs.jar }}
           VERSION=$(cat version.txt 2>/dev/null || echo "${{ github.ref_name }}")
-          echo "Modrinth upload currently skipped (JSON parsing issues to be resolved)"
-          echo "JAR: $JAR, Version: $VERSION"
-          echo "To enable, update the workflow with the correct Modrinth API format"
+          if [ -z "$MODRINTH_TOKEN" ] || [ -z "$MODRINTH_PROJECT_ID" ]; then
+            echo "Modrinth secrets not set, skipping"
+            exit 0
+          fi
+          echo "Uploading to Modrinth: $JAR (version $VERSION)"
+          curl -X POST "https://api.modrinth.com/v2/version" \
+            -H "Authorization: $MODRINTH_TOKEN" \
+            -F "file=@$JAR" \
+            -F "version_number=$VERSION" \
+            -F "name=StatusMod $VERSION" \
+            -F "changelog=Automatisch gebaut und veröffentlicht." \
+            -F "game_versions=[\"${{ github.ref_name }}\"]" \
+            -F "loaders=[\"fabric\"]" \
+            -F "version_type=release" \
+            -F "project_id=$MODRINTH_PROJECT_ID"
+          echo "Modrinth upload completed"
 
       - name: Publish to CurseForge
         continue-on-error: true
@@ -131,8 +144,20 @@ jobs:
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
           CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
         run: |
+          set +e
           JAR=${{ steps.jar_path.outputs.jar }}
-          echo "CurseForge upload currently skipped (API endpoint to be finalized)"
-          echo "JAR: $JAR"
-          echo "To enable, update the workflow with the correct CurseForge API format"
+          if [ -z "$CURSEFORGE_TOKEN" ] || [ -z "$CURSEFORGE_PROJECT_ID" ]; then
+            echo "CurseForge secrets not set, skipping"
+            exit 0
+          fi
+          echo "Uploading to CurseForge: $JAR"
+          curl -X POST "https://minecraft.curseforge.com/api/v1/mods/$CURSEFORGE_PROJECT_ID/files" \
+            -H "x-api-key: $CURSEFORGE_TOKEN" \
+            -F "file=@$JAR" \
+            -F "changelog=Automatisch gebaut und veröffentlicht." \
+            -F "changelogType=text" \
+            -F "displayName=StatusMod" \
+            -F "gameVersions=[]" \
+            -F "releaseType=release"
+          echo "CurseForge upload completed"
 
