@@ -85,7 +85,7 @@ jobs:
 
   publish:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/') || (needs.create-tag.result == 'success' && github.ref == 'refs/heads/main')
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -94,19 +94,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: statusmod-jar
-          path: build/libs
+          path: artifacts
 
       - name: Verify artifact
         run: |
-          echo "Listing build/libs:"
-          ls -laR build/libs || true
+          echo "Listing artifacts:"
+          ls -laR artifacts || true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: StatusMod ${{ github.ref_name }}
-          files: build/libs/*.jar
+          files: artifacts/*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -132,9 +132,9 @@ jobs:
           MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
         run: |
           set -euo pipefail
-          JAR=$(find build/libs -name "*.jar" -not -name "*-sources.jar" | head -n1)
+          JAR=$(find artifacts -name "*.jar" -not -name "*-sources.jar" | head -n1)
           if [ -z "$JAR" ]; then
-            echo "No JAR file found"
+            echo "No JAR file found in artifacts"
             exit 1
           fi
           
@@ -155,9 +155,9 @@ jobs:
           CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
         run: |
           set -euo pipefail
-          JAR=$(find build/libs -name "*.jar" -not -name "*-sources.jar" | head -n1)
+          JAR=$(find artifacts -name "*.jar" -not -name "*-sources.jar" | head -n1)
           if [ -z "$JAR" ]; then
-            echo "No JAR file found"
+            echo "No JAR file found in artifacts"
             exit 1
           fi
           
