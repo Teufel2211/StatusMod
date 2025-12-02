@@ -113,24 +113,27 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to Modrinth
-        uses: modrinth/modrinth-upload-maven@v1
+        uses: modrinth/modrinth-action@v2
         with:
           token: ${{ secrets.MODRINTH_TOKEN }}
           project_id: ${{ secrets.MODRINTH_PROJECT_ID }}
-          files: ${{ steps.jar_path.outputs.jar }}
           version_number: ${{ steps.jar_path.outputs.jar }}
-          version_name: StatusMod ${{ steps.jar_path.outputs.jar }}
+          name: StatusMod ${{ steps.jar_path.outputs.jar }}
           changelog: Automatisch gebaut und veröffentlicht.
+          files: ${{ steps.jar_path.outputs.jar }}
           game_versions: '["${{ github.ref_name }}"]'
           loaders: '["fabric"]'
 
       - name: Publish to CurseForge
-        uses: curseforge/upload@v1.1.0
-        with:
-          api-token: ${{ secrets.CURSEFORGE_TOKEN }}
-          project-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
-          file-path: ${{ steps.jar_path.outputs.jar }}
-          changelog: Automatisch gebaut und veröffentlicht.
-          game-versions: '["${{ github.ref_name }}"]'
-          release-type: release
+        env:
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+        run: |
+          curl -X POST "https://minecraft.curseforge.com/api/upload" \
+            -H "X-Api-Token: $CURSEFORGE_TOKEN" \
+            -F "file=@${{ steps.jar_path.outputs.jar }}" \
+            -F "projectId=$CURSEFORGE_PROJECT_ID" \
+            -F "changelog=Automatisch gebaut und veröffentlicht." \
+            -F "gameVersions=[\"${{ github.ref_name }}\"]" \
+            -F "releaseType=release"
 
