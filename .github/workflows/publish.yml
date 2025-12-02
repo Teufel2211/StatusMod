@@ -126,7 +126,7 @@ jobs:
           echo "Version.txt should be: $VERSION"
 
       - name: Upload to Modrinth
-        if: secrets.MODRINTH_TOKEN != '' && secrets.MODRINTH_PROJECT_ID != ''
+        if: env.MODRINTH_TOKEN != '' && env.MODRINTH_PROJECT_ID != ''
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
@@ -149,7 +149,7 @@ jobs:
             https://api.modrinth.com/v2/version
 
       - name: Upload to CurseForge
-        if: secrets.CURSEFORGE_TOKEN != '' && secrets.CURSEFORGE_PROJECT_ID != ''
+        if: env.CURSEFORGE_TOKEN != '' && env.CURSEFORGE_PROJECT_ID != ''
         env:
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
           CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
