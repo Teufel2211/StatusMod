@@ -9,6 +9,11 @@
   "license": "MIT",
   "icon": "assets/status-mod/icon.png",
   "environment": "*",
+  "contact": {
+    "homepage": "https://example.com/your-mod-homepage",
+    "issues": "https://example.com/your-mod-issues",
+    "sources": "https://example.com/your-mod-source"
+  },
   "entrypoints": {
     "main": [
       "com.teufel.statusmod.StatusMod"
@@ -17,6 +22,6 @@
   "depends": {
     "fabricloader": ">=0.16.9",
     "fabric": "*",
-    "minecraft": "1.21.10"
+    "minecraft": ">=1.19 <=1.21.10"
   }
 }

@@ -14,6 +14,8 @@ public class StatusMod implements ModInitializer {
         storage = new SettingsStorage();
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             StatusCommand.register(dispatcher);
+            // register mod info command (website/issues)
+            com.teufel.statusmod.command.ModInfoCommand.register(dispatcher);
             SettingsCommand.register(dispatcher);
         });
         System.out.println("[StatusMod] initialized");
