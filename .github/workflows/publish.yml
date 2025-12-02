@@ -1,5 +1,4 @@
 name: Build and publish (build -> publish)
-name: Build and publish
 
 on:
   push:
@@ -28,7 +27,7 @@ jobs:
           java-version: '21'
 
       - name: Build
-        run: ./gradlew clean build writeVersion --no-daemon
+        run: ./gradlew clean build --no-daemon
 
       - name: Select runtime jar
         id: select_jar
@@ -72,4 +71,31 @@ jobs:
           files: build/libs/*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout `main` branch for version bump
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Update version.txt on successful publish
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Strip leading 'v' if present (tags like v1.2.3)
+          VERSION=${TAG_NAME#v}
+          echo "Writing version: $VERSION"
+          echo "$VERSION" > version.txt
+          # Commit only if file changed
+          if git diff --quiet --exit-code; then
+            echo "No changes to version.txt - not committing"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add version.txt
+            git commit -m "Bump version to $VERSION"
+            git push origin main
+          fi
 
