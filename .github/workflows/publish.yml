@@ -10,7 +10,39 @@ permissions:
   contents: write
 
 jobs:
+  create-tag:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version.txt and create tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION=$(cat version.txt | tr -d '\n\r')
+          TAG_NAME="v${VERSION}"
+          echo "Version from version.txt: $VERSION"
+          echo "Tag name: $TAG_NAME"
+          
+          # Check if tag already exists
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Tag $TAG_NAME already exists, skipping creation"
+            exit 0
+          fi
+          
+          # Create and push tag
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG_NAME"
+          git push origin "$TAG_NAME"
+
   build:
+    needs: create-tag
+    if: always()
     runs-on: ubuntu-latest
     outputs:
       artifact_path: ${{ steps.select_jar.outputs.jar }}
@@ -53,7 +85,7 @@ jobs:
 
   publish:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || (needs.create-tag.result == 'success' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -80,23 +112,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Update version.txt on successful publish
-        env:
-          TAG_NAME: ${{ github.ref_name }}
+      - name: Confirm version match
         run: |
           set -euo pipefail
-          # Strip leading 'v' if present (tags like v1.2.3)
+          TAG_NAME="${{ github.ref_name }}"
           VERSION=${TAG_NAME#v}
-          echo "Writing version: $VERSION"
-          echo "$VERSION" > version.txt
-          # Commit only if file changed
-          if git diff --quiet --exit-code; then
-            echo "No changes to version.txt - not committing"
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add version.txt
-            git commit -m "Bump version to $VERSION"
-            git push origin main
-          fi
+          echo "Release tag: $TAG_NAME (version: $VERSION)"
+          echo "Version.txt should be: $VERSION"
 
