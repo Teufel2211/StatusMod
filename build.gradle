@@ -53,6 +53,11 @@ processResources {
         // Use a mod id that matches the assets folder so the icon and assets are packaged correctly
         expand "version": project.version, "modid": "status-mod", "name": "Status Mod"
     }
+    // Also copy the mod icon to the jar root as `icon.png` so hosting platforms reliably detect it
+    from("src/main/resources/assets/status-mod/icon.png") {
+        into ""
+        rename { "icon.png" }
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {

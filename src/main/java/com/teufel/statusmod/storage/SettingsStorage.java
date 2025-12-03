@@ -26,7 +26,14 @@ public class SettingsStorage {
     }
 
     public synchronized PlayerSettings forPlayer(String uuid) {
-        return map.computeIfAbsent(uuid, k -> new PlayerSettings());
+        // If a player does not yet have settings, create defaults, persist them immediately
+        PlayerSettings s = map.get(uuid);
+        if (s == null) {
+            s = new PlayerSettings();
+            map.put(uuid, s);
+            save();
+        }
+        return s;
     }
 
     public synchronized void put(String uuid, PlayerSettings s) {
@@ -42,6 +49,19 @@ public class SettingsStorage {
             map = gson.fromJson(fr, t);
             if (map == null) map = new HashMap<>();
             fr.close();
+            // Migration: ensure fields have sensible defaults when older JSON is missing fields
+            boolean migrated = false;
+            for (Map.Entry<String, PlayerSettings> e : map.entrySet()) {
+                PlayerSettings ps = e.getValue();
+                if (ps == null) continue;
+                if (ps.statusWords <= 0) {
+                    ps.statusWords = 1;
+                    migrated = true;
+                }
+                if (ps.status == null) ps.status = "";
+                if (ps.color == null || ps.color.isEmpty()) ps.color = "reset";
+            }
+            if (migrated) save();
         } catch (Exception e) {
             e.printStackTrace();
         }

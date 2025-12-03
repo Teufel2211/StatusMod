@@ -8,8 +8,8 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.HoverEvent;
 
 public class ModInfoCommand {
-    private static final String WEBSITE = "https://example.com/your-mod-homepage";
-    private static final String ISSUES = "https://example.com/your-mod-issues";
+    private static final String WEBSITE = "https://github.com/Teufel2211/StatusMod";
+    private static final String ISSUES = "https://github.com/Teufel2211/StatusMod/issues";
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("modinfo")
