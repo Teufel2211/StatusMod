@@ -90,7 +90,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: statusmod-jar
-          path: ${{ steps.build_select_jar.outputs.jar }}
+          path: |
+            ${{ steps.build_select_jar.outputs.jar }}
+            build/version.txt
 
   publish:
     needs: build
