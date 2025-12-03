@@ -139,14 +139,23 @@ public class StatusCommand {
             net.minecraft.server.ServerScoreboard scoreboard = server.getScoreboard();
             String teamName = "status_" + uuid.substring(0, 8);
             PlayerTeam team = scoreboard.getPlayerTeam(teamName);
-            if (team != null) {
-                String playerName = player.getScoreboardName();
-                scoreboard.removePlayerFromTeam(playerName, team);
-                // optionally remove team entirely if empty
-                if (team.getPlayers().isEmpty()) {
-                    scoreboard.removePlayerTeam(team);
-                }
+            String playerName = player.getScoreboardName();
+            // Instead of removing the player/team (which can change spacing in the UI),
+            // keep the team and set an empty-but-spacing prefix/suffix so spacing remains stable.
+            if (team == null) {
+                team = scoreboard.addPlayerTeam(teamName);
             }
+            // ensure a single separating space remains where the status would be
+            if (settings.beforeName) {
+                team.setPlayerPrefix(net.minecraft.network.chat.Component.literal(" "));
+                team.setPlayerSuffix(net.minecraft.network.chat.Component.empty());
+            } else {
+                team.setPlayerPrefix(net.minecraft.network.chat.Component.empty());
+                team.setPlayerSuffix(net.minecraft.network.chat.Component.literal(" "));
+            }
+            // (re)add the player to the team so the empty spacing is applied immediately
+            scoreboard.removePlayerFromTeam(playerName, team); // safe no-op if not present
+            scoreboard.addPlayerToTeam(playerName, team);
 
             src.sendSuccess(() -> Component.literal("Status gelöscht."), false);
         } catch (Exception e) {
