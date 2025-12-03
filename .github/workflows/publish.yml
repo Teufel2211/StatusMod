@@ -120,15 +120,48 @@ jobs:
         id: select_jar
         run: |
           set -euo pipefail
-          # enforce explicit runtime jar names using the built version
-          if [ -f build/version.txt ]; then
-            VERSION=$(cat build/version.txt | tr -d '\n')
-          else
-            echo "No build/version.txt found in artifact — cannot determine version to enforce filename." >&2
-            echo "Available jars:" >&2
+          # Try multiple possible locations for the version file (artifact may unpack to different paths)
+          VERSION_FILE_CANDIDATES=( 
+            "build/version.txt" 
+            "version.txt" 
+            "build/libs/version.txt" 
+            "build/libs/build/version.txt" 
+            "build/version/version.txt" 
+          )
+          VERSION=""
+          for f in "${VERSION_FILE_CANDIDATES[@]}"; do
+            if [ -f "$f" ]; then
+              VERSION=$(cat "$f" | tr -d '\n')
+              echo "Found version file: $f -> $VERSION"
+              break
+            fi
+          done
+
+          # If still empty, try to infer from available jars in build/libs
+          if [ -z "$VERSION" ]; then
+            echo "No version file found in expected locations; attempting to infer version from JAR filename."
+            # find the first non-sources jar in build/libs
+            if ls build/libs/*.jar >/dev/null 2>&1; then
+              # prefer jars named statusmod-<version>.jar or status-mod-<version>.jar
+              foundJar=$(ls build/libs/*.jar | grep -v '\-sources\.jar' | head -n1 || true)
+              if [ -n "$foundJar" ]; then
+                basename=$(basename "$foundJar")
+                # extract the last '-' separated token before .jar as version
+                candidate=${basename%.jar}
+                VERSION=${candidate##*-}
+                echo "Inferred version from JAR '$basename' -> $VERSION"
+              fi
+            fi
+          fi
+
+          if [ -z "$VERSION" ]; then
+            echo "Failed to determine version (no version file and no jar to infer from)." >&2
+            echo "Available files under build/libs:" >&2
             ls -la build/libs || true
             exit 1
           fi
+
+          # Prefer explicit filenames but fall back to first runtime jar if those are missing
           JAR1="build/libs/statusmod-${VERSION}.jar"
           JAR2="build/libs/status-mod-${VERSION}.jar"
           if [ -f "$JAR1" ]; then
@@ -136,10 +169,13 @@ jobs:
           elif [ -f "$JAR2" ]; then
             JAR="$JAR2"
           else
-            echo "No runtime JAR matching statusmod-${VERSION}.jar or status-mod-${VERSION}.jar found in build/libs." >&2
-            echo "Available jars:" >&2
-            ls -la build/libs || true
-            exit 1
+            echo "No runtime JAR matching statusmod-${VERSION}.jar or status-mod-${VERSION}.jar found; falling back to first runtime jar in build/libs"
+            JAR=$(ls build/libs/*.jar | grep -v '\-sources\.jar' | head -n1 || true)
+            if [ -z "$JAR" ]; then
+              echo "No runtime jars found in build/libs" >&2
+              ls -la build/libs || true
+              exit 1
+            fi
           fi
           echo "Found runtime jar: $JAR"
           echo "jar=$JAR" >> "$GITHUB_OUTPUT"
