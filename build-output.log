@@ -1,0 +1,67 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.14/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :
+Fabric Loom: 1.11.7
+"Lock for cache='C:\Users\Steven\.gradle\caches\fabric-loom', project=':'" is currently held by pid '21088'.
+Run with --info or --debug to show arguments, may reveal sensitive info
+- pid: 21088
+- command: C:\Program Files\Eclipse Adoptium\jdk-21.0.9.10-hotspot\bin\java.exe
+- started at: 2026-01-02T11:11:55.533Z
+- user: PC-STEVEN\Steven
+- parent:
+	- pid: 20324
+	- command: C:\Users\Steven\.vscode\extensions\redhat.java-1.50.0-win32-x64\jre\21.0.9-win32-x86_64\bin\java.exe
+	- started at: 2026-01-02T11:11:41.831Z
+	- user: PC-STEVEN\Steven
+	- parent:
+		- pid: 18236
+		- command: C:\Windows\System32\cmd.exe
+		- started at: 2026-01-02T11:11:41.792Z
+		- user: PC-STEVEN\Steven
+		- parent:
+			- pid: 12504
+			- command: C:\Users\Steven\AppData\Local\Programs\Microsoft VS Code\Code.exe
+			- started at: 2026-01-02T11:11:38.886Z
+			- user: PC-STEVEN\Steven
+			- parent:
+				- title: 'SettingsCommand.java - StatusMod - Visual Studio Code'
+				- pid: 10988
+				- command: C:\Users\Steven\AppData\Local\Programs\Microsoft VS Code\Code.exe
+				- started at: 2026-01-02T11:10:54.031Z
+				- user: PC-STEVEN\Steven
+				- parent:
+					- pid: 6064
+					- command: C:\Windows\explorer.exe
+					- started at: 2026-01-02T11:04:05.861Z
+					- user: PC-STEVEN\Steven
+Waiting for lock to be released...
+
+> Task :clean
+> Task :compileJava
+> Task :processResources
+> Task :classes
+> Task :jar
+> Task :compileTestJava NO-SOURCE
+> Task :processIncludeJars
+> Task :sourcesJar
+> Task :processTestResources NO-SOURCE
+> Task :testClasses UP-TO-DATE
+> Task :test NO-SOURCE
+> Task :validateAccessWidener NO-SOURCE
+> Task :check UP-TO-DATE
+> Task :remapJar
+> Task :remapSourcesJar
+> Task :assemble
+> Task :build
+
+[Incubating] Problems report is available at: file:///C:/Users/Steven/Desktop/StatusMod/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 23s
+8 actionable tasks: 8 executed

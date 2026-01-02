@@ -10,13 +10,24 @@ import net.minecraft.network.chat.Component;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 
 public class SettingsCommand {
+    private static final SuggestionProvider<CommandSourceStack> POSITION_SUGGESTIONS = (context, builder) -> {
+        return SharedSuggestionProvider.suggest(new String[]{"before", "vor", "vorn", "after"}, builder);
+    };
+    
+    private static final SuggestionProvider<CommandSourceStack> BRACKETS_SUGGESTIONS = (context, builder) -> {
+        return SharedSuggestionProvider.suggest(new String[]{"on", "off", "true", "false", "ein", "an", "aus"}, builder);
+    };
+
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
     dispatcher.register(Commands.literal("settings")
         .then(Commands.literal("brackets")
             .then(Commands.argument("value", StringArgumentType.word())
+                .suggests(BRACKETS_SUGGESTIONS)
                 .executes(ctx -> {
                     ServerPlayer p = ctx.getSource().getPlayer();
                     String v = StringArgumentType.getString(ctx, "value");
@@ -28,6 +39,7 @@ public class SettingsCommand {
         )
         .then(Commands.literal("position")
             .then(Commands.argument("value", StringArgumentType.word())
+                .suggests(POSITION_SUGGESTIONS)
                 .executes(ctx -> {
                                 ServerPlayer p = ctx.getSource().getPlayer();
                     String v = StringArgumentType.getString(ctx, "value");
