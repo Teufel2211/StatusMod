@@ -17,7 +17,7 @@ if (-not (Test-Path $configFile)) {
     Write-Host "❌ Fehler: $configFile nicht gefunden!" -ForegroundColor Red
     Write-Host ""
     Write-Host "Verfügbare Versionen:" -ForegroundColor Yellow
-    Get-ChildItem gradle.properties.* | ForEach-Object {
+    Get-ChildItem gradle.properties.1.* | ForEach-Object {
         $v = $_.Name -replace "gradle.properties\.", ""
         Write-Host "  - $v"
     }

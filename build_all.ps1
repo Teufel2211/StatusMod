@@ -6,12 +6,18 @@ Write-Host "🔨 StatusMod Multi-Version Builder" -ForegroundColor Cyan
 Write-Host "===================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Finde alle gradle.properties.<version> Dateien
+# Finde alle gradle.properties.<version> Dateien und sortiere sie
 $versions = @()
-Get-ChildItem gradle.properties.* | ForEach-Object {
+Get-ChildItem gradle.properties.1.* | ForEach-Object {
     $v = $_.Name -replace "gradle.properties\.", ""
     $versions += $v
 }
+
+# Sortiere Versionen in korrekter Reihenfolge (neueste zuerst)
+$versions = $versions | Sort-Object { 
+    $parts = $_ -split '\.'
+    [int]$parts[0] * 1000000 + [int]$parts[1] * 1000 + ([int]$parts[2] -as [object])
+} -Descending
 
 if ($versions.Count -eq 0) {
     Write-Host "❌ Keine Versionsdateien gefunden!" -ForegroundColor Red
@@ -57,6 +63,6 @@ if ($failedVersions.Count -gt 0) {
 
 Write-Host ""
 Write-Host "JAR-Dateien in build/libs/:" -ForegroundColor Cyan
-Get-ChildItem "build/libs/statusmod-*.jar" | Where-Object { $_ -notmatch "sources" } | ForEach-Object {
+Get-ChildItem "build/libs/statusmod-*.jar" | Where-Object { $_ -notmatch "sources" } | Sort-Object Name -Descending | ForEach-Object {
     Write-Host "  ✓ $($_.Name)" -ForegroundColor Green
 }
