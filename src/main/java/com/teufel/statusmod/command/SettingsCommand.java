@@ -63,7 +63,7 @@ public class SettingsCommand {
     }
 
     private static void toggleBrackets(ServerPlayer p, boolean value) {
-    String uuid = p.nameAndId().id().toString();
+    String uuid = p.getUUID().toString();
         PlayerSettings s = StatusMod.storage.forPlayer(uuid);
         s.brackets = value;
         StatusMod.storage.put(uuid, s);
@@ -72,7 +72,7 @@ public class SettingsCommand {
     }
 
     private static void setPosition(ServerPlayer p, boolean before) {
-    String uuid = p.nameAndId().id().toString();
+    String uuid = p.getUUID().toString();
         PlayerSettings s = StatusMod.storage.forPlayer(uuid);
         s.beforeName = before;
         StatusMod.storage.put(uuid, s);
@@ -81,7 +81,7 @@ public class SettingsCommand {
     }
 
     private static void setWords(ServerPlayer p, int words) {
-    String uuid = p.nameAndId().id().toString();
+    String uuid = p.getUUID().toString();
         PlayerSettings s = StatusMod.storage.forPlayer(uuid);
         s.statusWords = Math.max(1, words);
         StatusMod.storage.put(uuid, s);
@@ -93,7 +93,7 @@ public class SettingsCommand {
         try {
             MinecraftServer server = p.level().getServer();
             net.minecraft.server.ServerScoreboard scoreboard = server.getScoreboard();
-            String teamName = "status_" + p.nameAndId().id().toString().substring(0, 8);
+            String teamName = "status_" + p.getUUID().toString().substring(0, 8);
             net.minecraft.world.scores.PlayerTeam team = scoreboard.getPlayerTeam(teamName);
             if (team == null) team = scoreboard.addPlayerTeam(teamName);
 

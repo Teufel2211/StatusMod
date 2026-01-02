@@ -48,7 +48,7 @@ public class StatusCommand {
     private static void setStatus(CommandSourceStack src, String status, String colorKey) {
         try {
             ServerPlayer player = src.getPlayer();
-            String uuid = player.nameAndId().id().toString();
+            String uuid = player.getUUID().toString();
 
             PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
             // Determine parsing based on player's configured status word count
@@ -128,7 +128,7 @@ public class StatusCommand {
     private static void clearStatus(CommandSourceStack src) {
         try {
             ServerPlayer player = src.getPlayer();
-            String uuid = player.nameAndId().id().toString();
+            String uuid = player.getUUID().toString();
 
             PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
             settings.status = "";
