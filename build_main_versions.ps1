@@ -3,13 +3,12 @@
 
 $versions = @(
     @{ mc = "1.21.10"; yarn = "1.21.10+build.1"; api = "0.136.0+1.21.10" },
-    @{ mc = "1.21"; yarn = "1.21+build.1"; api = "0.126.0+1.21" },
     @{ mc = "1.20.4"; yarn = "1.20.4+build.1"; api = "0.100.0+1.20.4" },
     @{ mc = "1.20.1"; yarn = "1.20.1+build.1"; api = "0.92.2+1.20.1" },
     @{ mc = "1.19.4"; yarn = "1.19.4+build.1"; api = "0.90.7+1.19.4" }
 )
 
-Write-Host "Building StatusMod for 5 main versions`n"
+Write-Host "Building StatusMod for 4 main versions`n"
 
 foreach ($v in $versions) {
     Write-Host "Building for $($v.mc)..." -ForegroundColor Yellow

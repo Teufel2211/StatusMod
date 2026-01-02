@@ -1,0 +1,204 @@
+name: Build and Publish Multi-Version
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-all-versions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build all Minecraft versions
+        run: |
+          # Define versions to build
+          versions=(
+            "1.21.10:1.21.10+build.1:0.136.0+1.21.10"
+            "1.21.9:1.21.9+build.1:0.136.0+1.21.9"
+            "1.21.8:1.21.8+build.1:0.135.0+1.21.8"
+            "1.21.7:1.21.7+build.1:0.134.0+1.21.7"
+            "1.21.6:1.21.6+build.1:0.134.0+1.21.6"
+            "1.21.5:1.21.5+build.1:0.134.0+1.21.5"
+            "1.21.4:1.21.4+build.1:0.132.0+1.21.4"
+            "1.21.3:1.21.3+build.1:0.132.0+1.21.3"
+            "1.21.2:1.21.2+build.1:0.132.0+1.21.2"
+            "1.21.1:1.21.1+build.1:0.132.0+1.21.1"
+            "1.20.6:1.20.6+build.1:0.100.0+1.20.6"
+            "1.20.5:1.20.5+build.1:0.100.0+1.20.5"
+            "1.20.4:1.20.4+build.1:0.100.0+1.20.4"
+            "1.20.3:1.20.3+build.1:0.100.0+1.20.3"
+            "1.20.2:1.20.2+build.1:0.92.0+1.20.2"
+            "1.20.1:1.20.1+build.1:0.92.2+1.20.1"
+            "1.19.4:1.19.4+build.1:0.90.7+1.19.4"
+            "1.19.3:1.19.3+build.1:0.82.2+1.19.3"
+            "1.19.2:1.19.2+build.1:0.80.0+1.19.2"
+            "1.19:1.19+build.1:0.76.0+1.19"
+          )
+          
+          for version_info in "${versions[@]}"; do
+            IFS=':' read -r mc_version yarn_version fabric_api_version <<< "$version_info"
+            echo "================================"
+            echo "Building for Minecraft $mc_version"
+            echo "================================"
+            
+            # Update gradle.properties
+            cat > gradle.properties <<EOF
+          minecraft_version=$mc_version
+          yarn_mappings=$yarn_version
+          loader_version=0.16.9
+          fabric_api_version=$fabric_api_version
+          org.gradle.java.home=$JAVA_HOME
+          EOF
+            
+            # Build
+            if ./gradlew clean build --no-daemon 2>&1 | grep -E "(BUILD SUCCESS|BUILD FAILED)"; then
+              # Copy JAR with version name
+              if [ -f "build/libs/statusmod-*.jar" ] && [ ! -f "build/libs/statusmod-*-sources.jar" ]; then
+                cp build/libs/statusmod-*.jar "build/libs/statusmod-$mc_version.jar" 2>/dev/null || true
+              fi
+            else
+              echo "Failed to build for $mc_version"
+            fi
+          done
+          
+          # Restore latest version
+          cat > gradle.properties <<EOF
+          minecraft_version=1.21.10
+          yarn_mappings=1.21.10+build.1
+          loader_version=0.16.9
+          fabric_api_version=0.136.0+1.21.10
+          org.gradle.java.home=$JAVA_HOME
+          EOF
+
+      - name: Write version info
+        run: |
+          echo "1.0.24" > build/version.txt
+
+      - name: Upload all JARs as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: statusmod-jars
+          path: build/libs/statusmod-*.jar
+          if-no-files-found: warn
+
+  publish-to-modrinth:
+    needs: build-all-versions
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download JARs
+        uses: actions/download-artifact@v4
+        with:
+          name: statusmod-jars
+          path: build/libs
+
+      - name: Publish to Modrinth using mc-publish
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
+          
+          files: |
+            build/libs/statusmod-*.jar
+          
+          loaders: fabric
+          game-versions: |
+            1.21.10
+            1.21.9
+            1.21.8
+            1.21.7
+            1.21.6
+            1.21.5
+            1.21.4
+            1.21.3
+            1.21.2
+            1.21.1
+            1.20.6
+            1.20.5
+            1.20.4
+            1.20.3
+            1.20.2
+            1.20.1
+            1.19.4
+            1.19.3
+            1.19.2
+            1.19
+          
+          name: StatusMod ${{ github.ref_name }}
+          version: ${{ github.ref_name }}
+          version-type: release
+          changelog-file: CHANGELOG.md
+
+  publish-to-curseforge:
+    needs: build-all-versions
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download JARs
+        uses: actions/download-artifact@v4
+        with:
+          name: statusmod-jars
+          path: build/libs
+
+      - name: Publish to CurseForge using mc-publish
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          
+          files: |
+            build/libs/statusmod-*.jar
+          
+          loaders: fabric
+          game-versions: |
+            1.21.10
+            1.21.9
+            1.21.8
+            1.21.7
+            1.21.6
+            1.21.5
+            1.21.4
+            1.21.3
+            1.21.2
+            1.21.1
+            1.20.6
+            1.20.5
+            1.20.4
+            1.20.3
+            1.20.2
+            1.20.1
+            1.19.4
+            1.19.3
+            1.19.2
+            1.19
+          
+          name: StatusMod ${{ github.ref_name }}
+          version: ${{ github.ref_name }}
+          version-type: release
+          changelog-file: CHANGELOG.md
