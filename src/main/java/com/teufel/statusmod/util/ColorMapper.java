@@ -1,6 +1,7 @@
 package com.teufel.statusmod.util;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.TextColor;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -40,5 +41,51 @@ public class ColorMapper {
         if (key == null) return ChatFormatting.RESET;
         String k = key.toLowerCase(Locale.ROOT).replace(" ", "_");
         return map.getOrDefault(k, ChatFormatting.RESET);
+    }
+
+    /**
+     * Parse a hex color code (#RRGGBB or #RGB) and return as TextColor.
+     * Returns null if invalid format.
+     */
+    public static TextColor parseHexColor(String hex) {
+        if (hex == null || !hex.startsWith("#")) {
+            return null;
+        }
+        
+        String colorCode = hex.substring(1).toUpperCase();
+        
+        try {
+            if (colorCode.length() == 6) {
+                // #RRGGBB format
+                int rgb = Integer.parseInt(colorCode, 16);
+                return TextColor.fromRgb(rgb);
+            } else if (colorCode.length() == 3) {
+                // #RGB format - expand to #RRGGBB
+                String expanded = "";
+                for (char c : colorCode.toCharArray()) {
+                    expanded += c + "" + c;
+                }
+                int rgb = Integer.parseInt(expanded, 16);
+                return TextColor.fromRgb(rgb);
+            }
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        
+        return null;
+    }
+
+    /**
+     * Check if a string is a valid hex color code.
+     */
+    public static boolean isValidHexColor(String hex) {
+        return parseHexColor(hex) != null;
+    }
+
+    /**
+     * Return a copy of all known color keys (for command suggestions).
+     */
+    public static java.util.Set<String> keys() {
+        return new java.util.HashSet<>(map.keySet());
     }
 }

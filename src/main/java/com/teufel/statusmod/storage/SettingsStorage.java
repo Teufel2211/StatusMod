@@ -30,6 +30,13 @@ public class SettingsStorage {
         PlayerSettings s = map.get(uuid);
         if (s == null) {
             s = new PlayerSettings();
+            // apply configurable defaults if available
+            try {
+                if (com.teufel.statusmod.StatusMod.config != null &&
+                        com.teufel.statusmod.StatusMod.config.defaultColor != null) {
+                    s.color = com.teufel.statusmod.StatusMod.config.defaultColor;
+                }
+            } catch (Exception ignored) {}
             map.put(uuid, s);
             save();
         }
@@ -51,7 +58,7 @@ public class SettingsStorage {
             fr.close();
             // Migration: ensure fields have sensible defaults when older JSON is missing fields
             boolean migrated = false;
-            for (Map.Entry<String, PlayerSettings> e : map.entrySet()) {
+                for (Map.Entry<String, PlayerSettings> e : map.entrySet()) {
                 PlayerSettings ps = e.getValue();
                 if (ps == null) continue;
                 if (ps.statusWords <= 0) {
@@ -59,7 +66,16 @@ public class SettingsStorage {
                     migrated = true;
                 }
                 if (ps.status == null) ps.status = "";
-                if (ps.color == null || ps.color.isEmpty()) ps.color = "reset";
+                if (ps.color == null || ps.color.isEmpty()) {
+                    try {
+                        ps.color = (com.teufel.statusmod.StatusMod.config != null &&
+                                com.teufel.statusmod.StatusMod.config.defaultColor != null)
+                                ? com.teufel.statusmod.StatusMod.config.defaultColor
+                                : "reset";
+                    } catch (Exception ignored) {
+                        ps.color = "reset";
+                    }
+                }
             }
             if (migrated) save();
         } catch (Exception e) {
