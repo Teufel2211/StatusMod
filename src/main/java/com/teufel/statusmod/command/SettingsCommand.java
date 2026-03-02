@@ -108,7 +108,17 @@ public class SettingsCommand {
                 team.setPlayerPrefix(net.minecraft.network.chat.Component.empty());
                 team.setPlayerSuffix(net.minecraft.network.chat.Component.literal(" ").append(colored));
             }
-            scoreboard.addPlayerToTeam(p.getScoreboardName(), team);
+            // mimic login handler: move player if they're on a different team already
+            String playerName = p.getScoreboardName();
+            net.minecraft.world.scores.PlayerTeam existing = scoreboard.getPlayerTeam(playerName);
+            if (existing != null && existing != team) {
+                try {
+                    scoreboard.removePlayerFromTeam(playerName, existing);
+                } catch (IllegalStateException ignore) {}
+            }
+            if (existing != team) {
+                scoreboard.addPlayerToTeam(playerName, team);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }

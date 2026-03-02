@@ -47,7 +47,14 @@ public class PermissionUtil {
         if (player != null && luckypermsAvailable && luckypermsApi != null) {
             // if LP says yes, allow; otherwise fall back to operator permission
             boolean lpAllowed = checkLuckyPermsPermission(player, StatusMod.config.statusPermissionNode);
+            if (!lpAllowed && !op) {
+                System.out.println("[StatusMod][perm] status denied for " + player.getScoreboardName() + ", op=" + op + ", lp=false");
+            }
             return lpAllowed || op;
+        }
+        if (!op) {
+            if (player != null) System.out.println("[StatusMod][perm] status denied for " + player.getScoreboardName() + ", no LP, op=" + op);
+            else System.out.println("[StatusMod][perm] status denied for non-player source, op=" + op);
         }
         // if LP isn't available just use operator/fallback check
         return op;
@@ -64,7 +71,14 @@ public class PermissionUtil {
         if (player != null && luckypermsAvailable && luckypermsApi != null) {
             // allow either the LP node or operator status
             boolean lpAllowed = checkLuckyPermsPermission(player, StatusMod.config.adminPermissionNode);
+            if (!lpAllowed && !op) {
+                System.out.println("[StatusMod][perm] admin denied for " + player.getScoreboardName() + ", op=" + op + ", lp=false");
+            }
             return lpAllowed || op;
+        }
+        if (!op) {
+            if (player != null) System.out.println("[StatusMod][perm] admin denied for " + player.getScoreboardName() + ", no LP, op=" + op);
+            else System.out.println("[StatusMod][perm] admin denied for non-player source, op=" + op);
         }
         // Fallback: if no LP present just use operator check
         return op;
