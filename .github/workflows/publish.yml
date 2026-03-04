@@ -189,8 +189,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cd "$(dirname "${{ steps.assets.outputs.jar }}")"
-          sha256sum -c "$(basename "${{ steps.assets.outputs.sha }}")"
+          JAR="${{ steps.assets.outputs.jar }}"
+          SHA_FILE="${{ steps.assets.outputs.sha }}"
+          EXPECTED="$(awk '{print $1}' "$SHA_FILE" | tr -d '\r\n')"
+          ACTUAL="$(sha256sum "$JAR" | awk '{print $1}' | tr -d '\r\n')"
+          if [ -z "$EXPECTED" ] || [ -z "$ACTUAL" ]; then
+            echo "Checksum validation failed: missing hash values." >&2
+            exit 1
+          fi
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "Checksum mismatch for $JAR" >&2
+            echo "expected=$EXPECTED" >&2
+            echo "actual=$ACTUAL" >&2
+            exit 1
+          fi
+          echo "Checksum OK for $JAR"
 
       - name: Resolve publish options
         id: options
