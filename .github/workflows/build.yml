@@ -6,8 +6,13 @@
 name: build
 on: [pull_request, push]
 
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
+    timeout-minutes: 30
     runs-on: ubuntu-24.04
     steps:
       - name: checkout repository
@@ -21,9 +26,23 @@ jobs:
           distribution: 'microsoft'
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
-      - name: build
-        run: ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" build
+      - name: build with retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "Build attempt ${attempt}/3"
+            if ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" build; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "Build failed after retries." >&2
+              exit 1
+            fi
+            sleep $((attempt * 5))
+          done
       - name: capture build artifacts
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Artifacts

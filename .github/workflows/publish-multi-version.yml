@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   build-all-versions:
+    timeout-minutes: 180
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -32,6 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           cp gradle.properties gradle.properties.bak
+          trap 'if [ -f gradle.properties.bak ]; then mv -f gradle.properties.bak gradle.properties; fi' EXIT
 
           # Define versions to build
           versions=(
@@ -57,6 +59,8 @@ jobs:
             "1.19:1.19+build.1:0.76.0+1.19"
           )
           
+          failed_versions=()
+          built_versions=()
           for version_info in "${versions[@]}"; do
             IFS=':' read -r mc_version yarn_version fabric_api_version <<< "$version_info"
             echo "================================"
@@ -72,21 +76,44 @@ jobs:
           org.gradle.java.home=$JAVA_HOME
           EOF
             
-            # Build
-            if ./gradlew clean build --no-daemon; then
+            # Build with retry
+            built_ok=0
+            for attempt in 1 2; do
+              echo "Build attempt ${attempt}/2 for ${mc_version}"
+              if ./gradlew clean build --no-daemon; then
+                built_ok=1
+                break
+              fi
+              sleep $((attempt * 8))
+            done
+
+            if [ "$built_ok" -eq 1 ]; then
               jar_path="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' | sort | head -n1 || true)"
               if [ -n "$jar_path" ]; then
                 cp "$jar_path" "build/libs/statusmod-$mc_version.jar"
+                built_versions+=("$mc_version")
               else
                 echo "No runtime JAR found for $mc_version"
+                failed_versions+=("$mc_version")
               fi
             else
               echo "Failed to build for $mc_version"
+              failed_versions+=("$mc_version")
             fi
           done
-          
-          # Restore original build configuration
-          mv gradle.properties.bak gradle.properties
+
+          # Restore original build configuration explicitly before trap exits
+          mv -f gradle.properties.bak gradle.properties
+          trap - EXIT
+
+          echo "Built versions: ${built_versions[*]:-none}"
+          if [ "${#failed_versions[@]}" -gt 0 ]; then
+            echo "Failed versions: ${failed_versions[*]}"
+          fi
+          if [ "${#built_versions[@]}" -eq 0 ]; then
+            echo "No versions built successfully." >&2
+            exit 1
+          fi
 
       - name: Write version info
         run: |
@@ -101,6 +128,7 @@ jobs:
 
   publish-to-modrinth:
     needs: build-all-versions
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     steps:
@@ -152,6 +180,7 @@ jobs:
 
   publish-to-curseforge:
     needs: build-all-versions
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     steps:
