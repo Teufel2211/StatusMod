@@ -7,7 +7,6 @@ import com.teufel.statusmod.util.ColorMapper;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import net.fabricmc.fabric.api.command.v2.ArgumentTypeRegistry;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import com.teufel.statusmod.util.PermissionUtil;
@@ -44,8 +43,7 @@ public class StatusCommand {
                         .executes(ctx -> {
                             CommandSourceStack src = ctx.getSource();
                             String status = StringArgumentType.getString(ctx, "status");
-                            // use default color from config when none supplied
-                            setStatus(src, status, StatusMod.config.defaultColor);
+                            setStatus(src, status, null);
                             return 1;
                         })
                 );
@@ -91,7 +89,7 @@ public class StatusCommand {
                                     }
                                     ServerPlayer player = net.minecraft.commands.arguments.EntityArgument.getPlayer(ctx, "player");
                                     String status = StringArgumentType.getString(ctx, "status");
-                                    adminSetStatus(src, player.getScoreboardName(), status, "reset");
+                                    adminSetStatus(src, player.getScoreboardName(), status, null);
                                     return 1;
                                     })
                                 )
@@ -159,6 +157,7 @@ public class StatusCommand {
                     src.sendSuccess(() -> Component.literal(" adminPermissionNode = " + c.adminPermissionNode), false);
                     src.sendSuccess(() -> Component.literal(" enableAdminOverrides = " + c.enableAdminOverrides), false);
                     src.sendSuccess(() -> Component.literal(" defaultColor = " + c.defaultColor), false);
+                    src.sendSuccess(() -> Component.literal(" statusReapplyTicks = " + c.statusReapplyTicks), false);
                     return 1;
                 })
             )
@@ -181,36 +180,32 @@ public class StatusCommand {
             PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
             // Determine parsing based on player's configured status word count
             int n = settings.statusWords <= 0 ? 1 : settings.statusWords;
+            String[] tokens = status == null ? new String[0] : status.trim().split("\\s+");
+            if (tokens.length < n) {
+                src.sendFailure(Component.literal("Bitte mindestens " + n + " Wörter für den Status angeben."));
+                return;
+            }
 
-            // If caller didn't supply an explicit color argument (uses default "reset"),
-            // try to parse the color as the token after the configured number of words.
-            if (colorKey == null || "reset".equalsIgnoreCase(colorKey)) {
-                String[] tokens = status == null ? new String[0] : status.trim().split("\\s+");
-                if (tokens.length < n) {
-                    src.sendFailure(Component.literal("Bitte mindestens " + n + " Wörter für den Status angeben."));
-                    return;
-                }
+            // Always normalize to exactly the configured status word-count.
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < n; i++) {
+                if (i > 0) sb.append(' ');
+                sb.append(tokens[i]);
+            }
+            status = sb.toString();
+
+            // If no explicit color argument exists, accept an inline color token
+            // directly after the configured status words.
+            if (colorKey == null || colorKey.isEmpty()) {
                 if (tokens.length > n) {
-                    // next token after the n status words is treated as the color key
                     colorKey = tokens[n];
                 } else {
-                    colorKey = "reset";
+                    colorKey = (StatusMod.config != null && StatusMod.config.defaultColor != null && !StatusMod.config.defaultColor.isEmpty())
+                            ? StatusMod.config.defaultColor
+                            : "reset";
                 }
-                // rebuild status from the first n tokens to ensure consistent spacing
-                StringBuilder sb = new StringBuilder();
-                for (int i = 0; i < n; i++) {
-                    if (i > 0) sb.append(' ');
-                    sb.append(tokens[i]);
-                }
-                status = sb.toString();
             } else {
-                // explicit color argument provided: ensure there are at least n words
-                String[] tokens = status == null ? new String[0] : status.trim().split("\\s+");
-                if (tokens.length < n) {
-                    src.sendFailure(Component.literal("Bitte mindestens " + n + " Wörter für den Status angeben."));
-                    return;
-                }
-                // keep the full status as-is when color is provided separately
+                colorKey = colorKey.trim();
             }
 
             settings.status = status;
@@ -227,7 +222,6 @@ public class StatusCommand {
             PlayerTeam team = scoreboard.getPlayerTeam(teamName);
             if (team == null) team = scoreboard.addPlayerTeam(teamName);
 
-            ChatFormatting f = ColorMapper.get(finalColor);
             Component base = Component.literal((settings.brackets ? "[" : "") + finalStatus + (settings.brackets ? "]" : ""));
             Component colored = applyColor(base, finalColor);
 
@@ -337,6 +331,32 @@ public class StatusCommand {
 
             String uuid = target.getUUID().toString();
             PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
+            int n = settings.statusWords <= 0 ? 1 : settings.statusWords;
+            String[] tokens = status == null ? new String[0] : status.trim().split("\\s+");
+            if (tokens.length < n) {
+                src.sendFailure(Component.literal("Bitte mindestens " + n + " Wörter für den Status angeben."));
+                return;
+            }
+
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < n; i++) {
+                if (i > 0) sb.append(' ');
+                sb.append(tokens[i]);
+            }
+            status = sb.toString();
+
+            if (colorKey == null || colorKey.isEmpty()) {
+                if (tokens.length > n) {
+                    colorKey = tokens[n];
+                } else {
+                    colorKey = (StatusMod.config != null && StatusMod.config.defaultColor != null && !StatusMod.config.defaultColor.isEmpty())
+                            ? StatusMod.config.defaultColor
+                            : "reset";
+                }
+            } else {
+                colorKey = colorKey.trim();
+            }
+
             settings.status = status;
             settings.color = colorKey;
             StatusMod.storage.put(uuid, settings);
@@ -367,7 +387,9 @@ public class StatusCommand {
                 scoreboard.addPlayerToTeam(playerName, team);
             }
 
-            src.sendSuccess(() -> Component.literal("Status von " + targetName + " gesetzt: " + status + " (" + colorKey + ")"), false);
+            final String finalStatus = status;
+            final String finalColor = colorKey;
+            src.sendSuccess(() -> Component.literal("Status von " + targetName + " gesetzt: " + finalStatus + " (" + finalColor + ")"), false);
             target.displayClientMessage(Component.literal("Dein Status wurde von einem Administrator gesetzt."), false);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Setzen des Status für '" + targetName + "'.")); } catch (Exception ignore) {}

@@ -3,8 +3,11 @@ package com.teufel.statusmod.storage;
 import com.google.gson.Gson;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.Reader;
+import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 /**
  * Global configuration for the StatusMod.  Server administrators can edit
@@ -40,7 +43,15 @@ public class ModConfig {
      */
     public String defaultColor = "reset";
 
+    /**
+     * Reapply interval for scoreboard status, in server ticks.
+     * 20 ticks = 1 second.
+     */
+    public int statusReapplyTicks = 100;
+
     private static final Gson GSON = new Gson();
+    private static final int MIN_REAPPLY_TICKS = 20;
+    private static final int MAX_REAPPLY_TICKS = 20 * 300;
 
     public static ModConfig load() {
         try {
@@ -49,20 +60,25 @@ public class ModConfig {
             File f = new File(configDir, "config.json");
             if (!f.exists()) {
                 ModConfig cfg = new ModConfig();
+                cfg.normalize();
                 cfg.save();
                 return cfg;
             }
-            FileReader reader = new FileReader(f);
-            ModConfig cfg = GSON.fromJson(reader, ModConfig.class);
-            reader.close();
+            ModConfig cfg;
+            try (Reader reader = Files.newBufferedReader(f.toPath())) {
+                cfg = GSON.fromJson(reader, ModConfig.class);
+            }
             if (cfg == null) {
                 cfg = new ModConfig();
             }
+            cfg.normalize();
             return cfg;
         } catch (Exception e) {
             System.err.println("[StatusMod] Failed to load config, using defaults");
             e.printStackTrace();
-            return new ModConfig();
+            ModConfig cfg = new ModConfig();
+            cfg.normalize();
+            return cfg;
         }
     }
 
@@ -70,13 +86,49 @@ public class ModConfig {
         try {
             File configDir = new File("config/statusmod");
             configDir.mkdirs();
+            normalize();
             File f = new File(configDir, "config.json");
-            FileWriter writer = new FileWriter(f);
-            GSON.toJson(this, writer);
-            writer.close();
+            Path target = f.toPath();
+            Path tmp = target.resolveSibling(target.getFileName().toString() + ".tmp");
+
+            try (Writer writer = Files.newBufferedWriter(tmp)) {
+                GSON.toJson(this, writer);
+            }
+
+            try {
+                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (Exception ignored) {
+                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (Exception e) {
             System.err.println("[StatusMod] Failed to save config");
             e.printStackTrace();
         }
+    }
+
+    private void normalize() {
+        if (adminOpLevel < 0) adminOpLevel = 0;
+        if (adminOpLevel > 4) adminOpLevel = 4;
+
+        if (statusPermissionNode == null || statusPermissionNode.trim().isEmpty()) {
+            statusPermissionNode = "statusmod.use";
+        } else {
+            statusPermissionNode = statusPermissionNode.trim();
+        }
+
+        if (adminPermissionNode == null || adminPermissionNode.trim().isEmpty()) {
+            adminPermissionNode = "statusmod.admin";
+        } else {
+            adminPermissionNode = adminPermissionNode.trim();
+        }
+
+        if (defaultColor == null || defaultColor.trim().isEmpty()) {
+            defaultColor = "reset";
+        } else {
+            defaultColor = defaultColor.trim();
+        }
+
+        if (statusReapplyTicks < MIN_REAPPLY_TICKS) statusReapplyTicks = MIN_REAPPLY_TICKS;
+        if (statusReapplyTicks > MAX_REAPPLY_TICKS) statusReapplyTicks = MAX_REAPPLY_TICKS;
     }
 }

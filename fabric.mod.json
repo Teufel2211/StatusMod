@@ -3,7 +3,7 @@
   "id": "status-mod",
   "version": "1.0.14",
   "name": "Status Mod",
-  "description": "Zeigt Status in der Tab-Liste via /status und bietet /settings.",
+  "description": "Configurable player status tags for TAB and name rendering with /status and /settings.",
   "authors": ["Teufel"],
   "contact": {},
   "license": "MIT",

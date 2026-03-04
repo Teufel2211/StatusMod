@@ -1,289 +1,378 @@
-name: Build and publish (build -> publish)
+name: Build and Publish
 
 on:
   push:
     branches:
       - main
-    tags:
-      - 'v*'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Release type for Modrinth/CurseForge (release|beta|alpha)"
+        required: false
+        default: "release"
+        type: choice
+        options:
+          - release
+          - beta
+          - alpha
+      game_versions:
+        description: "Optional game versions (comma or newline separated). Leave empty to use gradle.properties minecraft_version."
+        required: false
+        default: ""
+        type: string
+      dry_run:
+        description: "Build and validate only. Skip tag, GitHub release, Modrinth and CurseForge upload."
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      artifact_version: ${{ steps.build_select_jar.outputs.version }}
+      version: ${{ steps.meta.outputs.version }}
+      mc_version: ${{ steps.meta.outputs.mc_version }}
+      jar_name: ${{ steps.meta.outputs.jar_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.ref }}
 
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
+      - name: Validate Gradle Wrapper
+        uses: gradle/actions/wrapper-validation@v4
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '21'
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
 
-      - name: Build (and write version file)
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build (and write version)
         run: ./gradlew clean build writeVersion --no-daemon -Dorg.gradle.java.home="$JAVA_HOME"
 
-      - name: Select runtime JAR and read version
-        id: build_select_jar
+      - name: Resolve publish metadata
+        id: meta
+        shell: bash
         run: |
           set -euo pipefail
-          # choose the first non-sources jar
-          JAR=$(ls build/libs/*.jar | grep -v '\-sources\.jar' | head -n1)
-          if [ -z "$JAR" ]; then
-            echo "No runtime JAR found in build/libs" >&2
-            exit 1
-          fi
-          echo "Found runtime jar: $JAR"
-          # read the version written by the Gradle task
+
+          VERSION=""
           if [ -f build/version.txt ]; then
-            VERSION=$(cat build/version.txt | tr -d '\n')
-          else
-            echo "No build/version.txt found; cannot enforce explicit jar name." >&2
-            echo "Available jars:" >&2
-            ls -la build/libs || true
-            exit 1
+            VERSION="$(tr -d '\n' < build/version.txt)"
+          elif [ -f version.txt ]; then
+            VERSION="$(tr -d '\n' < version.txt)"
           fi
-          echo "Detected version: $VERSION"
-          # prefer explicit names: statusmod-<version>.jar or status-mod-<version>.jar
-          JAR1="build/libs/statusmod-${VERSION}.jar"
-          JAR2="build/libs/status-mod-${VERSION}.jar"
-          if [ -f "$JAR1" ]; then
-            JAR="$JAR1"
-          elif [ -f "$JAR2" ]; then
-            JAR="$JAR2"
-          else
-            echo "No runtime JAR matching statusmod-${VERSION}.jar or status-mod-${VERSION}.jar found." >&2
-            echo "Available jars:" >&2
-            ls -la build/libs || true
-            exit 1
-          fi
-          echo "Selected runtime jar: $JAR"
-          echo "jar=$JAR" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Dump processed fabric.mod.json and verify icon inside JAR
-        if: always()
+          if [ -z "$VERSION" ]; then
+            echo "Unable to determine version." >&2
+            exit 1
+          fi
+
+          MC_VERSION="$(grep -E '^minecraft_version=' gradle.properties | head -n1 | cut -d'=' -f2 | tr -d '\r\n')"
+          if [ -z "$MC_VERSION" ]; then
+            echo "Unable to determine minecraft_version from gradle.properties." >&2
+            exit 1
+          fi
+
+          mapfile -t JARS < <(find build/libs -maxdepth 1 -type f -name "*.jar" ! -name "*-sources.jar" | sort)
+          if [ "${#JARS[@]}" -eq 0 ]; then
+            echo "No runtime JAR found in build/libs." >&2
+            ls -la build/libs || true
+            exit 1
+          fi
+
+          EXPECTED_1="build/libs/statusmod-${VERSION}.jar"
+          EXPECTED_2="build/libs/status-mod-${VERSION}.jar"
+          JAR="${JARS[0]}"
+          if [ -f "$EXPECTED_1" ]; then
+            JAR="$EXPECTED_1"
+          elif [ -f "$EXPECTED_2" ]; then
+            JAR="$EXPECTED_2"
+          fi
+
+          JAR_NAME="$(basename "$JAR")"
+          sha256sum "$JAR" > "build/libs/${JAR_NAME}.sha256"
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "mc_version=$MC_VERSION" >> "$GITHUB_OUTPUT"
+          echo "jar=$JAR" >> "$GITHUB_OUTPUT"
+          echo "jar_name=$JAR_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Verify JAR metadata
+        shell: bash
         run: |
           set -euo pipefail
-          echo "-- build/resources/main/fabric.mod.json --"
-          if [ -f build/resources/main/fabric.mod.json ]; then
-            cat build/resources/main/fabric.mod.json
-          else
-            echo "No processed fabric.mod.json found at build/resources/main/fabric.mod.json"
-          fi
-          echo "-- JAR contents (search for icon & fabric.mod.json) --"
-          jar tf "$JAR" | grep -E 'fabric.mod.json|assets/.*/icon.png' || true
+          JAR="${{ steps.meta.outputs.jar }}"
+          jar tf "$JAR" | grep -q '^fabric.mod.json$'
+          jar tf "$JAR" | grep -q '^assets/status-mod/icon.png$'
+          echo "JAR verification passed for $JAR"
 
-      - name: Upload artifact
+      - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: statusmod-jar
+          name: statusmod-release
           path: |
-            ${{ steps.build_select_jar.outputs.jar }}
+            ${{ steps.meta.outputs.jar }}
+            build/libs/${{ steps.meta.outputs.jar_name }}.sha256
             build/version.txt
+          if-no-files-found: error
+          retention-days: 14
 
   publish:
     needs: build
-    # Run publish for branch pushes initiated by humans, or for tag pushes (allow bot-created tags)
-    if: >
-      github.event_name == 'push' && (
-        (startsWith(github.ref, 'refs/heads/') && github.actor != 'github-actions[bot]') ||
-        startsWith(github.ref, 'refs/tags/')
-      )
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.ref }}
 
-      - name: Download artifact
+      - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: statusmod-jar
-          path: build/libs
+          name: statusmod-release
+          path: dist
 
-      - name: Select runtime JAR
-        id: select_jar
+      - name: Resolve release assets
+        id: assets
+        shell: bash
         run: |
           set -euo pipefail
-          # Try multiple possible locations for the version file (artifact may unpack to different paths)
-          VERSION_FILE_CANDIDATES=( 
-            "build/version.txt" 
-            "version.txt" 
-            "build/libs/version.txt" 
-            "build/libs/build/version.txt" 
-            "build/version/version.txt" 
-          )
-          VERSION=""
-          for f in "${VERSION_FILE_CANDIDATES[@]}"; do
-            if [ -f "$f" ]; then
-              VERSION=$(cat "$f" | tr -d '\n')
-              echo "Found version file: $f -> $VERSION"
-              break
-            fi
-          done
-
-          # If still empty, try to infer from available jars in build/libs
-          if [ -z "$VERSION" ]; then
-            echo "No version file found in expected locations; attempting to infer version from JAR filename."
-            # find the first non-sources jar in build/libs
-            if ls build/libs/*.jar >/dev/null 2>&1; then
-              # prefer jars named statusmod-<version>.jar or status-mod-<version>.jar
-              foundJar=$(ls build/libs/*.jar | grep -v '\-sources\.jar' | head -n1 || true)
-              if [ -n "$foundJar" ]; then
-                basename=$(basename "$foundJar")
-                # extract the last '-' separated token before .jar as version
-                candidate=${basename%.jar}
-                VERSION=${candidate##*-}
-                echo "Inferred version from JAR '$basename' -> $VERSION"
-              fi
-            fi
-          fi
-
-          if [ -z "$VERSION" ]; then
-            echo "Failed to determine version (no version file and no jar to infer from)." >&2
-            echo "Available files under build/libs:" >&2
-            ls -la build/libs || true
+          mapfile -t JARS < <(find dist -type f -name "*.jar" ! -name "*-sources.jar" | sort)
+          if [ "${#JARS[@]}" -eq 0 ]; then
+            echo "No release JAR found in downloaded artifact." >&2
+            find dist -maxdepth 4 -type f -print || true
             exit 1
           fi
-
-          # Prefer explicit filenames anywhere under build/, else pick first runtime jar found under build/
-          # Search recursively under build/ for jar files (exclude sources jars)
-          mapfile -t CANDIDATES < <(find build -type f -name "*.jar" ! -name "*-sources.jar" 2>/dev/null | sort)
-          JAR=""
-          if [ ${#CANDIDATES[@]} -gt 0 ]; then
-            # prefer exact matches by basename
-            for p in "${CANDIDATES[@]}"; do
-              b=$(basename "$p")
-              if [ "$b" = "statusmod-${VERSION}.jar" ] || [ "$b" = "status-mod-${VERSION}.jar" ]; then
-                JAR="$p"
-                break
-              fi
-            done
-            # fallback to first candidate
-            if [ -z "$JAR" ]; then
-              JAR="${CANDIDATES[0]}"
-              echo "No exact named jar found; using first candidate: $JAR"
-            fi
-          else
-            echo "No runtime jars found under build/" >&2
-            find build -maxdepth 3 -ls || true
+          JAR="${JARS[0]}"
+          SHA_FILE="${JAR}.sha256"
+          if [ ! -f "$SHA_FILE" ]; then
+            echo "Checksum file not found: $SHA_FILE" >&2
             exit 1
           fi
-          echo "Found runtime jar: $JAR"
           echo "jar=$JAR" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA_FILE" >> "$GITHUB_OUTPUT"
 
-      - id: create_tag
-        name: Create and push tag for this version
-        if: always()
+      - name: Resolve publish options
+        id: options
         env:
-          PUBLISH_PAT: ${{ secrets.PUBLISH_PAT }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ARTIFACT_VERSION: ${{ needs.build.outputs.artifact_version }}
+          INPUT_RELEASE_TYPE: ${{ github.event.inputs.release_type }}
+          INPUT_GAME_VERSIONS: ${{ github.event.inputs.game_versions }}
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          DEFAULT_MC_VERSION: ${{ needs.build.outputs.mc_version }}
+        shell: bash
         run: |
           set -euo pipefail
-          if [ -n "$ARTIFACT_VERSION" ]; then
-            TAG="v$ARTIFACT_VERSION"
-          else
-            TAG="v$(cat version.txt)"
+
+          RELEASE_TYPE="${INPUT_RELEASE_TYPE:-release}"
+          case "$RELEASE_TYPE" in
+            release|beta|alpha) ;;
+            *)
+              echo "Invalid release_type: $RELEASE_TYPE" >&2
+              exit 1
+              ;;
+          esac
+
+          DRY_RUN="false"
+          if [ "${INPUT_DRY_RUN:-false}" = "true" ]; then
+            DRY_RUN="true"
           fi
-          echo "Creating tag $TAG"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # if the tag already exists, skip creating/pushing it
-          # if the workflow was triggered by a tag push, use that tag directly
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            TAG="${GITHUB_REF#refs/tags/}"
-            echo "Triggered by tag $TAG"
-            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          RAW_GAME_VERSIONS="${INPUT_GAME_VERSIONS:-}"
+          if [ -z "${RAW_GAME_VERSIONS//[[:space:]]/}" ]; then
+            RAW_GAME_VERSIONS="$DEFAULT_MC_VERSION"
+          fi
+
+          GAME_VERSIONS="$(printf '%s\n' "$RAW_GAME_VERSIONS" | tr ',;' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d')"
+          if [ -z "$GAME_VERSIONS" ]; then
+            echo "No valid game_versions resolved." >&2
+            exit 1
+          fi
+
+          echo "release_type=$RELEASE_TYPE" >> "$GITHUB_OUTPUT"
+          echo "dry_run=$DRY_RUN" >> "$GITHUB_OUTPUT"
+          {
+            echo "game_versions<<EOF"
+            echo "$GAME_VERSIONS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Semver guard (requires version bump)
+        if: steps.options.outputs.dry_run != 'true'
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          LAST_TAG="$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)"
+          if [ -z "$LAST_TAG" ]; then
+            echo "No previous tag found; semver guard passed."
             exit 0
           fi
 
-          if git ls-remote --tags origin | grep -q "refs/tags/$TAG$"; then
-            echo "Tag $TAG already exists on remote — skipping"
-          else
-            git tag "$TAG"
-            # prefer PUBLISH_PAT (personal access token) if provided, fallback to GITHUB_TOKEN
-            if [ -n "$PUBLISH_PAT" ]; then
-              TOKEN="$PUBLISH_PAT"
-              echo "Using PUBLISH_PAT to push tag"
-            else
-              TOKEN="$GITHUB_TOKEN"
-              echo "Using GITHUB_TOKEN to push tag"
-            fi
-            git push "https://x-access-token:$TOKEN@github.com/${{ github.repository }}.git" "$TAG"
+          LAST_VERSION="${LAST_TAG#v}"
+          if [ "$VERSION" = "$LAST_VERSION" ]; then
+            echo "Version bump required: version.txt is still $VERSION (latest tag: $LAST_TAG)." >&2
+            exit 1
           fi
-          # export the tag to GITHUB_OUTPUT so later steps can reference it
+
+          HIGHEST="$(printf '%s\n%s\n' "$LAST_VERSION" "$VERSION" | sort -V | tail -n1)"
+          if [ "$HIGHEST" != "$VERSION" ]; then
+            echo "Version bump required: current version $VERSION is not greater than latest tagged version $LAST_VERSION." >&2
+            exit 1
+          fi
+
+          echo "Semver guard passed: $LAST_VERSION -> $VERSION"
+
+      - name: Generate draft release notes from commits since last tag
+        id: notes
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v${VERSION}"
+          NOTES_FILE="dist/RELEASE_NOTES.md"
+          LAST_TAG="$(git tag --list 'v*' --sort=-v:refname | head -n1 || true)"
+
+          {
+            echo "## StatusMod ${TAG}"
+            echo
+            if [ -n "$LAST_TAG" ]; then
+              echo "Changes since \`${LAST_TAG}\`:"
+              echo
+              git log "${LAST_TAG}..HEAD" --pretty='- %h %s (@%an)' --no-merges || true
+            else
+              echo "Initial release notes:"
+              echo
+              git log --pretty='- %h %s (@%an)' --no-merges -n 50 || true
+            fi
+          } > "$NOTES_FILE"
+
+          if ! grep -q '^- ' "$NOTES_FILE"; then
+            echo "- No user-facing commit messages found." >> "$NOTES_FILE"
+          fi
+
+          echo "notes_file=$NOTES_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push release tag
+        id: tag
+        if: steps.options.outputs.dry_run != 'true'
+        env:
+          PUBLISH_PAT: ${{ secrets.PUBLISH_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.build.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v${VERSION}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub Release
+          if git ls-remote --tags origin | grep -q "refs/tags/${TAG}$"; then
+            echo "Tag ${TAG} already exists."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+
+          if [ -n "${PUBLISH_PAT}" ]; then
+            TOKEN="$PUBLISH_PAT"
+          else
+            TOKEN="$GITHUB_TOKEN"
+          fi
+          git push "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git" "$TAG"
+
+      - name: Create/Update GitHub Release
+        if: steps.options.outputs.dry_run != 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.create_tag.outputs.tag }}
-          name: StatusMod ${{ steps.create_tag.outputs.tag }}
-          files: ${{ steps.select_jar.outputs.jar }}
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: StatusMod ${{ steps.tag.outputs.tag }}
+          body_path: ${{ steps.notes.outputs.notes_file }}
+          files: |
+            ${{ steps.assets.outputs.jar }}
+            ${{ steps.assets.outputs.sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check required publish secrets
+      - name: Check publish secrets
+        id: secrets_check
+        if: steps.options.outputs.dry_run != 'true'
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+        shell: bash
         run: |
           set -euo pipefail
-          test -n "${{ secrets.MODRINTH_TOKEN }}" || (echo "MODRINTH_TOKEN missing" >&2; exit 1)
-          test -n "${{ secrets.MODRINTH_PROJECT_ID }}" || (echo "MODRINTH_PROJECT_ID missing" >&2; exit 1)
-          test -n "${{ secrets.CURSEFORGE_TOKEN }}" || (echo "CURSEFORGE_TOKEN missing" >&2; exit 1)
-          test -n "${{ secrets.CURSEFORGE_PROJECT_ID }}" || (echo "CURSEFORGE_PROJECT_ID missing" >&2; exit 1)
+          missing=0
+          for key in MODRINTH_TOKEN MODRINTH_PROJECT_ID CURSEFORGE_TOKEN CURSEFORGE_PROJECT_ID; do
+            if [ -z "${!key:-}" ]; then
+              echo "Missing secret: $key"
+              missing=1
+            fi
+          done
+          if [ "$missing" -eq 1 ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Upload to Modrinth & CurseForge (mc-publish)
+      - name: Upload to Modrinth and CurseForge
+        id: mc_publish
+        if: steps.secrets_check.outputs.ready == 'true'
         uses: Kir-Antipov/mc-publish@v3.3
         with:
-          version-type: release
+          version-type: ${{ steps.options.outputs.release_type }}
           modrinth-id: ${{ secrets.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           curseforge-id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
-          files: ${{ steps.select_jar.outputs.jar }}
-          game-versions: 1.21.10
+          files: ${{ steps.assets.outputs.jar }}
+          game-versions: ${{ steps.options.outputs.game_versions }}
           loaders: fabric
+          name: StatusMod ${{ steps.tag.outputs.tag }}
+          version: ${{ steps.tag.outputs.tag }}
 
-      - name: Upload via fallback script (direct API)
-        if: always()
+      - name: Install Python dependencies for fallback uploader
+        if: steps.secrets_check.outputs.ready == 'true' && steps.mc_publish.outcome == 'failure'
+        run: python -m pip install --upgrade pip requests
+
+      - name: Run fallback uploader
+        if: steps.secrets_check.outputs.ready == 'true' && steps.mc_publish.outcome == 'failure'
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_TOKEN }}
           CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
-          CURSEFORGE_JAVA_VERSION: ${{ secrets.CURSEFORGE_JAVA_VERSION }}
-          CURSEFORGE_ENVIRONMENT: ${{ secrets.CURSEFORGE_ENVIRONMENT }}
-          VERSION: ${{ steps.create_tag.outputs.tag }}
+          VERSION: ${{ steps.tag.outputs.tag }}
+          GAME_VERSIONS: ${{ steps.options.outputs.game_versions }}
+          RELEASE_TYPE: ${{ steps.options.outputs.release_type }}
         run: |
-          set -euo pipefail
-          echo "Preparing fallback uploader..."
-      - name: Install Python deps for fallback uploader
-        if: always()
-        run: python -m pip install --upgrade pip requests
-      - name: Run fallback uploader script
-        if: always()
-        run: |
-          set -euo pipefail
-          # allow optional secret overrides; provide sensible defaults
-          CF_JAVA="${CURSEFORGE_JAVA_VERSION:-21}"
-          CF_ENV="${CURSEFORGE_ENVIRONMENT:-client}"
-          echo "Using CurseForge Java version: $CF_JAVA, environment: $CF_ENV"
-          export CURSEFORGE_JAVA_VERSION="$CF_JAVA"
-          export CURSEFORGE_ENVIRONMENT="$CF_ENV"
-          python ./.github/scripts/upload_release.py "${{ steps.select_jar.outputs.jar }}"
+          python ./.github/scripts/upload_release.py "${{ steps.assets.outputs.jar }}"
 
+      - name: Dry run summary
+        if: steps.options.outputs.dry_run == 'true'
+        shell: bash
+        run: |
+          echo "Dry run enabled. Skipped tag creation and publishing."
+          echo "Version: ${{ needs.build.outputs.version }}"
+          echo "Release type: ${{ steps.options.outputs.release_type }}"
+          echo "Game versions:"
+          printf '%s\n' "${{ steps.options.outputs.game_versions }}"

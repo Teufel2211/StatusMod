@@ -1,126 +1,199 @@
 #!/usr/bin/env python3
 """
-Simple release uploader for Modrinth and CurseForge.
+Fallback uploader for Modrinth and CurseForge.
 
-Notes:
-- This is a minimal, best-effort script to be run from CI (GitHub Actions in this repo).
-- You must set the following repository secrets in GitHub for the workflow to actually upload:
-  - MODRINTH_TOKEN
-  - MODRINTH_PROJECT_ID
-  - CURSEFORGE_API_KEY
-  - CURSEFORGE_PROJECT_ID
-
-Use: python upload_release.py path/to/mod.jar
-
-This script attempts to call the public APIs. API surface may change; adjust fields or add extra metadata as needed.
+Intended for CI fallback only when the main mc-publish step fails.
 """
-import sys
-import os
-import requests
+
+from __future__ import annotations
+
 import glob
+import json
+import os
+import sys
+import time
+from pathlib import Path
 
-def upload_modrinth(jar_path, project_id, token, version):
-    if not project_id or not token:
-        print("Skipping Modrinth upload: MODRINTH_PROJECT_ID or MODRINTH_TOKEN not provided")
-        return
-    url = f"https://api.modrinth.com/v2/project/{project_id}/version"
-    headers = {
-        'Authorization': token
-    }
-    # Minimal fields: version_number, game_versions[], loaders[] and the file multipart.
-    # Modrinth expects multipart/form-data. This may need adjusting depending on Modrinth API changes.
-    files = {'file': open(jar_path, 'rb')}
-    # infer version from provided value or from jar filename
-    if not version:
-        basename = os.path.basename(jar_path)
-        if '-' in basename:
-            inferred = basename.rsplit('-', 1)[-1]
-            inferred = inferred.rsplit('.', 1)[0]
-            version = inferred
-        else:
-            version = 'unspecified'
-    data = {
-        'version_number': version.lstrip('v'),
-        'game_versions[]': '1.21.10',
-        'loaders[]': 'fabric',
-        'name': f"StatusMod {version.lstrip('v')}",
-        'changelog': 'Automated upload from GitHub Actions'
-    }
-    print(f"Uploading to Modrinth: {jar_path} -> project {project_id}")
-    try:
-        resp = requests.post(url, headers=headers, files=files, data=data, timeout=120)
-        print('Modrinth response:', resp.status_code)
-        print(resp.text)
-    finally:
-        files['file'].close()
+import requests
 
-def upload_curseforge(jar_path, project_id, api_key, version):
-    if not project_id or not api_key:
-        print("Skipping CurseForge upload: CURSEFORGE_PROJECT_ID or CURSEFORGE_API_KEY not provided")
-        return
-    url = f"https://api.curseforge.com/v1/mods/{project_id}/files"
-    headers = {'x-api-key': api_key}
-    files = {'file': open(jar_path, 'rb')}
-    # CurseForge requires game version(s) and it's helpful to include java version & description
-    # Optionally read JAVA version and environment from env vars
-    java_version = os.environ.get('CURSEFORGE_JAVA_VERSION', '')
-    environment = os.environ.get('CURSEFORGE_ENVIRONMENT', '')
-    # infer version if not provided
-    if not version:
-        basename = os.path.basename(jar_path)
-        if '-' in basename:
-            inferred = basename.rsplit('-', 1)[-1]
-            inferred = inferred.rsplit('.', 1)[0]
-            version = inferred
-        else:
-            version = 'unspecified'
-    # Build multipart form data as a list of tuples so we can include repeated keys like gameVersions[]
-    data = [
-        ('changelog', 'Automated upload from GitHub Actions'),
-        ('displayName', f"StatusMod {version.lstrip('v')}"),
-        ('releaseType', 'release'),
-        ('gameVersions[]', '1.21.10'),
-    ]
-    if java_version:
-        data.append(('javaVersion', java_version))
-    if environment:
-        data.append(('environment', environment))
 
-    print(f"Uploading to CurseForge: {jar_path} -> project {project_id}")
-    try:
-        resp = requests.post(url, headers=headers, files=files, data=data, timeout=120)
-        print('CurseForge response:', resp.status_code)
-        # try to pretty-print JSON response when available
+def parse_game_versions() -> list[str]:
+    raw = os.environ.get("GAME_VERSIONS", "").strip()
+    if not raw:
+        return ["1.20.1"]
+    parts = [p.strip() for p in raw.replace("\n", ",").split(",")]
+    return [p for p in parts if p]
+
+
+def parse_release_type() -> str:
+    value = os.environ.get("RELEASE_TYPE", "release").strip().lower()
+    if value not in {"release", "beta", "alpha"}:
+        return "release"
+    return value
+
+
+def read_changelog() -> str:
+    env_text = os.environ.get("RELEASE_CHANGELOG", "").strip()
+    if env_text:
+        return env_text
+
+    changelog_path = Path("CHANGELOG.md")
+    if changelog_path.exists():
         try:
-            print(resp.json())
+            text = changelog_path.read_text(encoding="utf-8").strip()
+            if text:
+                return text[:4000]
         except Exception:
-            print(resp.text)
-        if resp.status_code >= 400:
-            print('CurseForge upload returned error; check project ID (must be numeric) and API key permissions')
-    finally:
-        files['file'].close()
+            pass
+    return "Automated fallback upload from GitHub Actions."
 
-def main():
+
+def infer_version(explicit: str, jar_path: Path) -> str:
+    if explicit:
+        return explicit.lstrip("v")
+    name = jar_path.stem
+    if "-" in name:
+        return name.rsplit("-", 1)[-1]
+    return "unspecified"
+
+
+def post_with_retry(url: str, headers: dict, *, files=None, data=None, json_body=None, retries: int = 3) -> requests.Response:
+    last_exc = None
+    for attempt in range(1, retries + 1):
+        try:
+            response = requests.post(url, headers=headers, files=files, data=data, json=json_body, timeout=120)
+            if response.status_code < 500:
+                return response
+        except requests.RequestException as exc:
+            last_exc = exc
+        time.sleep(1.5 * attempt)
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("Upload failed after retries")
+
+
+def upload_modrinth(
+    jar_path: Path,
+    project_id: str,
+    token: str,
+    version: str,
+    game_versions: list[str],
+    changelog: str,
+    release_type: str,
+) -> bool:
+    if not project_id or not token:
+        print("Skipping Modrinth upload: missing MODRINTH_PROJECT_ID or MODRINTH_TOKEN")
+        return False
+
+    url = "https://api.modrinth.com/v2/version"
+    payload = {
+        "project_id": project_id,
+        "version_number": version,
+        "version_type": release_type,
+        "name": f"StatusMod {version}",
+        "loaders": ["fabric"],
+        "game_versions": game_versions,
+        "changelog": changelog,
+        "featured": False,
+    }
+
+    with jar_path.open("rb") as jar_file:
+        files = {
+            "data": (None, json.dumps(payload), "application/json"),
+            "file": (jar_path.name, jar_file, "application/java-archive"),
+        }
+        headers = {"Authorization": token}
+        response = post_with_retry(url, headers, files=files)
+
+    print(f"Modrinth response: {response.status_code}")
+    if response.status_code >= 400:
+        print(response.text)
+        return False
+    return True
+
+
+def upload_curseforge(
+    jar_path: Path,
+    project_id: str,
+    api_key: str,
+    version: str,
+    game_versions: list[str],
+    changelog: str,
+    release_type: str,
+) -> bool:
+    if not project_id or not api_key:
+        print("Skipping CurseForge upload: missing CURSEFORGE_PROJECT_ID or CURSEFORGE_API_KEY")
+        return False
+
+    url = f"https://api.curseforge.com/v1/mods/{project_id}/files"
+    headers = {"x-api-key": api_key}
+    metadata = {
+        "displayName": f"StatusMod {version}",
+        "changelog": changelog,
+        "releaseType": release_type,
+        "gameVersions": game_versions,
+    }
+    java_version = os.environ.get("CURSEFORGE_JAVA_VERSION", "").strip()
+    if java_version:
+        metadata["javaVersion"] = java_version
+
+    with jar_path.open("rb") as jar_file:
+        files = {
+            "file": (jar_path.name, jar_file, "application/java-archive"),
+            "metadata": (None, json.dumps(metadata), "application/json"),
+        }
+        response = post_with_retry(url, headers, files=files)
+
+    print(f"CurseForge response: {response.status_code}")
+    if response.status_code >= 400:
+        print(response.text)
+        return False
+    return True
+
+
+def main() -> int:
     if len(sys.argv) < 2:
-        print('Usage: upload_release.py path/to/mod.jar')
-        sys.exit(2)
-    # find first jar matching pattern(s)
-    arg = sys.argv[1]
-    matches = glob.glob(arg)
+        print("Usage: upload_release.py path/to/mod.jar")
+        return 2
+
+    matches = glob.glob(sys.argv[1])
     if not matches:
-        print('No file matched', arg)
-        sys.exit(1)
-    jar_path = matches[0]
+        print(f"No file matched: {sys.argv[1]}")
+        return 1
 
-    # Environment secrets (set in GitHub Actions as repo secrets)
-    modrinth_token = os.environ.get('MODRINTH_TOKEN')
-    modrinth_project = os.environ.get('MODRINTH_PROJECT_ID')
-    curse_key = os.environ.get('CURSEFORGE_API_KEY')
-    curse_project = os.environ.get('CURSEFORGE_PROJECT_ID')
-    version = os.environ.get('VERSION', '')
+    jar_path = Path(matches[0])
+    if not jar_path.exists():
+        print(f"JAR not found: {jar_path}")
+        return 1
 
-    upload_modrinth(jar_path, modrinth_project, modrinth_token, version)
-    upload_curseforge(jar_path, curse_project, curse_key, version)
+    version = infer_version(os.environ.get("VERSION", "").strip(), jar_path)
+    game_versions = parse_game_versions()
+    release_type = parse_release_type()
+    changelog = read_changelog()
 
-if __name__ == '__main__':
-    main()
+    modrinth_ok = upload_modrinth(
+        jar_path,
+        os.environ.get("MODRINTH_PROJECT_ID", "").strip(),
+        os.environ.get("MODRINTH_TOKEN", "").strip(),
+        version,
+        game_versions,
+        changelog,
+        release_type,
+    )
+    curseforge_ok = upload_curseforge(
+        jar_path,
+        os.environ.get("CURSEFORGE_PROJECT_ID", "").strip(),
+        os.environ.get("CURSEFORGE_API_KEY", "").strip(),
+        version,
+        game_versions,
+        changelog,
+        release_type,
+    )
+
+    if not (modrinth_ok and curseforge_ok):
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,12 +1,11 @@
 name: Build and Publish Multi-Version
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*'
   workflow_dispatch: {}
+
+concurrency:
+  group: publish-multi-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -31,6 +30,9 @@ jobs:
 
       - name: Build all Minecraft versions
         run: |
+          set -euo pipefail
+          cp gradle.properties gradle.properties.bak
+
           # Define versions to build
           versions=(
             "1.21.10:1.21.10+build.1:0.136.0+1.21.10"
@@ -71,28 +73,24 @@ jobs:
           EOF
             
             # Build
-            if ./gradlew clean build --no-daemon 2>&1 | grep -E "(BUILD SUCCESS|BUILD FAILED)"; then
-              # Copy JAR with version name
-              if [ -f "build/libs/statusmod-*.jar" ] && [ ! -f "build/libs/statusmod-*-sources.jar" ]; then
-                cp build/libs/statusmod-*.jar "build/libs/statusmod-$mc_version.jar" 2>/dev/null || true
+            if ./gradlew clean build --no-daemon; then
+              jar_path="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' | sort | head -n1 || true)"
+              if [ -n "$jar_path" ]; then
+                cp "$jar_path" "build/libs/statusmod-$mc_version.jar"
+              else
+                echo "No runtime JAR found for $mc_version"
               fi
             else
               echo "Failed to build for $mc_version"
             fi
           done
           
-          # Restore latest version
-          cat > gradle.properties <<EOF
-          minecraft_version=1.21.10
-          yarn_mappings=1.21.10+build.1
-          loader_version=0.16.9
-          fabric_api_version=0.136.0+1.21.10
-          org.gradle.java.home=$JAVA_HOME
-          EOF
+          # Restore original build configuration
+          mv gradle.properties.bak gradle.properties
 
       - name: Write version info
         run: |
-          echo "1.0.24" > build/version.txt
+          cp version.txt build/version.txt
 
       - name: Upload all JARs as artifacts
         uses: actions/upload-artifact@v4
@@ -104,7 +102,7 @@ jobs:
   publish-to-modrinth:
     needs: build-all-versions
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -155,7 +153,7 @@ jobs:
   publish-to-curseforge:
     needs: build-all-versions
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout
         uses: actions/checkout@v4

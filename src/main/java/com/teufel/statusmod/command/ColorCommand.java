@@ -8,7 +8,10 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.ChatFormatting;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.scores.PlayerTeam;
 
 /**
  * Command to set player color using hex codes.
@@ -52,6 +55,7 @@ public class ColorCommand {
             if (hex.equalsIgnoreCase("reset")) {
                 settings.color = "reset";
                 StatusMod.storage.put(uuid, settings);
+                applyCurrentStatusToTeam(src, player, settings);
                 src.sendSuccess(
                     () -> Component.literal("Deine Status-Farbe wurde zurückgesetzt."),
                     true
@@ -70,6 +74,7 @@ public class ColorCommand {
             // Save the hex color
             settings.color = hex;
             StatusMod.storage.put(uuid, settings);
+            applyCurrentStatusToTeam(src, player, settings);
 
             src.sendSuccess(
                 () -> Component.literal("Deine Status-Farbe wurde auf " + hex + " gesetzt."),
@@ -82,5 +87,48 @@ public class ColorCommand {
             } catch (Exception ignored) {}
             e.printStackTrace();
         }
+    }
+
+    private static void applyCurrentStatusToTeam(CommandSourceStack src, ServerPlayer player, PlayerSettings settings) {
+        try {
+            net.minecraft.server.ServerScoreboard scoreboard = src.getServer().getScoreboard();
+            String teamName = "status_" + player.getUUID().toString().substring(0, 8);
+            PlayerTeam team = scoreboard.getPlayerTeam(teamName);
+            if (team == null) {
+                team = scoreboard.addPlayerTeam(teamName);
+            }
+
+            Component base = Component.literal((settings.brackets ? "[" : "") + settings.status + (settings.brackets ? "]" : ""));
+            Component colored = applyColor(base, settings.color);
+
+            if (settings.beforeName) {
+                team.setPlayerPrefix(colored.copy().append(Component.literal(" ")));
+                team.setPlayerSuffix(Component.empty());
+            } else {
+                team.setPlayerPrefix(Component.empty());
+                team.setPlayerSuffix(Component.literal(" ").append(colored));
+            }
+
+            String playerName = player.getScoreboardName();
+            PlayerTeam existing = scoreboard.getPlayerTeam(playerName);
+            if (existing != null && existing != team) {
+                scoreboard.removePlayerFromTeam(playerName, existing);
+            }
+            if (existing != team) {
+                scoreboard.addPlayerToTeam(playerName, team);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static Component applyColor(Component base, String colorKey) {
+        TextColor hexColor = ColorMapper.parseHexColor(colorKey);
+        if (hexColor != null) {
+            return base.copy().withStyle(s -> s.withColor(hexColor));
+        }
+
+        ChatFormatting named = ColorMapper.get(colorKey);
+        return base.copy().withStyle(s -> s.withColor(named == null ? ChatFormatting.RESET : named));
     }
 }

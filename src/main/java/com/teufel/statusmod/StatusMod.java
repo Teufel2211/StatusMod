@@ -23,7 +23,8 @@ public class StatusMod implements ModInitializer {
         config = ModConfig.load();
         System.out.println("[StatusMod] config loaded: adminOpLevel=" + config.adminOpLevel +
                            ", adminOverrides=" + config.enableAdminOverrides +
-                           ", defaultColor=" + config.defaultColor);
+                           ", defaultColor=" + config.defaultColor +
+                           ", statusReapplyTicks=" + config.statusReapplyTicks);
 
         storage = new SettingsStorage();
         blockedPlayers = new BlockedPlayers();

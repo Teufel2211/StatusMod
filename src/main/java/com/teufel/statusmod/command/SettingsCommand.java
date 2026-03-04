@@ -2,10 +2,13 @@ package com.teufel.statusmod.command;
 
 import com.teufel.statusmod.StatusMod;
 import com.teufel.statusmod.storage.PlayerSettings;
+import com.teufel.statusmod.util.ColorMapper;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.ChatFormatting;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -98,8 +101,7 @@ public class SettingsCommand {
             if (team == null) team = scoreboard.addPlayerTeam(teamName);
 
             net.minecraft.network.chat.Component base = net.minecraft.network.chat.Component.literal((s.brackets ? "[" : "") + s.status + (s.brackets ? "]" : ""));
-            net.minecraft.ChatFormatting f = com.teufel.statusmod.util.ColorMapper.get(s.color);
-            net.minecraft.network.chat.Component colored = base.copy().withStyle(st -> st.withColor(f == null ? net.minecraft.ChatFormatting.RESET : f));
+            net.minecraft.network.chat.Component colored = applyColor(base, s.color);
 
             if (s.beforeName) {
                 team.setPlayerPrefix(colored.copy().append(net.minecraft.network.chat.Component.literal(" ")));
@@ -122,5 +124,15 @@ public class SettingsCommand {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private static Component applyColor(Component base, String colorKey) {
+        TextColor hexColor = ColorMapper.parseHexColor(colorKey);
+        if (hexColor != null) {
+            return base.copy().withStyle(s -> s.withColor(hexColor));
+        }
+
+        ChatFormatting named = ColorMapper.get(colorKey);
+        return base.copy().withStyle(s -> s.withColor(named == null ? ChatFormatting.RESET : named));
     }
 }

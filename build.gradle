@@ -1,7 +1,7 @@
 // Use legacy buildscript classpath for fabric-loom to ensure resolution from Fabric Maven
 buildscript {
     repositories {
-        maven { url "https://maven.fabricmc.net/" }
+        maven { url = uri("https://maven.fabricmc.net/") }
         mavenCentral()
         gradlePluginPortal()
     }
@@ -19,6 +19,7 @@ apply plugin: 'fabric-loom'
 group = 'com.teufel.statusmod'
 // Read version from version.txt so CI can bump it automatically
 version = file('version.txt').text.trim()
+def modVersion = version.toString()
 
 base {
     archivesName = 'statusmod'
@@ -34,7 +35,7 @@ java {
 
 repositories {
     mavenCentral()
-    maven { url "https://maven.fabricmc.net/" }
+    maven { url = uri("https://maven.fabricmc.net/") }
 }
 
 dependencies {
@@ -48,10 +49,10 @@ dependencies {
 }
 
 processResources {
-    inputs.property "version", project.version
+    inputs.property "version", modVersion
     filesMatching("fabric.mod.json") {
         // Use a mod id that matches the assets folder so the icon and assets are packaged correctly
-        expand "version": project.version, "modid": "status-mod", "name": "Status Mod"
+        expand "version": modVersion, "modid": "status-mod", "name": "Status Mod"
     }
     // Also copy the mod icon to the jar root as `icon.png` so hosting platforms reliably detect it
     from("src/main/resources/assets/status-mod/icon.png") {
@@ -66,10 +67,11 @@ tasks.withType(JavaCompile).configureEach {
 
 // Write the project version into build/version.txt so CI can read the exact version
 tasks.register('writeVersion') {
+    def versionText = modVersion
     doLast {
         def outFile = file("${buildDir}/version.txt")
         outFile.parentFile.mkdirs()
-        outFile.text = project.version.toString()
-        println "Wrote version ${project.version} to ${outFile}"
+        outFile.text = versionText
+        println "Wrote version ${versionText} to ${outFile}"
     }
 }
