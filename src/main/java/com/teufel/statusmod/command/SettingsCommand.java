@@ -2,13 +2,13 @@ package com.teufel.statusmod.command;
 
 import com.teufel.statusmod.StatusMod;
 import com.teufel.statusmod.storage.PlayerSettings;
-import com.teufel.statusmod.util.ColorMapper;
+import com.teufel.statusmod.util.FontMapper;
+import com.teufel.statusmod.util.StatusColorUtil;
+import com.teufel.statusmod.util.StatusTextUtil;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextColor;
-import net.minecraft.ChatFormatting;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -32,10 +32,11 @@ public class SettingsCommand {
             .then(Commands.argument("value", StringArgumentType.word())
                 .suggests(BRACKETS_SUGGESTIONS)
                 .executes(ctx -> {
-                    ServerPlayer p = ctx.getSource().getPlayer();
+                    CommandSourceStack src = ctx.getSource();
+                    ServerPlayer p = src.getPlayer();
                     String v = StringArgumentType.getString(ctx, "value");
                     boolean b = v.equalsIgnoreCase("on") || v.equalsIgnoreCase("true") || v.equalsIgnoreCase("ein") || v.equalsIgnoreCase("an");
-                    toggleBrackets(p, b);
+                    toggleBrackets(src, p, b);
                     return 1;
                 })
             )
@@ -44,10 +45,11 @@ public class SettingsCommand {
             .then(Commands.argument("value", StringArgumentType.word())
                 .suggests(POSITION_SUGGESTIONS)
                 .executes(ctx -> {
-                                ServerPlayer p = ctx.getSource().getPlayer();
+                    CommandSourceStack src = ctx.getSource();
+                    ServerPlayer p = src.getPlayer();
                     String v = StringArgumentType.getString(ctx, "value");
                     boolean before = v.equalsIgnoreCase("before") || v.equalsIgnoreCase("vor") || v.equalsIgnoreCase("vorn");
-                    setPosition(p, before);
+                    setPosition(src, p, before);
                     return 1;
                 })
             )
@@ -55,9 +57,22 @@ public class SettingsCommand {
         .then(Commands.literal("words")
             .then(Commands.argument("value", IntegerArgumentType.integer(1))
                 .executes(ctx -> {
-                    ServerPlayer p = ctx.getSource().getPlayer();
+                    CommandSourceStack src = ctx.getSource();
+                    ServerPlayer p = src.getPlayer();
                     int v = IntegerArgumentType.getInteger(ctx, "value");
-                    setWords(p, v);
+                    setWords(src, p, v);
+                    return 1;
+                })
+            )
+        )
+        .then(Commands.literal("font")
+            .then(Commands.argument("value", StringArgumentType.word())
+                .suggests(com.teufel.statusmod.command.CommandSuggestions.FONT_SUGGESTIONS)
+                .executes(ctx -> {
+                    CommandSourceStack src = ctx.getSource();
+                    ServerPlayer p = src.getPlayer();
+                    String v = StringArgumentType.getString(ctx, "value");
+                    setFont(src, p, v);
                     return 1;
                 })
             )
@@ -65,43 +80,55 @@ public class SettingsCommand {
     );
     }
 
-    private static void toggleBrackets(ServerPlayer p, boolean value) {
+    private static void toggleBrackets(CommandSourceStack src, ServerPlayer p, boolean value) {
     String uuid = p.getUUID().toString();
         PlayerSettings s = StatusMod.storage.forPlayer(uuid);
         s.brackets = value;
         StatusMod.storage.put(uuid, s);
         p.displayClientMessage(Component.literal("Eckige Klammern: " + (value ? "AN" : "AUS")), false);
-        applyStatusToTeam(p, s);
+        applyStatusToTeam(src, p, s);
     }
 
-    private static void setPosition(ServerPlayer p, boolean before) {
+    private static void setPosition(CommandSourceStack src, ServerPlayer p, boolean before) {
     String uuid = p.getUUID().toString();
         PlayerSettings s = StatusMod.storage.forPlayer(uuid);
         s.beforeName = before;
         StatusMod.storage.put(uuid, s);
         p.displayClientMessage(Component.literal("Position: " + (before ? "vor dem Namen" : "hinter dem Namen")), false);
-        applyStatusToTeam(p, s);
+        applyStatusToTeam(src, p, s);
     }
 
-    private static void setWords(ServerPlayer p, int words) {
+    private static void setWords(CommandSourceStack src, ServerPlayer p, int words) {
     String uuid = p.getUUID().toString();
         PlayerSettings s = StatusMod.storage.forPlayer(uuid);
         s.statusWords = Math.max(1, words);
         StatusMod.storage.put(uuid, s);
         p.displayClientMessage(Component.literal("Anzahl Status-Wörter: " + s.statusWords), false);
-        applyStatusToTeam(p, s);
+        applyStatusToTeam(src, p, s);
     }
 
-    private static void applyStatusToTeam(ServerPlayer p, PlayerSettings s) {
+    private static void setFont(CommandSourceStack src, ServerPlayer p, String style) {
+        String uuid = p.getUUID().toString();
+        PlayerSettings s = StatusMod.storage.forPlayer(uuid);
+        s.fontStyle = FontMapper.normalizeStyle(style);
+        StatusMod.storage.put(uuid, s);
+        p.displayClientMessage(Component.literal("Schriftart: " + s.fontStyle), false);
+        applyStatusToTeam(src, p, s);
+    }
+
+    private static void applyStatusToTeam(CommandSourceStack src, ServerPlayer p, PlayerSettings s) {
         try {
-            MinecraftServer server = p.level().getServer();
+            MinecraftServer server = src.getServer();
+            if (server == null) {
+                return;
+            }
             net.minecraft.server.ServerScoreboard scoreboard = server.getScoreboard();
             String teamName = "status_" + p.getUUID().toString().substring(0, 8);
             net.minecraft.world.scores.PlayerTeam team = scoreboard.getPlayerTeam(teamName);
             if (team == null) team = scoreboard.addPlayerTeam(teamName);
 
-            net.minecraft.network.chat.Component base = net.minecraft.network.chat.Component.literal((s.brackets ? "[" : "") + s.status + (s.brackets ? "]" : ""));
-            net.minecraft.network.chat.Component colored = applyColor(base, s.color);
+            net.minecraft.network.chat.Component base = net.minecraft.network.chat.Component.literal(StatusTextUtil.renderStatusText(s));
+            net.minecraft.network.chat.Component colored = StatusColorUtil.applyColor(base, s.color);
 
             if (s.beforeName) {
                 team.setPlayerPrefix(colored.copy().append(net.minecraft.network.chat.Component.literal(" ")));
@@ -124,15 +151,5 @@ public class SettingsCommand {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    private static Component applyColor(Component base, String colorKey) {
-        TextColor hexColor = ColorMapper.parseHexColor(colorKey);
-        if (hexColor != null) {
-            return base.copy().withStyle(s -> s.withColor(hexColor));
-        }
-
-        ChatFormatting named = ColorMapper.get(colorKey);
-        return base.copy().withStyle(s -> s.withColor(named == null ? ChatFormatting.RESET : named));
     }
 }

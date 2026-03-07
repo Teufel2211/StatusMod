@@ -3,13 +3,13 @@ package com.teufel.statusmod.command;
 import com.teufel.statusmod.StatusMod;
 import com.teufel.statusmod.storage.PlayerSettings;
 import com.teufel.statusmod.util.ColorMapper;
+import com.teufel.statusmod.util.StatusTextUtil;
+import com.teufel.statusmod.util.StatusColorUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextColor;
-import net.minecraft.ChatFormatting;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.scores.PlayerTeam;
 
@@ -22,19 +22,20 @@ import net.minecraft.world.scores.PlayerTeam;
 public class ColorCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("color")
-            .then(Commands.argument("hex", StringArgumentType.word()).suggests(com.teufel.statusmod.command.CommandSuggestions.COLOR_SUGGESTIONS)
+            .then(Commands.argument("color", StringArgumentType.greedyString()).suggests(com.teufel.statusmod.command.CommandSuggestions.COLOR_SUGGESTIONS)
                 .executes(ctx -> {
                     CommandSourceStack src = ctx.getSource();
-                    String hex = StringArgumentType.getString(ctx, "hex");
-                    setColor(src, hex);
+                    String color = StringArgumentType.getString(ctx, "color");
+                    setColor(src, color);
                     return 1;
                 })
             )
         );
     }
 
-    private static void setColor(CommandSourceStack src, String hex) {
+    private static void setColor(CommandSourceStack src, String colorInput) {
         try {
+            colorInput = colorInput == null ? "" : colorInput.trim();
             ServerPlayer player = src.getPlayer();
             if (player == null) {
                 src.sendFailure(Component.literal("Nur Spieler können diese Farbe benutzen."));
@@ -52,7 +53,7 @@ public class ColorCommand {
             PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
 
             // Handle reset
-            if (hex.equalsIgnoreCase("reset")) {
+            if (colorInput.equalsIgnoreCase("reset")) {
                 settings.color = "reset";
                 StatusMod.storage.put(uuid, settings);
                 applyCurrentStatusToTeam(src, player, settings);
@@ -63,21 +64,22 @@ public class ColorCommand {
                 return;
             }
 
-            // Validate hex format
-            if (!ColorMapper.isValidHexColor(hex)) {
+            // Validate color format (named, hex, rgb)
+            if (!ColorMapper.isValidColorInput(colorInput)) {
                 src.sendFailure(Component.literal(
-                    "Ungültiges Hexadezimalformat. Bitte verwende #RRGGBB oder #RGB (z.B. #FF0000 für rot)."
+                    "Ungültige Farbe. Erlaubt: Name, Hex, rgb(...) oder Palette rgb(...)|rgb(...)."
                 ));
                 return;
             }
 
-            // Save the hex color
-            settings.color = hex;
+            // Save the selected color token
+            settings.color = colorInput;
             StatusMod.storage.put(uuid, settings);
             applyCurrentStatusToTeam(src, player, settings);
+            final String finalColorInput = colorInput;
 
             src.sendSuccess(
-                () -> Component.literal("Deine Status-Farbe wurde auf " + hex + " gesetzt."),
+                () -> Component.literal("Deine Status-Farbe wurde auf " + finalColorInput + " gesetzt."),
                 true
             );
 
@@ -98,8 +100,8 @@ public class ColorCommand {
                 team = scoreboard.addPlayerTeam(teamName);
             }
 
-            Component base = Component.literal((settings.brackets ? "[" : "") + settings.status + (settings.brackets ? "]" : ""));
-            Component colored = applyColor(base, settings.color);
+            Component base = Component.literal(StatusTextUtil.renderStatusText(settings));
+            Component colored = StatusColorUtil.applyColor(base, settings.color);
 
             if (settings.beforeName) {
                 team.setPlayerPrefix(colored.copy().append(Component.literal(" ")));
@@ -120,15 +122,5 @@ public class ColorCommand {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    private static Component applyColor(Component base, String colorKey) {
-        TextColor hexColor = ColorMapper.parseHexColor(colorKey);
-        if (hexColor != null) {
-            return base.copy().withStyle(s -> s.withColor(hexColor));
-        }
-
-        ChatFormatting named = ColorMapper.get(colorKey);
-        return base.copy().withStyle(s -> s.withColor(named == null ? ChatFormatting.RESET : named));
     }
 }

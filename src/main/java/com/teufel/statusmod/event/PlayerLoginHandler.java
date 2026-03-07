@@ -2,12 +2,11 @@ package com.teufel.statusmod.event;
 
 import com.teufel.statusmod.StatusMod;
 import com.teufel.statusmod.storage.PlayerSettings;
-import com.teufel.statusmod.util.ColorMapper;
+import com.teufel.statusmod.util.StatusColorUtil;
+import com.teufel.statusmod.util.StatusTextUtil;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextColor;
-import net.minecraft.ChatFormatting;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.scores.PlayerTeam;
 
@@ -84,10 +83,8 @@ public class PlayerLoginHandler {
             }
             
             // Reconstruct the colored status text using the applyColor helper
-            Component base = Component.literal(
-                (settings.brackets ? "[" : "") + settings.status + (settings.brackets ? "]" : "")
-            );
-            Component colored = applyColor(base, settings.color);
+            Component base = Component.literal(StatusTextUtil.renderStatusText(settings));
+            Component colored = StatusColorUtil.applyColor(base, settings.color);
             
             // Apply prefix/suffix based on position preference
             String playerName = player.getScoreboardName();
@@ -116,18 +113,4 @@ public class PlayerLoginHandler {
         }
     }
 
-    /**
-     * Apply color to a component, supporting both hex codes (#RRGGBB) and named colors.
-     */
-    private static Component applyColor(Component base, String colorKey) {
-        // Try hex color first
-        TextColor hexColor = ColorMapper.parseHexColor(colorKey);
-        if (hexColor != null) {
-            return base.copy().withStyle(s -> s.withColor(hexColor));
-        }
-        
-        // Fall back to named colors
-        ChatFormatting color = ColorMapper.get(colorKey);
-        return base.copy().withStyle(s -> s.withColor(color == null ? ChatFormatting.RESET : color));
-    }
 }

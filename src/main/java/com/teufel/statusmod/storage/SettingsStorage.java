@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
+import com.teufel.statusmod.util.FontMapper;
 
 public class SettingsStorage {
     private final File file;
@@ -129,6 +130,11 @@ public class SettingsStorage {
             } catch (Exception ignored) {
                 ps.color = "reset";
             }
+            changed = true;
+        }
+        String normalizedFont = FontMapper.normalizeStyle(ps.fontStyle);
+        if (ps.fontStyle == null || !ps.fontStyle.equals(normalizedFont)) {
+            ps.fontStyle = normalizedFont;
             changed = true;
         }
         return changed;

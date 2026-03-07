@@ -3,7 +3,8 @@ package com.teufel.statusmod.command;
 import com.teufel.statusmod.StatusMod;
 import com.teufel.statusmod.storage.PlayerSettings;
 import com.teufel.statusmod.storage.ModConfig;
-import com.teufel.statusmod.util.ColorMapper;
+import com.teufel.statusmod.util.StatusColorUtil;
+import com.teufel.statusmod.util.StatusTextUtil;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -14,8 +15,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextColor;
-import net.minecraft.ChatFormatting;
 
 
 public class StatusCommand {
@@ -30,7 +29,7 @@ public class StatusCommand {
                             return 1;
                         })
                 )
-                .then(Commands.argument("status", StringArgumentType.greedyString())
+                .then(Commands.argument("status", StringArgumentType.greedyString()).suggests(com.teufel.statusmod.command.CommandSuggestions.STATUS_SUGGESTIONS)
                         .then(Commands.argument("color", StringArgumentType.word()).suggests(com.teufel.statusmod.command.CommandSuggestions.COLOR_SUGGESTIONS)
                                 .executes(ctx -> {
                                     CommandSourceStack src = ctx.getSource();
@@ -66,7 +65,7 @@ public class StatusCommand {
                         )
                         .then(Commands.literal("set")
                             .then(Commands.argument("player", net.minecraft.commands.arguments.EntityArgument.player())
-                                .then(Commands.argument("status", StringArgumentType.greedyString())
+                                .then(Commands.argument("status", StringArgumentType.greedyString()).suggests(com.teufel.statusmod.command.CommandSuggestions.STATUS_SUGGESTIONS)
                                     .then(Commands.argument("color", StringArgumentType.word()).suggests(com.teufel.statusmod.command.CommandSuggestions.COLOR_SUGGESTIONS)
                                         .executes(ctx -> {
                                         CommandSourceStack src = ctx.getSource();
@@ -222,8 +221,8 @@ public class StatusCommand {
             PlayerTeam team = scoreboard.getPlayerTeam(teamName);
             if (team == null) team = scoreboard.addPlayerTeam(teamName);
 
-            Component base = Component.literal((settings.brackets ? "[" : "") + finalStatus + (settings.brackets ? "]" : ""));
-            Component colored = applyColor(base, finalColor);
+            Component base = Component.literal(StatusTextUtil.renderStatusText(finalStatus, settings));
+            Component colored = StatusColorUtil.applyColor(base, finalColor);
 
             if (settings.beforeName) {
                 // prefix should have trailing space to separate from name
@@ -307,15 +306,7 @@ public class StatusCommand {
      * Apply color to a component, supporting both hex codes (#RRGGBB) and named colors.
      */
     private static Component applyColor(Component base, String colorKey) {
-        // Try hex color first
-        TextColor hexColor = ColorMapper.parseHexColor(colorKey);
-        if (hexColor != null) {
-            return base.copy().withStyle(s -> s.withColor(hexColor));
-        }
-
-        // Fall back to named colors
-        ChatFormatting f = ColorMapper.get(colorKey);
-        return base.copy().withStyle(s -> s.withColor(f == null ? ChatFormatting.RESET : f));
+        return StatusColorUtil.applyColor(base, colorKey);
     }
 
     /**
@@ -368,7 +359,7 @@ public class StatusCommand {
             PlayerTeam team = scoreboard.getPlayerTeam(teamName);
             if (team == null) team = scoreboard.addPlayerTeam(teamName);
 
-            Component base = Component.literal((settings.brackets ? "[" : "") + status + (settings.brackets ? "]" : ""));
+            Component base = Component.literal(StatusTextUtil.renderStatusText(status, settings));
             Component colored = applyColor(base, colorKey);
             if (settings.beforeName) {
                 team.setPlayerPrefix(colored.copy().append(Component.literal(" ")));
