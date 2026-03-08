@@ -50,9 +50,10 @@ dependencies {
 
 processResources {
     inputs.property "version", modVersion
+    inputs.property "minecraft_version", minecraft_version
     filesMatching("fabric.mod.json") {
         // Use a mod id that matches the assets folder so the icon and assets are packaged correctly
-        expand "version": modVersion, "modid": "status-mod", "name": "Status Mod"
+        expand "version": modVersion, "modid": "status-mod", "name": "Status Mod", "minecraft_version": minecraft_version
     }
     // Also copy the mod icon to the jar root as `icon.png` so hosting platforms reliably detect it
     from("src/main/resources/assets/status-mod/icon.png") {

@@ -45,6 +45,7 @@ public class CommandSuggestions {
             builder.suggest("rgb(0,255,0)");
             builder.suggest("rgb(0,128,255)");
             builder.suggest("rgb(255,0,0)|rgb(0,255,0)|rgb(0,0,255)");
+            builder.suggest("rainbow");
             // reset shortcut
             builder.suggest("reset");
         } catch (Exception ignored) {}

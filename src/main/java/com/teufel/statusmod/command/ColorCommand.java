@@ -67,7 +67,7 @@ public class ColorCommand {
             // Validate color format (named, hex, rgb)
             if (!ColorMapper.isValidColorInput(colorInput)) {
                 src.sendFailure(Component.literal(
-                    "Ungültige Farbe. Erlaubt: Name, Hex, rgb(...) oder Palette rgb(...)|rgb(...)."
+                    "Ungültige Farbe. Erlaubt: Name, Hex, rgb(...), Palette rgb(...)|rgb(...) oder rainbow."
                 ));
                 return;
             }

@@ -129,6 +129,7 @@ public class ColorMapper {
     public static boolean isValidColorInput(String color) {
         if (color == null || color.isBlank()) return false;
         if ("reset".equalsIgnoreCase(color)) return true;
+        if ("rainbow".equalsIgnoreCase(color)) return true;
 
         if (color.contains("|") || color.contains(";")) {
             List<TextColor> palette = parseColorPalette(color);
@@ -140,9 +141,23 @@ public class ColorMapper {
         return map.containsKey(k);
     }
 
+    public static boolean isAnimatedColorInput(String color) {
+        if (color == null || color.isBlank()) return false;
+        if ("rainbow".equalsIgnoreCase(color.trim())) return true;
+        return parseColorPalette(color).size() >= 2;
+    }
+
     public static List<TextColor> parseColorPalette(String input) {
         List<TextColor> colors = new ArrayList<>();
         if (input == null || input.isBlank()) return colors;
+        if ("rainbow".equalsIgnoreCase(input.trim())) {
+            // Green -> Blue -> Pink -> Yellow (loop)
+            addDirect(colors, "#00FF66");
+            addDirect(colors, "#00A2FF");
+            addDirect(colors, "#FF4FD8");
+            addDirect(colors, "#FFE600");
+            return colors;
+        }
         if (!(input.contains("|") || input.contains(";"))) return colors;
 
         String[] parts = input.split("[|;]");
@@ -156,6 +171,11 @@ public class ColorMapper {
             }
         }
         return colors;
+    }
+
+    private static void addDirect(List<TextColor> out, String token) {
+        TextColor tc = parseDirectColor(token);
+        if (tc != null) out.add(tc);
     }
 
     /**

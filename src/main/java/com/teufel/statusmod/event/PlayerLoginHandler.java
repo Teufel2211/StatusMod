@@ -2,6 +2,7 @@ package com.teufel.statusmod.event;
 
 import com.teufel.statusmod.StatusMod;
 import com.teufel.statusmod.storage.PlayerSettings;
+import com.teufel.statusmod.util.ColorMapper;
 import com.teufel.statusmod.util.StatusColorUtil;
 import com.teufel.statusmod.util.StatusTextUtil;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -50,6 +51,18 @@ public class PlayerLoginHandler {
             } catch (Exception ignored) {
                 configuredInterval = DEFAULT_REAPPLY_INTERVAL_TICKS;
             }
+
+            // Animated colors (rainbow / palette) need frequent refresh to actually animate.
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                try {
+                    PlayerSettings ps = StatusMod.storage.forPlayer(player.getUUID().toString());
+                    if (ps != null && ColorMapper.isAnimatedColorInput(ps.color)) {
+                        configuredInterval = MIN_REAPPLY_INTERVAL_TICKS;
+                        break;
+                    }
+                } catch (Exception ignored) {}
+            }
+
             if (tickCounter < configuredInterval) {
                 return;
             }
