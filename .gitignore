@@ -38,3 +38,16 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# local release secrets
+scripts/local/.release.env
+scripts/.release.env
+
+# local build artifacts
+dist/
+
+# local tooling
+.venv/
+_tmp_*/
+.tmp_*/
+release-matrix-*.log

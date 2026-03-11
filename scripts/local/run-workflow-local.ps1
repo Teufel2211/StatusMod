@@ -11,6 +11,26 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function Import-LocalReleaseEnv {
+    param([string]$FilePath)
+    if (-not (Test-Path $FilePath)) {
+        return
+    }
+    foreach ($line in (Get-Content -LiteralPath $FilePath)) {
+        $raw = [string]$line
+        if ([string]::IsNullOrWhiteSpace($raw)) { continue }
+        if ($raw.TrimStart().StartsWith("#")) { continue }
+        $idx = $raw.IndexOf("=")
+        if ($idx -lt 1) { continue }
+        $key = $raw.Substring(0, $idx).Trim()
+        $val = $raw.Substring($idx + 1).Trim()
+        if ([string]::IsNullOrWhiteSpace($key)) { continue }
+        if (-not [string]::IsNullOrWhiteSpace($val) -and [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($key))) {
+            [Environment]::SetEnvironmentVariable($key, $val, "Process")
+        }
+    }
+}
+
 function Invoke-GradleWithRetry {
     param([string[]]$GradleArgs, [int]$Attempts = 3)
     $gradlew = Join-Path $root "gradlew.bat"
@@ -93,6 +113,8 @@ function New-ReleaseNotes {
 $root = Resolve-Path (Join-Path $PSScriptRoot "../..")
 Set-Location $root
 New-Item -ItemType Directory -Force -Path (Join-Path $root "dist/local") | Out-Null
+Import-LocalReleaseEnv -FilePath (Join-Path $root "scripts/local/.release.env")
+Import-LocalReleaseEnv -FilePath (Join-Path $root "scripts/.release.env")
 
 switch ($Workflow) {
     "build" {

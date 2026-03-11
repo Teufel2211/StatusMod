@@ -3,11 +3,17 @@ package com.teufel.statusmod.util;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.TextColor;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -16,6 +22,14 @@ public class ColorMapper {
     private static final Pattern RGB_PATTERN = Pattern.compile("(?i)^rgb\\(\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*\\)$");
     private static final Pattern RGB_COLON_PATTERN = Pattern.compile("(?i)^rgb\\s*:\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*$");
     private static final Pattern RGB_PLAIN_PATTERN = Pattern.compile("^\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*,\\s*(\\d{1,3})\\s*$");
+    private static final String RAINBOW_RESOURCE = "statusmod/rgb_rainbow_1530.txt";
+    private static final List<TextColor> DEFAULT_RAINBOW = List.of(
+            TextColor.fromRgb(0x00FF66),
+            TextColor.fromRgb(0x00A2FF),
+            TextColor.fromRgb(0xFF4FD8),
+            TextColor.fromRgb(0xFFE600)
+    );
+    private static volatile List<TextColor> cachedRainbowPalette;
 
     static {
         // englisch
@@ -130,6 +144,7 @@ public class ColorMapper {
         if (color == null || color.isBlank()) return false;
         if ("reset".equalsIgnoreCase(color)) return true;
         if ("rainbow".equalsIgnoreCase(color)) return true;
+        if ("rainbow1530".equalsIgnoreCase(color)) return true;
 
         if (color.contains("|") || color.contains(";")) {
             List<TextColor> palette = parseColorPalette(color);
@@ -144,19 +159,16 @@ public class ColorMapper {
     public static boolean isAnimatedColorInput(String color) {
         if (color == null || color.isBlank()) return false;
         if ("rainbow".equalsIgnoreCase(color.trim())) return true;
+        if ("rainbow1530".equalsIgnoreCase(color.trim())) return true;
         return parseColorPalette(color).size() >= 2;
     }
 
     public static List<TextColor> parseColorPalette(String input) {
         List<TextColor> colors = new ArrayList<>();
         if (input == null || input.isBlank()) return colors;
-        if ("rainbow".equalsIgnoreCase(input.trim())) {
-            // Green -> Blue -> Pink -> Yellow (loop)
-            addDirect(colors, "#00FF66");
-            addDirect(colors, "#00A2FF");
-            addDirect(colors, "#FF4FD8");
-            addDirect(colors, "#FFE600");
-            return colors;
+        String normalized = input.trim();
+        if ("rainbow".equalsIgnoreCase(normalized) || "rainbow1530".equalsIgnoreCase(normalized)) {
+            return new ArrayList<>(getRainbow1530Palette());
         }
         if (!(input.contains("|") || input.contains(";"))) return colors;
 
@@ -176,6 +188,62 @@ public class ColorMapper {
     private static void addDirect(List<TextColor> out, String token) {
         TextColor tc = parseDirectColor(token);
         if (tc != null) out.add(tc);
+    }
+
+    private static List<TextColor> getRainbow1530Palette() {
+        List<TextColor> local = cachedRainbowPalette;
+        if (local != null && !local.isEmpty()) {
+            return local;
+        }
+
+        synchronized (ColorMapper.class) {
+            local = cachedRainbowPalette;
+            if (local != null && !local.isEmpty()) {
+                return local;
+            }
+
+            List<TextColor> loaded = loadRainbow1530FromResource();
+            if (loaded.isEmpty()) {
+                local = DEFAULT_RAINBOW;
+            } else {
+                local = Collections.unmodifiableList(loaded);
+            }
+            cachedRainbowPalette = local;
+            return local;
+        }
+    }
+
+    public static List<TextColor> rainbowPalette() {
+        return getRainbow1530Palette();
+    }
+
+    public static String toHex(TextColor color) {
+        if (color == null) return "#FFFFFF";
+        int v = color.getValue();
+        return String.format("#%06X", v & 0xFFFFFF);
+    }
+
+    private static List<TextColor> loadRainbow1530FromResource() {
+        InputStream in = ColorMapper.class.getClassLoader().getResourceAsStream(RAINBOW_RESOURCE);
+        if (in == null) {
+            return Collections.emptyList();
+        }
+
+        List<TextColor> out = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String token = line.trim();
+                if (token.isEmpty()) continue;
+                TextColor tc = parseRgbColor(token);
+                if (tc != null) {
+                    out.add(tc);
+                }
+            }
+        } catch (IOException ignored) {
+            return Collections.emptyList();
+        }
+        return out;
     }
 
     /**

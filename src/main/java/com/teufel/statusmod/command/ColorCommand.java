@@ -5,6 +5,7 @@ import com.teufel.statusmod.storage.PlayerSettings;
 import com.teufel.statusmod.util.ColorMapper;
 import com.teufel.statusmod.util.StatusTextUtil;
 import com.teufel.statusmod.util.StatusColorUtil;
+import com.teufel.statusmod.util.StatusTeamUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
@@ -67,7 +68,7 @@ public class ColorCommand {
             // Validate color format (named, hex, rgb)
             if (!ColorMapper.isValidColorInput(colorInput)) {
                 src.sendFailure(Component.literal(
-                    "Ungültige Farbe. Erlaubt: Name, Hex, rgb(...), Palette rgb(...)|rgb(...) oder rainbow."
+                    "Ungültige Farbe. Erlaubt: Name, Hex, rgb(...), Palette rgb(...)|rgb(...), rainbow oder rainbow1530."
                 ));
                 return;
             }
@@ -94,31 +95,9 @@ public class ColorCommand {
     private static void applyCurrentStatusToTeam(CommandSourceStack src, ServerPlayer player, PlayerSettings settings) {
         try {
             net.minecraft.server.ServerScoreboard scoreboard = src.getServer().getScoreboard();
-            String teamName = "status_" + player.getUUID().toString().substring(0, 8);
-            PlayerTeam team = scoreboard.getPlayerTeam(teamName);
-            if (team == null) {
-                team = scoreboard.addPlayerTeam(teamName);
-            }
-
-            Component base = Component.literal(StatusTextUtil.renderStatusText(settings));
-            Component colored = StatusColorUtil.applyColor(base, settings.color);
-
-            if (settings.beforeName) {
-                team.setPlayerPrefix(colored.copy().append(Component.literal(" ")));
-                team.setPlayerSuffix(Component.empty());
-            } else {
-                team.setPlayerPrefix(Component.empty());
-                team.setPlayerSuffix(Component.literal(" ").append(colored));
-            }
-
-            String playerName = player.getScoreboardName();
-            PlayerTeam existing = scoreboard.getPlayerTeam(playerName);
-            if (existing != null && existing != team) {
-                scoreboard.removePlayerFromTeam(playerName, existing);
-            }
-            if (existing != team) {
-                scoreboard.addPlayerToTeam(playerName, team);
-            }
+            String status = StatusTextUtil.resolveStatusForPlayer(settings, player);
+            String color = StatusTextUtil.resolveColorForPlayer(settings, player);
+            StatusTeamUtil.applyStatus(scoreboard, player, settings, status, color, com.teufel.statusmod.util.PermissionUtil.hasAdminPermission(player));
         } catch (Exception e) {
             e.printStackTrace();
         }

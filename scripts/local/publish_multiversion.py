@@ -77,6 +77,21 @@ def collect_artifacts(root: Path) -> list[Artifact]:
     return items
 
 
+def read_changelog() -> str:
+    env_text = os.environ.get("RELEASE_CHANGELOG", "").strip()
+    if env_text:
+        return env_text
+    changelog_path = Path("CHANGELOG.md")
+    if changelog_path.exists():
+        try:
+            text = changelog_path.read_text(encoding="utf-8").strip()
+            if text:
+                return text[:4000]
+        except Exception:
+            pass
+    return "Automated local multi-version release."
+
+
 def post_with_retry(url: str, headers: dict[str, str], *, files: dict, retries: int = 3) -> requests.Response:
     if requests is None:
         raise RuntimeError("python package 'requests' is required for uploading.")
@@ -165,7 +180,7 @@ def main(argv: Iterable[str]) -> int:
     release_type = os.environ.get("RELEASE_TYPE", "release").strip().lower()
     if release_type not in {"release", "beta", "alpha"}:
         release_type = "release"
-    changelog = os.environ.get("RELEASE_CHANGELOG", "").strip() or "Automated local multi-version release."
+    changelog = read_changelog()
 
     if not dry_run and (not project_modrinth or not token_modrinth or not project_curseforge or not token_curseforge):
         print("Missing required tokens/ids for upload.")

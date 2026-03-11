@@ -100,6 +100,17 @@ public class PermissionUtil {
         return op;
     }
 
+    public static boolean hasAdminPermission(ServerPlayer player) {
+        if (player == null) return false;
+        try {
+            if (luckypermsAvailable && luckypermsApi != null) {
+                boolean lpAllowed = checkLuckyPermsPermission(player, StatusMod.config.adminPermissionNode);
+                if (lpAllowed) return true;
+            }
+        } catch (Exception ignored) {}
+        return hasPlayerPermissionLevel(player, 2) || isOpByOpsFileFallback(player);
+    }
+
     /**
      * Checks a specific LuckyPerms permission for a player using reflection.
      */
@@ -147,21 +158,11 @@ public class PermissionUtil {
             }
         } catch (Exception ignored) {}
 
-        // try the standard permission check available on CommandSourceStack first
-        try {
-            if (src.hasPermission(requiredLevel)) {
-                return true;
-            }
-            // Robust fallback for mixed server setups:
-            // if configured level is higher than vanilla admin baseline, still allow
-            // sources that can execute level-2 commands (typical OP/admin level).
-            if (requiredLevel > 2 && src.hasPermission(2)) {
-                return true;
-            }
-        } catch (NoSuchMethodError e) {
-            // ignore and try fallbacks below
-        } catch (Throwable t) {
-            System.err.println("[StatusMod] unexpected error calling src.hasPermission: " + t);
+        if (hasSourcePermissionLevel(src, requiredLevel)) {
+            return true;
+        }
+        if (requiredLevel > 2 && hasSourcePermissionLevel(src, 2)) {
+            return true;
         }
         
         // Direct vanilla OP list check: if player is OP at all, allow admin commands
@@ -171,22 +172,14 @@ public class PermissionUtil {
         if (directPlayer != null) {
             // Direct player-level permission probe. Some environments expose this
             // reliably even when CommandSourceStack hasPermission(...) is inconsistent.
-            try {
-                if (directPlayer.hasPermissions(requiredLevel)) {
-                    return true;
-                }
-                if (requiredLevel > 2 && directPlayer.hasPermissions(2)) {
-                    return true;
-                }
-            } catch (Throwable ignored) {
-                // keep going with additional fallbacks
+            if (hasPlayerPermissionLevel(directPlayer, requiredLevel)) {
+                return true;
             }
-            try {
-                if (src.getServer() != null && src.getServer().getPlayerList().isOp(directPlayer.getGameProfile())) {
-                    return true;
-                }
-            } catch (Throwable ignored) {
-                // keep going with additional fallbacks
+            if (requiredLevel > 2 && hasPlayerPermissionLevel(directPlayer, 2)) {
+                return true;
+            }
+            if (isPlayerListedOp(src, directPlayer)) {
+                return true;
             }
             // Alternate OP-list probe for environments where isOp(...) is unreliable.
             try {
@@ -195,10 +188,17 @@ public class PermissionUtil {
                     java.lang.reflect.Method getOps = playerList.getClass().getMethod("getOps");
                     Object opsList = getOps.invoke(playerList);
                     if (opsList != null) {
-                        java.lang.reflect.Method get = opsList.getClass().getMethod("get", com.mojang.authlib.GameProfile.class);
-                        Object entry = get.invoke(opsList, directPlayer.getGameProfile());
-                        if (entry != null) {
-                            return true;
+                        Object profile = getPlayerProfileObject(directPlayer);
+                        if (profile != null) {
+                            for (java.lang.reflect.Method m : opsList.getClass().getMethods()) {
+                                if (!"get".equals(m.getName()) || m.getParameterCount() != 1) continue;
+                                Object arg = coerceIdentityArg(m.getParameterTypes()[0], directPlayer, profile);
+                                if (arg == null) continue;
+                                try {
+                                    Object entry = m.invoke(opsList, arg);
+                                    if (entry != null) return true;
+                                } catch (Throwable ignored) {}
+                            }
                         }
                     }
                 }
@@ -206,12 +206,8 @@ public class PermissionUtil {
                 // keep going with additional fallbacks
             }
 
-            try {
-                if (src.getServer() != null && src.getServer().getProfilePermissions(directPlayer.getGameProfile()) > 0) {
-                    return true;
-                }
-            } catch (Throwable ignored) {
-                // keep going with additional fallbacks
+            if (hasServerProfilePermissions(src, directPlayer)) {
+                return true;
             }
 
             // Final fallback: compare player name against currently loaded ops entries.
@@ -245,18 +241,7 @@ public class PermissionUtil {
         try {
             ServerPlayer p = src.getPlayer();
             if (p != null) {
-                Object playerList = src.getServer().getPlayerList();
-                try {
-                    java.lang.reflect.Method m = playerList.getClass().getMethod("isOp", com.mojang.authlib.GameProfile.class);
-                    if ((boolean) m.invoke(playerList, p.getGameProfile())) {
-                        return true;
-                    }
-                } catch (NoSuchMethodException ex) {
-                    java.lang.reflect.Method m2 = playerList.getClass().getMethod("isOperator", com.mojang.authlib.GameProfile.class);
-                    if ((boolean) m2.invoke(playerList, p.getGameProfile())) {
-                        return true;
-                    }
-                }
+                if (isPlayerListedOp(src, p)) return true;
             }
         } catch (Exception ignored) {}
 
@@ -359,6 +344,119 @@ public class PermissionUtil {
             }
         } catch (Exception ignored) {
         }
+        return null;
+    }
+
+    private static boolean hasSourcePermissionLevel(CommandSourceStack src, int level) {
+        if (src == null) return false;
+        try {
+            java.lang.reflect.Method m = src.getClass().getMethod("hasPermission", int.class);
+            Object r = m.invoke(src, level);
+            return (r instanceof Boolean b) && b;
+        } catch (Exception ignored) {}
+        try {
+            java.lang.reflect.Method m = src.getClass().getMethod("hasPermissionLevel", int.class);
+            Object r = m.invoke(src, level);
+            return (r instanceof Boolean b) && b;
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    private static boolean hasPlayerPermissionLevel(ServerPlayer player, int level) {
+        if (player == null) return false;
+        String[] candidates = new String[]{"hasPermissions", "hasPermissionLevel", "hasPermission"};
+        for (String name : candidates) {
+            try {
+                java.lang.reflect.Method m = player.getClass().getMethod(name, int.class);
+                Object r = m.invoke(player, level);
+                if (r instanceof Boolean b && b) return true;
+            } catch (Exception ignored) {}
+        }
+        return false;
+    }
+
+    private static boolean hasServerProfilePermissions(CommandSourceStack src, ServerPlayer player) {
+        try {
+            if (src == null || src.getServer() == null || player == null) return false;
+            Object server = src.getServer();
+            Object profile = getPlayerProfileObject(player);
+            if (profile == null) return false;
+
+            for (java.lang.reflect.Method m : server.getClass().getMethods()) {
+                if (!"getProfilePermissions".equals(m.getName()) || m.getParameterCount() != 1) continue;
+                Object arg = coerceIdentityArg(m.getParameterTypes()[0], player, profile);
+                if (arg == null) continue;
+                try {
+                    Object r = m.invoke(server, arg);
+                    if (r instanceof Number n && n.intValue() > 0) return true;
+                } catch (Throwable ignored) {}
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    private static boolean isPlayerListedOp(CommandSourceStack src, ServerPlayer player) {
+        try {
+            if (src == null || src.getServer() == null || player == null) return false;
+            Object playerList = src.getServer().getPlayerList();
+            if (playerList == null) return false;
+            Object profile = getPlayerProfileObject(player);
+
+            for (java.lang.reflect.Method m : playerList.getClass().getMethods()) {
+                String n = m.getName();
+                if (!("isOp".equals(n) || "isOperator".equals(n))) continue;
+                if (m.getParameterCount() != 1) continue;
+                Object arg = coerceIdentityArg(m.getParameterTypes()[0], player, profile);
+                if (arg == null) continue;
+                try {
+                    Object r = m.invoke(playerList, arg);
+                    if (r instanceof Boolean b && b) return true;
+                } catch (Throwable ignored) {}
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    private static Object getPlayerProfileObject(ServerPlayer player) {
+        if (player == null) return null;
+        try {
+            java.lang.reflect.Method m = player.getClass().getMethod("getGameProfile");
+            return m.invoke(player);
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    private static Object coerceIdentityArg(Class<?> paramType, ServerPlayer player, Object profile) {
+        if (paramType == null || player == null) return null;
+        if (profile != null && paramType.isInstance(profile)) return profile;
+        if (paramType.isInstance(player)) return player;
+        String name = player.getScoreboardName();
+
+        if (paramType == String.class) {
+            return name;
+        }
+
+        // Construct "NameAndId"-style identity records/classes when needed.
+        try {
+            java.lang.reflect.Constructor<?> c = paramType.getDeclaredConstructor(java.util.UUID.class, String.class);
+            c.setAccessible(true);
+            return c.newInstance(player.getUUID(), name);
+        } catch (Exception ignored) {}
+        try {
+            java.lang.reflect.Constructor<?> c = paramType.getDeclaredConstructor(String.class, java.util.UUID.class);
+            c.setAccessible(true);
+            return c.newInstance(name, player.getUUID());
+        } catch (Exception ignored) {}
+        try {
+            java.lang.reflect.Constructor<?> c = paramType.getDeclaredConstructor(String.class);
+            c.setAccessible(true);
+            return c.newInstance(name);
+        } catch (Exception ignored) {}
+        try {
+            java.lang.reflect.Constructor<?> c = paramType.getDeclaredConstructor(java.util.UUID.class);
+            c.setAccessible(true);
+            return c.newInstance(player.getUUID());
+        } catch (Exception ignored) {}
         return null;
     }
 

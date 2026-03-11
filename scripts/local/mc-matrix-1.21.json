@@ -2,61 +2,61 @@
   {
     "minecraft_version": "1.21.11",
     "yarn_mappings": "1.21.11+build.1",
-    "fabric_api_candidates": ["0.136.0+1.21.11", "0.136.0+1.21.10", "0.136.0+1.21"]
+    "fabric_api_candidates": ["0.136.0+1.21.11", "0.136.0+1.21.10"]
   },
   {
     "minecraft_version": "1.21.10",
     "yarn_mappings": "1.21.10+build.1",
-    "fabric_api_candidates": ["0.136.0+1.21.10", "0.136.0+1.21"]
+    "fabric_api_candidates": ["0.136.0+1.21.10"]
   },
   {
     "minecraft_version": "1.21.9",
     "yarn_mappings": "1.21.9+build.1",
-    "fabric_api_candidates": ["0.136.0+1.21.9", "0.136.0+1.21"]
+    "fabric_api_candidates": []
   },
   {
     "minecraft_version": "1.21.8",
     "yarn_mappings": "1.21.8+build.1",
-    "fabric_api_candidates": ["0.135.0+1.21.8", "0.135.0+1.21", "0.134.0+1.21"]
+    "fabric_api_candidates": []
   },
   {
     "minecraft_version": "1.21.7",
     "yarn_mappings": "1.21.7+build.1",
-    "fabric_api_candidates": ["0.134.0+1.21.7", "0.134.0+1.21", "0.132.0+1.21"]
+    "fabric_api_candidates": []
   },
   {
     "minecraft_version": "1.21.6",
     "yarn_mappings": "1.21.6+build.1",
-    "fabric_api_candidates": ["0.134.0+1.21.6", "0.134.0+1.21", "0.132.0+1.21"]
+    "fabric_api_candidates": []
   },
   {
     "minecraft_version": "1.21.5",
     "yarn_mappings": "1.21.5+build.1",
-    "fabric_api_candidates": ["0.134.0+1.21.5", "0.134.0+1.21", "0.132.0+1.21"]
+    "fabric_api_candidates": []
   },
   {
     "minecraft_version": "1.21.4",
     "yarn_mappings": "1.21.4+build.1",
-    "fabric_api_candidates": ["0.132.0+1.21.4", "0.132.0+1.21", "0.130.0+1.21"]
+    "fabric_api_candidates": []
   },
   {
     "minecraft_version": "1.21.3",
     "yarn_mappings": "1.21.3+build.1",
-    "fabric_api_candidates": ["0.132.0+1.21.3", "0.132.0+1.21", "0.130.0+1.21"]
+    "fabric_api_candidates": []
   },
   {
     "minecraft_version": "1.21.2",
     "yarn_mappings": "1.21.2+build.1",
-    "fabric_api_candidates": ["0.132.0+1.21.2", "0.132.0+1.21", "0.130.0+1.21"]
+    "fabric_api_candidates": []
   },
   {
     "minecraft_version": "1.21.1",
     "yarn_mappings": "1.21.1+build.1",
-    "fabric_api_candidates": ["0.132.0+1.21.1", "0.132.0+1.21", "0.130.0+1.21"]
+    "fabric_api_candidates": []
   },
   {
     "minecraft_version": "1.21",
     "yarn_mappings": "1.21+build.1",
-    "fabric_api_candidates": ["0.130.0+1.21", "0.102.0+1.21"]
+    "fabric_api_candidates": ["0.102.0+1.21"]
   }
 ]

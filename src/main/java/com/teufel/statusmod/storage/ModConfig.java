@@ -49,9 +49,27 @@ public class ModConfig {
      */
     public int statusReapplyTicks = 100;
 
+    /**
+     * Cooldown between status changes in seconds.
+     */
+    public int statusCooldownSeconds = 2;
+
+    /**
+     * Maximum number of entries kept in per-player history.
+     */
+    public int statusHistorySize = 5;
+
+    /**
+     * Staff badge settings (shown for admins/operators).
+     */
+    public boolean enableStaffBadge = true;
+    public String staffBadgeText = "[STAFF]";
+    public String staffBadgeColor = "red";
+
     private static final Gson GSON = new Gson();
     private static final int MIN_REAPPLY_TICKS = 20;
     private static final int MAX_REAPPLY_TICKS = 20 * 300;
+    private static final int MAX_HISTORY = 20;
 
     public static ModConfig load() {
         try {
@@ -130,5 +148,16 @@ public class ModConfig {
 
         if (statusReapplyTicks < MIN_REAPPLY_TICKS) statusReapplyTicks = MIN_REAPPLY_TICKS;
         if (statusReapplyTicks > MAX_REAPPLY_TICKS) statusReapplyTicks = MAX_REAPPLY_TICKS;
+
+        if (statusCooldownSeconds < 0) statusCooldownSeconds = 0;
+        if (statusCooldownSeconds > 300) statusCooldownSeconds = 300;
+
+        if (statusHistorySize < 0) statusHistorySize = 0;
+        if (statusHistorySize > MAX_HISTORY) statusHistorySize = MAX_HISTORY;
+
+        if (staffBadgeText == null || staffBadgeText.trim().isEmpty()) staffBadgeText = "[STAFF]";
+        else staffBadgeText = staffBadgeText.trim();
+        if (staffBadgeColor == null || staffBadgeColor.trim().isEmpty()) staffBadgeColor = "red";
+        else staffBadgeColor = staffBadgeColor.trim();
     }
 }

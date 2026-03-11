@@ -7,7 +7,11 @@ Players can set a custom status text and color that is shown in the player list 
 
 - `/status <text> [color]` to set your status quickly
 - `/status clear` to remove your status
+- `/status preset <name>`, `/status timed <minutes> <status>`, `/status random <status>`
+- `/status world <status>` per-dimension override
+- `/status history` to view recent statuses
 - Color support for English and German names, plus hex (`#RRGGBB` / `#RGB`)
+- Placeholders: `{world}`, `{ping}`
 - Persistent player settings and statuses in `config/statusmod/`
 - Automatic status restore on join
 - Periodic status reapply (`statusReapplyTicks`) to recover from team/suffix overrides by other systems
@@ -17,6 +21,12 @@ Players can set a custom status text and color that is shown in the player list 
 
 - `/status <text> [color]`
 - `/status clear`
+- `/status preset <name>`
+- `/status timed <minutes> <status>`
+- `/status random <status>`
+- `/status world <status> [color]`
+- `/status world clear`
+- `/status history`
 - `/color <name|hex|reset>`
 - `/settings brackets <on|off>`
 - `/settings position <before|after>`
@@ -49,6 +59,11 @@ Important fields:
 - `enableAdminOverrides`
 - `defaultColor`
 - `statusReapplyTicks` (20 ticks = 1 second, default 100)
+- `statusCooldownSeconds`
+- `statusHistorySize`
+- `enableStaffBadge`
+- `staffBadgeText`
+- `staffBadgeColor`
 
 Notes:
 

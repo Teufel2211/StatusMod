@@ -37,3 +37,9 @@ Required environment variables:
 - `MODRINTH_TOKEN`
 - `CURSEFORGE_PROJECT_ID`
 - `CURSEFORGE_API_KEY` (or `CURSEFORGE_TOKEN`)
+
+Optional local file:
+
+- `scripts/local/.release.env`
+  - copy from `scripts/local/.release.env.example`
+  - loaded automatically by `run-workflow-local.ps1`

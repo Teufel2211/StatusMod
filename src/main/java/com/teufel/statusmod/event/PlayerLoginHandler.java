@@ -5,6 +5,8 @@ import com.teufel.statusmod.storage.PlayerSettings;
 import com.teufel.statusmod.util.ColorMapper;
 import com.teufel.statusmod.util.StatusColorUtil;
 import com.teufel.statusmod.util.StatusTextUtil;
+import com.teufel.statusmod.util.StatusTeamUtil;
+import com.teufel.statusmod.util.PermissionUtil;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.network.chat.Component;
@@ -29,7 +31,8 @@ public class PlayerLoginHandler {
                 PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
                 
                 // Only reapply if status is not empty
-                if (settings.status != null && !settings.status.isEmpty()) {
+                String status = StatusTextUtil.resolveStatusForPlayer(settings, player);
+                if (status != null && !status.isEmpty()) {
                     reapplyStatus(server, player, uuid, settings);
                 }
             } catch (Exception e) {
@@ -72,7 +75,14 @@ public class PlayerLoginHandler {
                 String uuid = player.getUUID().toString();
                 try {
                     PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
-                    if (settings.status == null || settings.status.isEmpty()) {
+                    if (settings.statusExpiresAtMs > 0L && System.currentTimeMillis() >= settings.statusExpiresAtMs) {
+                        settings.status = "";
+                        settings.color = "reset";
+                        settings.statusExpiresAtMs = 0L;
+                        StatusMod.storage.put(uuid, settings);
+                    }
+                    String status = StatusTextUtil.resolveStatusForPlayer(settings, player);
+                    if (status == null || status.isEmpty()) {
                         continue;
                     }
                     reapplyStatus(server, player, uuid, settings);
@@ -88,37 +98,9 @@ public class PlayerLoginHandler {
                                       String uuid, PlayerSettings settings) {
         try {
             net.minecraft.server.ServerScoreboard scoreboard = server.getScoreboard();
-            String teamName = "status_" + uuid.substring(0, 8);
-            PlayerTeam team = scoreboard.getPlayerTeam(teamName);
-            
-            if (team == null) {
-                team = scoreboard.addPlayerTeam(teamName);
-            }
-            
-            // Reconstruct the colored status text using the applyColor helper
-            Component base = Component.literal(StatusTextUtil.renderStatusText(settings));
-            Component colored = StatusColorUtil.applyColor(base, settings.color);
-            
-            // Apply prefix/suffix based on position preference
-            String playerName = player.getScoreboardName();
-            if (settings.beforeName) {
-                team.setPlayerPrefix(colored.copy().append(Component.literal(" ")));
-                team.setPlayerSuffix(Component.empty());
-            } else {
-                team.setPlayerPrefix(Component.empty());
-                team.setPlayerSuffix(Component.literal(" ").append(colored));
-            }
-            
-            // Ensure player is moved into the correct team without triggering
-            // IllegalStateException if they happen to already belong to a different
-            // team (which was the cause of the crash reported by the user).
-            PlayerTeam existing = scoreboard.getPlayerTeam(playerName);
-            if (existing != null && existing != team) {
-                scoreboard.removePlayerFromTeam(playerName, existing);
-            }
-            if (existing != team) {
-                scoreboard.addPlayerToTeam(playerName, team);
-            }
+            String status = StatusTextUtil.resolveStatusForPlayer(settings, player);
+            String color = StatusTextUtil.resolveColorForPlayer(settings, player);
+            StatusTeamUtil.applyStatus(scoreboard, player, settings, status, color, PermissionUtil.hasAdminPermission(player));
             
         } catch (Exception e) {
             System.err.println("[StatusMod] Error reapplying status for player " + uuid);

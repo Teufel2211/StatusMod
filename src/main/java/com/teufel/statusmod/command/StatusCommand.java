@@ -3,9 +3,13 @@ package com.teufel.statusmod.command;
 import com.teufel.statusmod.StatusMod;
 import com.teufel.statusmod.storage.PlayerSettings;
 import com.teufel.statusmod.storage.ModConfig;
+import com.teufel.statusmod.util.ColorMapper;
+import com.teufel.statusmod.util.FontMapper;
 import com.teufel.statusmod.util.StatusColorUtil;
+import com.teufel.statusmod.util.StatusTeamUtil;
 import com.teufel.statusmod.util.StatusTextUtil;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
@@ -15,9 +19,21 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 
 public class StatusCommand {
+    private static final Map<String, Preset> PRESETS = new HashMap<>();
+    static {
+        PRESETS.put("afk", new Preset("AFK", "yellow", "normal"));
+        PRESETS.put("busy", new Preset("Busy", "red", "normal"));
+        PRESETS.put("stream", new Preset("Stream", "light_purple", "smallcaps"));
+        PRESETS.put("shop", new Preset("Shop", "gold", "normal"));
+    }
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         // always register /status root; some children may be added conditionally
         LiteralArgumentBuilder<CommandSourceStack> statusTree = Commands.literal("status")
@@ -45,6 +61,63 @@ public class StatusCommand {
                             setStatus(src, status, null);
                             return 1;
                         })
+                );
+
+        statusTree = statusTree
+                .then(Commands.literal("preset")
+                        .then(Commands.argument("name", StringArgumentType.word()).suggests(com.teufel.statusmod.command.CommandSuggestions.PRESET_SUGGESTIONS)
+                                .executes(ctx -> {
+                                    applyPreset(ctx.getSource(), StringArgumentType.getString(ctx, "name"));
+                                    return 1;
+                                })
+                        )
+                )
+                .then(Commands.literal("random")
+                        .then(Commands.argument("status", StringArgumentType.greedyString()).suggests(com.teufel.statusmod.command.CommandSuggestions.STATUS_SUGGESTIONS)
+                                .executes(ctx -> {
+                                    setRandomStatus(ctx.getSource(), StringArgumentType.getString(ctx, "status"));
+                                    return 1;
+                                })
+                        )
+                )
+                .then(Commands.literal("timed")
+                        .then(Commands.argument("minutes", IntegerArgumentType.integer(1))
+                                .then(Commands.argument("status", StringArgumentType.greedyString()).suggests(com.teufel.statusmod.command.CommandSuggestions.STATUS_SUGGESTIONS)
+                                        .executes(ctx -> {
+                                            setTimedStatus(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "minutes"),
+                                                    StringArgumentType.getString(ctx, "status"));
+                                            return 1;
+                                        })
+                                )
+                        )
+                )
+                .then(Commands.literal("history")
+                        .executes(ctx -> {
+                            showHistory(ctx.getSource());
+                            return 1;
+                        })
+                )
+                .then(Commands.literal("world")
+                        .then(Commands.literal("clear")
+                                .executes(ctx -> {
+                                    clearWorldStatus(ctx.getSource());
+                                    return 1;
+                                })
+                        )
+                        .then(Commands.argument("status", StringArgumentType.greedyString()).suggests(com.teufel.statusmod.command.CommandSuggestions.STATUS_SUGGESTIONS)
+                                .then(Commands.argument("color", StringArgumentType.word()).suggests(com.teufel.statusmod.command.CommandSuggestions.COLOR_SUGGESTIONS)
+                                        .executes(ctx -> {
+                                            setWorldStatus(ctx.getSource(),
+                                                    StringArgumentType.getString(ctx, "status"),
+                                                    StringArgumentType.getString(ctx, "color"));
+                                            return 1;
+                                        })
+                                )
+                                .executes(ctx -> {
+                                    setWorldStatus(ctx.getSource(), StringArgumentType.getString(ctx, "status"), null);
+                                    return 1;
+                                })
+                        )
                 );
 
         if (StatusMod.config.enableAdminOverrides) {
@@ -157,6 +230,11 @@ public class StatusCommand {
                     src.sendSuccess(() -> Component.literal(" enableAdminOverrides = " + c.enableAdminOverrides), false);
                     src.sendSuccess(() -> Component.literal(" defaultColor = " + c.defaultColor), false);
                     src.sendSuccess(() -> Component.literal(" statusReapplyTicks = " + c.statusReapplyTicks), false);
+                    src.sendSuccess(() -> Component.literal(" statusCooldownSeconds = " + c.statusCooldownSeconds), false);
+                    src.sendSuccess(() -> Component.literal(" statusHistorySize = " + c.statusHistorySize), false);
+                    src.sendSuccess(() -> Component.literal(" enableStaffBadge = " + c.enableStaffBadge), false);
+                    src.sendSuccess(() -> Component.literal(" staffBadgeText = " + c.staffBadgeText), false);
+                    src.sendSuccess(() -> Component.literal(" staffBadgeColor = " + c.staffBadgeColor), false);
                     return 1;
                 })
             )
@@ -177,75 +255,16 @@ public class StatusCommand {
             }
 
             PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
-            // Determine parsing based on player's configured status word count
-            int n = settings.statusWords <= 0 ? 1 : settings.statusWords;
-            String[] tokens = status == null ? new String[0] : status.trim().split("\\s+");
-            if (tokens.length < n) {
-                src.sendFailure(Component.literal("Bitte mindestens " + n + " Wörter für den Status angeben."));
+            if (!checkCooldown(src, settings)) return;
+
+            StatusUpdate update = parseStatusInput(status, colorKey, settings);
+            if (!update.ok) {
+                src.sendFailure(Component.literal(update.error));
                 return;
             }
 
-            // Always normalize to exactly the configured status word-count.
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < n; i++) {
-                if (i > 0) sb.append(' ');
-                sb.append(tokens[i]);
-            }
-            status = sb.toString();
-
-            // If no explicit color argument exists, accept an inline color token
-            // directly after the configured status words.
-            if (colorKey == null || colorKey.isEmpty()) {
-                if (tokens.length > n) {
-                    colorKey = tokens[n];
-                } else {
-                    colorKey = (StatusMod.config != null && StatusMod.config.defaultColor != null && !StatusMod.config.defaultColor.isEmpty())
-                            ? StatusMod.config.defaultColor
-                            : "reset";
-                }
-            } else {
-                colorKey = colorKey.trim();
-            }
-
-            settings.status = status;
-            settings.color = colorKey;
-            StatusMod.storage.put(uuid, settings);
-
-            // make final copies for lambda usage later
-            final String finalStatus = status;
-            final String finalColor = colorKey;
-
-            MinecraftServer server = src.getServer();
-            net.minecraft.server.ServerScoreboard scoreboard = server.getScoreboard();
-            String teamName = "status_" + uuid.substring(0, 8);
-            PlayerTeam team = scoreboard.getPlayerTeam(teamName);
-            if (team == null) team = scoreboard.addPlayerTeam(teamName);
-
-            Component base = Component.literal(StatusTextUtil.renderStatusText(finalStatus, settings));
-            Component colored = StatusColorUtil.applyColor(base, finalColor);
-
-            if (settings.beforeName) {
-                // prefix should have trailing space to separate from name
-                team.setPlayerPrefix(colored.copy().append(Component.literal(" ")));
-                team.setPlayerSuffix(Component.empty());
-            } else {
-                // suffix should have leading space to separate from name
-                team.setPlayerPrefix(Component.empty());
-                team.setPlayerSuffix(Component.literal(" ").append(colored));
-            }
-
-            // add player to team (applies prefix/suffix) carefully, since
-            // removing from a different team throws an exception
-            String playerName = player.getScoreboardName();
-            PlayerTeam existing = scoreboard.getPlayerTeam(playerName);
-            if (existing != null && existing != team) {
-                scoreboard.removePlayerFromTeam(playerName, existing);
-            }
-            if (existing != team) {
-                scoreboard.addPlayerToTeam(playerName, team);
-            }
-
-            src.sendSuccess(() -> Component.literal("Status gesetzt: " + finalStatus + " (" + finalColor + ")"), false);
+            applyStatusUpdate(src, player, settings, update, false, null, false);
+            src.sendSuccess(() -> Component.literal("Status gesetzt: " + update.status + " (" + update.color + ")"), false);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Setzen des Status.")); } catch(Exception ignore){}
             e.printStackTrace();
@@ -266,35 +285,11 @@ public class StatusCommand {
             PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
             settings.status = "";
             settings.color = "reset";
+            settings.statusExpiresAtMs = 0L;
             StatusMod.storage.put(uuid, settings);
 
             MinecraftServer server = src.getServer();
-            net.minecraft.server.ServerScoreboard scoreboard = server.getScoreboard();
-            String teamName = "status_" + uuid.substring(0, 8);
-            PlayerTeam team = scoreboard.getPlayerTeam(teamName);
-            String playerName = player.getScoreboardName();
-            // Instead of removing the player/team (which can change spacing in the UI),
-            // keep the team and set an empty-but-spacing prefix/suffix so spacing remains stable.
-            if (team == null) {
-                team = scoreboard.addPlayerTeam(teamName);
-            }
-            // ensure a single separating space remains where the status would be
-            if (settings.beforeName) {
-                team.setPlayerPrefix(net.minecraft.network.chat.Component.literal(" "));
-                team.setPlayerSuffix(net.minecraft.network.chat.Component.empty());
-            } else {
-                team.setPlayerPrefix(net.minecraft.network.chat.Component.empty());
-                team.setPlayerSuffix(net.minecraft.network.chat.Component.literal(" "));
-            }
-            // (re)add the player to the team so the empty spacing is applied immediately
-            PlayerTeam existing2 = scoreboard.getPlayerTeam(playerName);
-            if (existing2 != null && existing2 != team) {
-                scoreboard.removePlayerFromTeam(playerName, existing2);
-            }
-            if (existing2 != team) {
-                scoreboard.addPlayerToTeam(playerName, team);
-            }
-
+            StatusTeamUtil.applyStatus(server.getScoreboard(), player, settings, "", "reset", PermissionUtil.hasAdminPermission(player));
             src.sendSuccess(() -> Component.literal("Status gelöscht."), false);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Löschen des Status.")); } catch(Exception ignore){}
@@ -322,65 +317,14 @@ public class StatusCommand {
 
             String uuid = target.getUUID().toString();
             PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
-            int n = settings.statusWords <= 0 ? 1 : settings.statusWords;
-            String[] tokens = status == null ? new String[0] : status.trim().split("\\s+");
-            if (tokens.length < n) {
-                src.sendFailure(Component.literal("Bitte mindestens " + n + " Wörter für den Status angeben."));
+            StatusUpdate update = parseStatusInput(status, colorKey, settings);
+            if (!update.ok) {
+                src.sendFailure(Component.literal(update.error));
                 return;
             }
 
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < n; i++) {
-                if (i > 0) sb.append(' ');
-                sb.append(tokens[i]);
-            }
-            status = sb.toString();
-
-            if (colorKey == null || colorKey.isEmpty()) {
-                if (tokens.length > n) {
-                    colorKey = tokens[n];
-                } else {
-                    colorKey = (StatusMod.config != null && StatusMod.config.defaultColor != null && !StatusMod.config.defaultColor.isEmpty())
-                            ? StatusMod.config.defaultColor
-                            : "reset";
-                }
-            } else {
-                colorKey = colorKey.trim();
-            }
-
-            settings.status = status;
-            settings.color = colorKey;
-            StatusMod.storage.put(uuid, settings);
-
-            // reuse setStatus-like logic to update scoreboard now
-            MinecraftServer server = src.getServer();
-            net.minecraft.server.ServerScoreboard scoreboard = server.getScoreboard();
-            String teamName = "status_" + uuid.substring(0, 8);
-            PlayerTeam team = scoreboard.getPlayerTeam(teamName);
-            if (team == null) team = scoreboard.addPlayerTeam(teamName);
-
-            Component base = Component.literal(StatusTextUtil.renderStatusText(status, settings));
-            Component colored = applyColor(base, colorKey);
-            if (settings.beforeName) {
-                team.setPlayerPrefix(colored.copy().append(Component.literal(" ")));
-                team.setPlayerSuffix(Component.empty());
-            } else {
-                team.setPlayerPrefix(Component.empty());
-                team.setPlayerSuffix(Component.literal(" ").append(colored));
-            }
-
-            String playerName = target.getScoreboardName();
-            PlayerTeam existing = scoreboard.getPlayerTeam(playerName);
-            if (existing != null && existing != team) {
-                scoreboard.removePlayerFromTeam(playerName, existing);
-            }
-            if (existing != team) {
-                scoreboard.addPlayerToTeam(playerName, team);
-            }
-
-            final String finalStatus = status;
-            final String finalColor = colorKey;
-            src.sendSuccess(() -> Component.literal("Status von " + targetName + " gesetzt: " + finalStatus + " (" + finalColor + ")"), false);
+            applyStatusUpdate(src, target, settings, update, false, null, false);
+            src.sendSuccess(() -> Component.literal("Status von " + targetName + " gesetzt: " + update.status + " (" + update.color + ")"), false);
             target.displayClientMessage(Component.literal("Dein Status wurde von einem Administrator gesetzt."), false);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Setzen des Status für '" + targetName + "'.")); } catch (Exception ignore) {}
@@ -400,35 +344,301 @@ public class StatusCommand {
             PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
             settings.status = "";
             settings.color = "reset";
+            settings.statusExpiresAtMs = 0L;
             StatusMod.storage.put(uuid, settings);
 
             MinecraftServer server = src.getServer();
-            net.minecraft.server.ServerScoreboard scoreboard = server.getScoreboard();
-            String teamName = "status_" + uuid.substring(0, 8);
-            PlayerTeam team = scoreboard.getPlayerTeam(teamName);
-            String playerName = target.getScoreboardName();
-            if (team != null) {
-                PlayerTeam existing = scoreboard.getPlayerTeam(playerName);
-                if (existing != null && existing != team) {
-                    scoreboard.removePlayerFromTeam(playerName, existing);
-                }
-                if (existing != team) {
-                    scoreboard.addPlayerToTeam(playerName, team);
-                }
-                if (settings.beforeName) {
-                    team.setPlayerPrefix(Component.literal(" "));
-                    team.setPlayerSuffix(Component.empty());
-                } else {
-                    team.setPlayerPrefix(Component.empty());
-                    team.setPlayerSuffix(Component.literal(" "));
-                }
-            }
+            StatusTeamUtil.applyStatus(server.getScoreboard(), target, settings, "", "reset", PermissionUtil.hasAdminPermission(target));
 
             src.sendSuccess(() -> Component.literal("Status von " + targetName + " gelöscht."), false);
             target.displayClientMessage(Component.literal("Dein Status wurde von einem Administrator gelöscht."), false);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Löschen des Status für '" + targetName + "'.")); } catch (Exception ignore) {}
             e.printStackTrace();
+        }
+    }
+
+    private static void applyPreset(CommandSourceStack src, String name) {
+        try {
+            if (name == null) name = "";
+            Preset preset = PRESETS.get(name.toLowerCase());
+            if (preset == null) {
+                src.sendFailure(Component.literal("Unbekanntes Preset: " + name));
+                return;
+            }
+            ServerPlayer player = src.getPlayer();
+            if (isBlocked(src, player)) return;
+            PlayerSettings settings = StatusMod.storage.forPlayer(player.getUUID().toString());
+            if (!checkCooldown(src, settings)) return;
+
+            StatusUpdate update = new StatusUpdate(preset.status, preset.color, preset.font, true, null);
+            applyStatusUpdate(src, player, settings, update, false, null, false);
+            src.sendSuccess(() -> Component.literal("Preset gesetzt: " + preset.status + " (" + preset.color + ")"), false);
+        } catch (Exception e) {
+            try { src.sendFailure(Component.literal("Fehler beim Setzen des Presets.")); } catch(Exception ignore){}
+            e.printStackTrace();
+        }
+    }
+
+    private static void setRandomStatus(CommandSourceStack src, String statusInput) {
+        try {
+            ServerPlayer player = src.getPlayer();
+            if (isBlocked(src, player)) return;
+            PlayerSettings settings = StatusMod.storage.forPlayer(player.getUUID().toString());
+            if (!checkCooldown(src, settings)) return;
+
+            StatusUpdate update = parseStatusInput(statusInput, null, settings);
+            if (!update.ok) {
+                src.sendFailure(Component.literal(update.error));
+                return;
+            }
+
+            String randomColor = pickStableRandomColor(player.getUUID().toString());
+            update.color = randomColor;
+            applyStatusUpdate(src, player, settings, update, false, null, false);
+            src.sendSuccess(() -> Component.literal("Status gesetzt (random): " + update.status + " (" + update.color + ")"), false);
+        } catch (Exception e) {
+            try { src.sendFailure(Component.literal("Fehler beim Setzen des random Status.")); } catch(Exception ignore){}
+            e.printStackTrace();
+        }
+    }
+
+    private static void setTimedStatus(CommandSourceStack src, int minutes, String statusInput) {
+        try {
+            ServerPlayer player = src.getPlayer();
+            if (isBlocked(src, player)) return;
+            PlayerSettings settings = StatusMod.storage.forPlayer(player.getUUID().toString());
+            if (!checkCooldown(src, settings)) return;
+
+            StatusUpdate update = parseStatusInput(statusInput, null, settings);
+            if (!update.ok) {
+                src.sendFailure(Component.literal(update.error));
+                return;
+            }
+            long expiresAt = System.currentTimeMillis() + (minutes * 60L * 1000L);
+            applyStatusUpdate(src, player, settings, update, false, expiresAt, false);
+            src.sendSuccess(() -> Component.literal("Status gesetzt für " + minutes + " Minuten."), false);
+        } catch (Exception e) {
+            try { src.sendFailure(Component.literal("Fehler beim Setzen des Timed-Status.")); } catch(Exception ignore){}
+            e.printStackTrace();
+        }
+    }
+
+    private static void setWorldStatus(CommandSourceStack src, String statusInput, String colorKey) {
+        try {
+            ServerPlayer player = src.getPlayer();
+            if (isBlocked(src, player)) return;
+            PlayerSettings settings = StatusMod.storage.forPlayer(player.getUUID().toString());
+            if (!checkCooldown(src, settings)) return;
+
+            StatusUpdate update = parseStatusInput(statusInput, colorKey, settings);
+            if (!update.ok) {
+                src.sendFailure(Component.literal(update.error));
+                return;
+            }
+            applyStatusUpdate(src, player, settings, update, true, null, false);
+            src.sendSuccess(() -> Component.literal("World-Status gesetzt."), false);
+        } catch (Exception e) {
+            try { src.sendFailure(Component.literal("Fehler beim Setzen des World-Status.")); } catch(Exception ignore){}
+            e.printStackTrace();
+        }
+    }
+
+    private static void clearWorldStatus(CommandSourceStack src) {
+        try {
+            ServerPlayer player = src.getPlayer();
+            if (isBlocked(src, player)) return;
+            PlayerSettings settings = StatusMod.storage.forPlayer(player.getUUID().toString());
+            String key = getWorldKey(player);
+            if (key != null) {
+                if (settings.statusByWorld != null) settings.statusByWorld.remove(key);
+                if (settings.colorByWorld != null) settings.colorByWorld.remove(key);
+                StatusMod.storage.put(player.getUUID().toString(), settings);
+                StatusTeamUtil.applyStatus(src.getServer().getScoreboard(), player, settings,
+                        StatusTextUtil.resolveStatusForPlayer(settings, player),
+                        StatusTextUtil.resolveColorForPlayer(settings, player),
+                        PermissionUtil.hasAdminPermission(player));
+            }
+            src.sendSuccess(() -> Component.literal("World-Status gelöscht."), false);
+        } catch (Exception e) {
+            try { src.sendFailure(Component.literal("Fehler beim Löschen des World-Status.")); } catch(Exception ignore){}
+            e.printStackTrace();
+        }
+    }
+
+    private static void showHistory(CommandSourceStack src) {
+        try {
+            ServerPlayer player = src.getPlayer();
+            if (isBlocked(src, player)) return;
+            PlayerSettings settings = StatusMod.storage.forPlayer(player.getUUID().toString());
+            src.sendSuccess(() -> Component.literal("Status-Verlauf:"), false);
+            if (settings.statusHistory == null || settings.statusHistory.isEmpty()) {
+                src.sendSuccess(() -> Component.literal("- (leer)"), false);
+                return;
+            }
+            for (String h : settings.statusHistory) {
+                if (h == null || h.isBlank()) continue;
+                src.sendSuccess(() -> Component.literal("- " + h), false);
+            }
+        } catch (Exception e) {
+            try { src.sendFailure(Component.literal("Fehler beim Anzeigen des Verlaufs.")); } catch(Exception ignore){}
+            e.printStackTrace();
+        }
+    }
+
+    private static boolean checkCooldown(CommandSourceStack src, PlayerSettings settings) {
+        try {
+            if (settings == null) return true;
+            int cooldown = StatusMod.config == null ? 0 : StatusMod.config.statusCooldownSeconds;
+            if (cooldown <= 0) return true;
+            if (PermissionUtil.hasAdminPermission(src)) return true;
+            long now = System.currentTimeMillis();
+            long last = settings.lastStatusChangeAtMs;
+            long remaining = (last + (cooldown * 1000L)) - now;
+            if (remaining > 0) {
+                long seconds = Math.max(1, remaining / 1000L);
+                src.sendFailure(Component.literal("Bitte warte " + seconds + "s bevor du den Status erneut änderst."));
+                return false;
+            }
+        } catch (Exception ignored) {}
+        return true;
+    }
+
+    private static boolean isBlocked(CommandSourceStack src, ServerPlayer player) {
+        if (player == null) return false;
+        String uuid = player.getUUID().toString();
+        if (StatusMod.blockedPlayers.isBlocked(uuid)) {
+            try { src.sendFailure(Component.literal("Du wurdest vom Status-Mod blockiert.")); } catch (Exception ignored) {}
+            return true;
+        }
+        return false;
+    }
+
+    private static void applyStatusUpdate(CommandSourceStack src, ServerPlayer player, PlayerSettings settings, StatusUpdate update,
+                                          boolean perWorld, Long expiresAtMs, boolean keepFont) {
+        if (player == null || settings == null || update == null) return;
+        if (!keepFont && update.font != null && !update.font.isEmpty()) {
+            settings.fontStyle = FontMapper.normalizeStyle(update.font);
+        }
+        String status = update.status;
+        String color = update.color;
+
+        if (perWorld) {
+            String key = getWorldKey(player);
+            if (key != null) {
+                if (settings.statusByWorld != null) settings.statusByWorld.put(key, status);
+                if (settings.colorByWorld != null) settings.colorByWorld.put(key, color);
+            }
+        } else {
+            settings.status = status;
+            settings.color = color;
+        }
+
+        if (expiresAtMs != null) {
+            settings.statusExpiresAtMs = expiresAtMs;
+        }
+
+        settings.lastStatusChangeAtMs = System.currentTimeMillis();
+        addHistory(settings, status);
+        StatusMod.storage.put(player.getUUID().toString(), settings);
+
+        MinecraftServer server = src.getServer();
+        String appliedStatus = StatusTextUtil.resolveStatusForPlayer(settings, player);
+        String appliedColor = StatusTextUtil.resolveColorForPlayer(settings, player);
+        StatusTeamUtil.applyStatus(server.getScoreboard(), player, settings, appliedStatus, appliedColor,
+                PermissionUtil.hasAdminPermission(player));
+    }
+
+    private static void addHistory(PlayerSettings settings, String status) {
+        if (settings == null || status == null || status.isBlank()) return;
+        if (settings.statusHistory == null) {
+            settings.statusHistory = new java.util.ArrayList<>();
+        }
+        settings.statusHistory.remove(status);
+        settings.statusHistory.add(status);
+        int max = StatusMod.config == null ? 5 : StatusMod.config.statusHistorySize;
+        if (max <= 0) {
+            settings.statusHistory.clear();
+            return;
+        }
+        while (settings.statusHistory.size() > max) {
+            settings.statusHistory.remove(0);
+        }
+    }
+
+    private static StatusUpdate parseStatusInput(String statusInput, String colorKey, PlayerSettings settings) {
+        int n = settings.statusWords <= 0 ? 1 : settings.statusWords;
+        String[] tokens = statusInput == null ? new String[0] : statusInput.trim().split("\\s+");
+        if (tokens.length < n) {
+            return StatusUpdate.error("Bitte mindestens " + n + " Wörter für den Status angeben.");
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < n; i++) {
+            if (i > 0) sb.append(' ');
+            sb.append(tokens[i]);
+        }
+        String status = sb.toString();
+
+        String resolvedColor;
+        if (colorKey == null || colorKey.isEmpty()) {
+            if (tokens.length > n) {
+                resolvedColor = tokens[n];
+            } else {
+                resolvedColor = (StatusMod.config != null && StatusMod.config.defaultColor != null && !StatusMod.config.defaultColor.isEmpty())
+                        ? StatusMod.config.defaultColor
+                        : "reset";
+            }
+        } else {
+            resolvedColor = colorKey.trim();
+        }
+
+        if (!ColorMapper.isValidColorInput(resolvedColor)) {
+            return StatusUpdate.error("Ungültige Farbe: " + resolvedColor);
+        }
+        return new StatusUpdate(status, resolvedColor, settings.fontStyle, true, null);
+    }
+
+    private static String pickStableRandomColor(String uuid) {
+        List<TextColor> palette = ColorMapper.rainbowPalette();
+        if (palette.isEmpty()) return "reset";
+        int idx = Math.abs(uuid.hashCode()) % palette.size();
+        return ColorMapper.toHex(palette.get(idx));
+    }
+
+    private static String getWorldKey(ServerPlayer player) {
+        try {
+            return player.level().dimension().toString();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static class Preset {
+        final String status;
+        final String color;
+        final String font;
+        Preset(String status, String color, String font) {
+            this.status = status;
+            this.color = color;
+            this.font = font;
+        }
+    }
+
+    private static class StatusUpdate {
+        String status;
+        String color;
+        String font;
+        boolean ok;
+        String error;
+        StatusUpdate(String status, String color, String font, boolean ok, String error) {
+            this.status = status;
+            this.color = color;
+            this.font = font;
+            this.ok = ok;
+            this.error = error;
+        }
+        static StatusUpdate error(String msg) {
+            return new StatusUpdate("", "reset", "normal", false, msg);
         }
     }
 }

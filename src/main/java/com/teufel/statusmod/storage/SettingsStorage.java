@@ -12,6 +12,7 @@ import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import com.teufel.statusmod.util.FontMapper;
@@ -135,6 +136,30 @@ public class SettingsStorage {
         String normalizedFont = FontMapper.normalizeStyle(ps.fontStyle);
         if (ps.fontStyle == null || !ps.fontStyle.equals(normalizedFont)) {
             ps.fontStyle = normalizedFont;
+            changed = true;
+        }
+        if (ps.statusHistory == null) {
+            ps.statusHistory = new ArrayList<>();
+            changed = true;
+        }
+        int maxHistory = 5;
+        try {
+            if (com.teufel.statusmod.StatusMod.config != null) {
+                maxHistory = com.teufel.statusmod.StatusMod.config.statusHistorySize;
+            }
+        } catch (Exception ignored) {}
+        if (ps.statusHistory.size() > maxHistory) {
+            while (ps.statusHistory.size() > maxHistory) {
+                ps.statusHistory.remove(0);
+            }
+            changed = true;
+        }
+        if (ps.statusByWorld == null) {
+            ps.statusByWorld = new HashMap<>();
+            changed = true;
+        }
+        if (ps.colorByWorld == null) {
+            ps.colorByWorld = new HashMap<>();
             changed = true;
         }
         return changed;
