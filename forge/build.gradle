@@ -1,12 +1,44 @@
 // Forge build (uses shared sources from ../src)
+import java.util.Properties
+
+def loaderProps = new Properties()
+def loaderPropsFile = file("../gradle.properties")
+if (loaderPropsFile.exists()) {
+    loaderPropsFile.withInputStream { loaderProps.load(it) }
+}
+
+def requireProp = { String key ->
+    def val = loaderProps.getProperty(key)
+    if (val == null || val.trim().isEmpty()) {
+        throw new GradleException("Missing required property '" + key + "' in ../gradle.properties")
+    }
+    return val.trim()
+}
+
+ext.minecraft_version = requireProp("minecraft_version")
+ext.forge_gradle_version = requireProp("forge_gradle_version")
+ext.forge_version = requireProp("forge_version")
+
+def minecraft_version = project.ext.minecraft_version
+def forge_gradle_version = project.ext.forge_gradle_version
+def forge_version = project.ext.forge_version
 buildscript {
+    def bsProps = new Properties()
+    def bsPropsFile = file("../gradle.properties")
+    if (bsPropsFile.exists()) {
+        bsPropsFile.withInputStream { bsProps.load(it) }
+    }
+    def bsForgeGradleVersion = bsProps.getProperty("forge_gradle_version")
+    if (bsForgeGradleVersion == null || bsForgeGradleVersion.trim().isEmpty()) {
+        throw new GradleException("Missing required property 'forge_gradle_version' in ../gradle.properties")
+    }
     repositories {
         maven { url = uri("https://maven.minecraftforge.net/") }
         mavenCentral()
         gradlePluginPortal()
     }
     dependencies {
-        classpath "net.minecraftforge.gradle:ForgeGradle:${forge_gradle_version}"
+        classpath "net.minecraftforge.gradle:ForgeGradle:${bsForgeGradleVersion.trim()}"
     }
 }
 
@@ -35,13 +67,18 @@ repositories {
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    implementation "net.minecraftforge:eventbus:7.0-beta.11"
     implementation "com.mojang:brigadier:1.0.18"
+}
+
+minecraft {
+    mappings channel: 'official', version: minecraft_version
 }
 
 sourceSets {
     main {
-        java.srcDirs = ["../src/main/java", "../src/client/java"]
-        resources.srcDirs = ["../src/main/resources", "../src/client/resources"]
+        java.srcDirs = ["src/main/java", "src/client/java"]
+        resources.srcDirs = ["src/main/resources", "src/client/resources"]
     }
 }
 
@@ -51,7 +88,7 @@ processResources {
     filesMatching(["META-INF/mods.toml"]) {
         expand "version": modVersion, "modid": "status-mod", "name": "Status Mod", "minecraft_version": minecraft_version
     }
-    from("../src/main/resources/assets/status-mod/icon.png") {
+    from("src/main/resources/assets/status-mod/icon.png") {
         into ""
         rename { "icon.png" }
     }

@@ -3,6 +3,19 @@
 StatusMod adds lightweight status tags for players on Fabric servers and clients.
 Players can set a custom status text and color that is shown in the player list (TAB) and name rendering via scoreboard team prefix/suffix.
 
+## Repository Layout
+
+- `fabric/` - Fabric-specific sources and resources
+- `forge/` - Forge module
+- `neoforge/` - NeoForge module
+- `quilt/` - Quilt module
+- `datapack/` - bundled datapack assets
+- `scripts/` - local build and release helpers
+- `docs/` - notes, descriptions, and handoff material
+- `src_legacy/` - archived legacy source tree kept for reference during migration
+
+The active source of truth is the loader-specific module directories. `src_legacy/` is intentionally preserved as reference material and should not be treated as the primary build tree.
+
 ## Highlights
 
 - `/status <text> [color]` to set your status quickly

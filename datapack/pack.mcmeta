@@ -1,6 +1,6 @@
 {
   "pack": {
     "pack_format": 0,
-    "description": "StatusMod datapack template"
+    "description": "StatusMod datapack template (build script overwrites pack_format)"
   }
 }

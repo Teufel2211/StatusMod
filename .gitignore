@@ -38,6 +38,24 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+*.class
+*.jar
+*.properties
+*.lock
+*.bin
+*.pon
+*.marker
+*.tiny
+*.crl
+*.pom
+*.receipt
+*.log
+*.temp
+*.module
+*.dll
+*.unpick
+*.backup
+*.TAG
 
 # local release secrets
 scripts/local/.release.env
@@ -51,3 +69,11 @@ dist/
 _tmp_*/
 .tmp_*/
 release-matrix-*.log
+
+# local caches / generated dirs
+caches/
+daemon/
+native/
+notifications/
+path/
+.tmp/

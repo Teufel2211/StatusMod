@@ -7,7 +7,7 @@ param(
     [string]$LogDir = "",
     [switch]$UseIsolatedGradleHome = $true,
     [switch]$DryRun,
-    [switch]$ContinueOnError
+    [switch]$ContinueOnError = $true
 )
 
 Set-StrictMode -Version Latest
@@ -55,6 +55,11 @@ function Compare-McVersion {
     if ($a[1] -ne $b[1]) { return [Math]::Sign($a[1] - $b[1]) }
     if ($a[2] -ne $b[2]) { return [Math]::Sign($a[2] - $b[2]) }
     return 0
+}
+
+function Is-BaseRelease {
+    param([string]$Mc)
+    return ($Mc -match '^\d+\.\d+$')
 }
 
 function Get-PackFormatForMinecraft {
@@ -412,13 +417,22 @@ try {
                 if ($loader -eq "quilt") {
                     if ([string]::IsNullOrWhiteSpace($cfg.quilt_loader_version) -or
                         [string]::IsNullOrWhiteSpace($cfg.quilt_mappings) -or
-                        [string]::IsNullOrWhiteSpace($cfg.qsl_version) -or
                         [string]::IsNullOrWhiteSpace($cfg.quilt_loom_version)) {
                         $results.Add([pscustomobject]@{
                             loader = $loader
                             minecraft = $mc
                             status = "skipped"
-                            note = "quilt_loader_version/quilt_mappings/qsl_version/quilt_loom_version missing"
+                            note = "quilt_loader_version/quilt_mappings/quilt_loom_version missing"
+                            artifact = ""
+                        }) | Out-Null
+                        continue
+                    }
+                    if ([string]::IsNullOrWhiteSpace($cfg.qsl_version)) {
+                        $results.Add([pscustomobject]@{
+                            loader = $loader
+                            minecraft = $mc
+                            status = "skipped"
+                            note = "qsl_version missing for this Minecraft version"
                             artifact = ""
                         }) | Out-Null
                         continue
@@ -459,7 +473,11 @@ try {
                 $prevEap = $ErrorActionPreference
                 $ErrorActionPreference = "Continue"
                 try {
-                    $cmdLine = '""' + $gradlew + '" -p "' + (Join-Path $root $loader) + '" clean build writeVersion --no-daemon"'
+                    $gradlewToUse = $gradlew
+                    if ($loader -eq "neoforge") {
+                        $gradlewToUse = Join-Path $root "neoforge\gradlew.bat"
+                    }
+                    $cmdLine = '""' + $gradlewToUse + '" -p "' + (Join-Path $root $loader) + '" clean build writeVersion --no-daemon"'
                     cmd /c $cmdLine 2>&1 | Tee-Object -FilePath $logFile
                 } finally {
                     $ErrorActionPreference = $prevEap
@@ -532,7 +550,9 @@ try {
             $lastError = ""
             foreach ($apiVersion in $apiCandidates) {
                 Set-GradlePropertyValue -FilePath $gradleProps -Key "minecraft_version" -Value $mc
-                Set-GradlePropertyValue -FilePath $gradleProps -Key "yarn_mappings" -Value $yarn
+                # Use Mojang mappings consistently (code uses Mojang names).
+                Set-GradlePropertyValue -FilePath $gradleProps -Key "mappings_mode" -Value "mojang"
+                Set-GradlePropertyValue -FilePath $gradleProps -Key "yarn_mappings" -Value ""
                 Set-GradlePropertyValue -FilePath $gradleProps -Key "fabric_api_version" -Value ([string]$apiVersion)
 
                 Write-Host "   trying fabric_api_version=$apiVersion"

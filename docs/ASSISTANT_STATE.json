@@ -1,0 +1,22 @@
+{
+  "last_update": "2026-03-20",
+  "goals": [
+    "Keep multiloader builds green",
+    "Mirror shared fixes across loader folders",
+    "Allow admin commands from server console"
+  ],
+  "build": {
+    "quilt": {
+      "status": "success",
+      "log": "dist/local/quilt-build-7.log"
+    },
+    "multiversion": {
+      "status": "incomplete",
+      "log": "dist/local/run-workflow-9.log"
+    }
+  },
+  "open_issues": [
+    "Multiversion full run not completed (timeouts)",
+    "NeoForge ATS parsing issue may still exist"
+  ]
+}
