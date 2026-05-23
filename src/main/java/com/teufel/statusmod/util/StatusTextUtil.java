@@ -29,7 +29,7 @@ public final class StatusTextUtil {
         if (settings == null) return "";
         String status = settings.status == null ? "" : settings.status;
         if (player == null) return status;
-        String worldKey = getWorldKey(player);
+        String worldKey = CompatUtil.getWorldKey(player);
         if (worldKey != null && settings.statusByWorld != null) {
             String perWorld = settings.statusByWorld.get(worldKey);
             if (perWorld != null) {
@@ -43,7 +43,7 @@ public final class StatusTextUtil {
         if (settings == null) return "reset";
         String color = settings.color == null ? "reset" : settings.color;
         if (player == null) return color;
-        String worldKey = getWorldKey(player);
+        String worldKey = CompatUtil.getWorldKey(player);
         if (worldKey != null && settings.colorByWorld != null) {
             String perWorld = settings.colorByWorld.get(worldKey);
             if (perWorld != null) {
@@ -53,19 +53,12 @@ public final class StatusTextUtil {
         return color;
     }
 
-    private static String getWorldKey(ServerPlayer player) {
-        try {
-            return player.level().dimension().toString();
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
     private static String applyPlaceholders(String status, ServerPlayer player) {
         if (status == null || status.isEmpty() || player == null) return status;
         String out = status;
         try {
-            out = out.replace("{world}", getWorldKey(player) == null ? "" : getWorldKey(player));
+            String worldKey = CompatUtil.getWorldKey(player);
+            out = out.replace("{world}", worldKey == null ? "" : worldKey);
         } catch (Exception ignored) {}
         try {
             out = out.replace("{ping}", String.valueOf(getPing(player)));

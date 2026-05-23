@@ -82,7 +82,7 @@ public class BlockCommand {
             }
             StatusMod.storage.put(targetUuid, settings);
 
-            src.sendSuccess(() -> Component.literal(playerName + " wurde vom Status-Mod blockiert."), true);
+            com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal(playerName + " wurde vom Status-Mod blockiert."), true);
             targetPlayer.displayClientMessage(
                 Component.literal("Du wurdest vom Status-Mod blockiert."),
                 false
@@ -130,7 +130,7 @@ public class BlockCommand {
 
             // Unblock the player
             StatusMod.blockedPlayers.unblock(targetUuid);
-            src.sendSuccess(() -> Component.literal(playerName + " wurde vom Status-Mod freigegeben."), true);
+            com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal(playerName + " wurde vom Status-Mod freigegeben."), true);
             
             if (targetPlayer != null) {
                 targetPlayer.displayClientMessage(

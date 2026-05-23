@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Upload all locally built multi-version jars to Modrinth and CurseForge.
+Upload all locally built multi-version artifacts to Modrinth and CurseForge.
 
 Expected filename pattern:
-  statusmod-<mod_version>-<loader>-<minecraft_version>.jar
+  statusmod-<mod_version>-<loader>-<minecraft_version>.jar|.zip
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ except Exception:
 
 
 NAME_PATTERN = re.compile(
-    r"^statusmod-(?P<modver>[0-9A-Za-z.\-+]+)-(?P<loader>fabric|forge|neoforge|quilt)-(?P<mcver>[0-9.]+)\.jar$"
+    r"^statusmod-(?P<modver>[0-9A-Za-z.\-+]+)-(?P<loader>fabric|forge|neoforge|quilt|datapack)-(?P<mcver>[0-9.]+)\.(?P<ext>jar|zip)$"
 )
 
 CURSEFORGE_LOADER_TAG = {
@@ -33,6 +33,7 @@ CURSEFORGE_LOADER_TAG = {
     "forge": "Forge",
     "neoforge": "NeoForge",
     "quilt": "Quilt",
+    "datapack": "Data Pack",
 }
 
 
@@ -45,6 +46,8 @@ class Artifact:
 
 
 def read_fabric_mod_minecraft(jar: Path) -> str:
+    if jar.suffix.lower() != ".jar":
+        return ""
     try:
         with zipfile.ZipFile(jar, "r") as zf:
             if "fabric.mod.json" not in zf.namelist():
@@ -60,15 +63,19 @@ def read_fabric_mod_minecraft(jar: Path) -> str:
 
 def collect_artifacts(root: Path) -> list[Artifact]:
     items: list[Artifact] = []
-    for jar in sorted(root.rglob("*.jar")):
-        if jar.name.endswith("-sources.jar"):
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
             continue
-        m = NAME_PATTERN.match(jar.name)
+        if path.suffix.lower() not in {".jar", ".zip"}:
+            continue
+        if path.name.endswith("-sources.jar"):
+            continue
+        m = NAME_PATTERN.match(path.name)
         if not m:
             continue
         items.append(
             Artifact(
-                path=jar,
+                path=path,
                 mod_version=m.group("modver"),
                 loader=m.group("loader"),
                 mc_version=m.group("mcver"),
@@ -124,10 +131,11 @@ def upload_modrinth(artifact: Artifact, project_id: str, token: str, release_typ
         print(f"[dry-run] modrinth: {artifact.path.name} -> loader={artifact.loader} mc={artifact.mc_version}")
         return True
 
+    mime = "application/zip" if artifact.path.suffix.lower() == ".zip" else "application/java-archive"
     with artifact.path.open("rb") as fh:
         files = {
             "data": (None, json.dumps(payload), "application/json"),
-            "file": (artifact.path.name, fh, "application/java-archive"),
+            "file": (artifact.path.name, fh, mime),
         }
         resp = post_with_retry("https://api.modrinth.com/v2/version", {"Authorization": token}, files=files)
     if resp.status_code >= 400:
@@ -149,9 +157,10 @@ def upload_curseforge(artifact: Artifact, project_id: str, api_key: str, release
         print(f"[dry-run] curseforge: {artifact.path.name} -> loader={loader_tag} mc={artifact.mc_version}")
         return True
 
+    mime = "application/zip" if artifact.path.suffix.lower() == ".zip" else "application/java-archive"
     with artifact.path.open("rb") as fh:
         files = {
-            "file": (artifact.path.name, fh, "application/java-archive"),
+            "file": (artifact.path.name, fh, mime),
             "metadata": (None, json.dumps(metadata), "application/json"),
         }
         url = f"https://api.curseforge.com/v1/mods/{project_id}/files"

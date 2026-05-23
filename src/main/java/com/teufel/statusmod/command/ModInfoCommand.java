@@ -17,11 +17,11 @@ public class ModInfoCommand {
                     CommandSourceStack src = ctx.getSource();
                     try {
                         Component title = Component.literal("StatusMod — Informationen");
-                        src.sendSuccess(() -> title, false);
+                        com.teufel.statusmod.util.CommandUtil.sendSuccess(src, title, false);
 
                         // Send plain links so all mappings compile reliably; clients can click the link in chat
-                        src.sendSuccess(() -> Component.literal("Website: " + WEBSITE), false);
-                        src.sendSuccess(() -> Component.literal("Issues: " + ISSUES), false);
+                        com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("Website: " + WEBSITE), false);
+                        com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("Issues: " + ISSUES), false);
                     } catch (Exception e) {
                         src.sendFailure(Component.literal("Fehler beim Anzeigen der Mod-Informationen."));
                         e.printStackTrace();

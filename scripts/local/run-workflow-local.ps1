@@ -4,7 +4,8 @@ param(
     [ValidateSet("release", "beta", "alpha")]
     [string]$ReleaseType = "release",
     [string[]]$GameVersions = @(),
-    [string[]]$Loaders = @("fabric", "forge", "neoforge", "quilt"),
+    [string[]]$Loaders = @("fabric", "forge", "neoforge", "quilt", "datapack"),
+    [string]$LogFile = "",
     [switch]$DryRun
 )
 
@@ -116,6 +117,13 @@ New-Item -ItemType Directory -Force -Path (Join-Path $root "dist/local") | Out-N
 Import-LocalReleaseEnv -FilePath (Join-Path $root "scripts/local/.release.env")
 Import-LocalReleaseEnv -FilePath (Join-Path $root "scripts/.release.env")
 
+if ([string]::IsNullOrWhiteSpace($LogFile)) {
+    $LogFile = Join-Path $root "dist/local/run-workflow.log"
+}
+Start-Transcript -Path $LogFile -Append | Out-Null
+
+try {
+
 switch ($Workflow) {
     "build" {
         Invoke-GradleWithRetry -GradleArgs @("clean", "build", "writeVersion", "--no-daemon")
@@ -194,4 +202,8 @@ switch ($Workflow) {
         Set-Content -LiteralPath (Join-Path $root "version.txt") -Value $next
         Write-Host "Version bumped: $current -> $next"
     }
+}
+}
+finally {
+    try { Stop-Transcript | Out-Null } catch { }
 }

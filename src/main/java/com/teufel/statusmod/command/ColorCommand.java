@@ -58,8 +58,9 @@ public class ColorCommand {
                 settings.color = "reset";
                 StatusMod.storage.put(uuid, settings);
                 applyCurrentStatusToTeam(src, player, settings);
-                src.sendSuccess(
-                    () -> Component.literal("Deine Status-Farbe wurde zurückgesetzt."),
+                com.teufel.statusmod.util.CommandUtil.sendSuccess(
+                    src,
+                    Component.literal("Deine Status-Farbe wurde zurückgesetzt."),
                     true
                 );
                 return;
@@ -79,8 +80,9 @@ public class ColorCommand {
             applyCurrentStatusToTeam(src, player, settings);
             final String finalColorInput = colorInput;
 
-            src.sendSuccess(
-                () -> Component.literal("Deine Status-Farbe wurde auf " + finalColorInput + " gesetzt."),
+            com.teufel.statusmod.util.CommandUtil.sendSuccess(
+                src,
+                Component.literal("Deine Status-Farbe wurde auf " + finalColorInput + " gesetzt."),
                 true
             );
 

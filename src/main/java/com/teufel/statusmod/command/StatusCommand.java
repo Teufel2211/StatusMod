@@ -184,7 +184,7 @@ public class StatusCommand {
                                 String[] names = new String[]{"status","block","unblock","color","settings","modinfo"};
                                 for (String n : names) {
                                     boolean present = disp.getRoot().getChild(n) != null;
-                                    src.sendSuccess(() -> Component.literal("command '" + n + "' -> " + (present ? "registered" : "missing")), false);
+                                    com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("command '" + n + "' -> " + (present ? "registered" : "missing")), false);
                                 }
                             } catch (Exception e) {
                                 src.sendFailure(Component.literal("Fehler beim Abfragen der Befehls-Dispatcher."));
@@ -205,8 +205,9 @@ public class StatusCommand {
                         return 0;
                     }
                     StatusMod.config = com.teufel.statusmod.storage.ModConfig.load();
-                    src.sendSuccess(
-                        () -> Component.literal("StatusMod configuration reloaded."),
+                    com.teufel.statusmod.util.CommandUtil.sendSuccess(
+                        src,
+                        Component.literal("StatusMod configuration reloaded."),
                         false);
                     return 1;
                 })
@@ -223,18 +224,18 @@ public class StatusCommand {
                     src.sendFailure(Component.literal("Keine Konfiguration geladen."));
                     return 0;
                     }
-                    src.sendSuccess(() -> Component.literal("StatusMod configuration:"), false);
-                    src.sendSuccess(() -> Component.literal(" adminOpLevel = " + c.adminOpLevel), false);
-                    src.sendSuccess(() -> Component.literal(" statusPermissionNode = " + c.statusPermissionNode), false);
-                    src.sendSuccess(() -> Component.literal(" adminPermissionNode = " + c.adminPermissionNode), false);
-                    src.sendSuccess(() -> Component.literal(" enableAdminOverrides = " + c.enableAdminOverrides), false);
-                    src.sendSuccess(() -> Component.literal(" defaultColor = " + c.defaultColor), false);
-                    src.sendSuccess(() -> Component.literal(" statusReapplyTicks = " + c.statusReapplyTicks), false);
-                    src.sendSuccess(() -> Component.literal(" statusCooldownSeconds = " + c.statusCooldownSeconds), false);
-                    src.sendSuccess(() -> Component.literal(" statusHistorySize = " + c.statusHistorySize), false);
-                    src.sendSuccess(() -> Component.literal(" enableStaffBadge = " + c.enableStaffBadge), false);
-                    src.sendSuccess(() -> Component.literal(" staffBadgeText = " + c.staffBadgeText), false);
-                    src.sendSuccess(() -> Component.literal(" staffBadgeColor = " + c.staffBadgeColor), false);
+                    com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("StatusMod configuration:"), false);
+                    com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal(" adminOpLevel = " + c.adminOpLevel), false);
+                    com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal(" statusPermissionNode = " + c.statusPermissionNode), false);
+                    com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal(" adminPermissionNode = " + c.adminPermissionNode), false);
+                    com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal(" enableAdminOverrides = " + c.enableAdminOverrides), false);
+                    com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal(" defaultColor = " + c.defaultColor), false);
+                    com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal(" statusReapplyTicks = " + c.statusReapplyTicks), false);
+                    com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal(" statusCooldownSeconds = " + c.statusCooldownSeconds), false);
+                    com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal(" statusHistorySize = " + c.statusHistorySize), false);
+                    com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal(" enableStaffBadge = " + c.enableStaffBadge), false);
+                    com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal(" staffBadgeText = " + c.staffBadgeText), false);
+                    com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal(" staffBadgeColor = " + c.staffBadgeColor), false);
                     return 1;
                 })
             )
@@ -264,7 +265,7 @@ public class StatusCommand {
             }
 
             applyStatusUpdate(src, player, settings, update, false, null, false);
-            src.sendSuccess(() -> Component.literal("Status gesetzt: " + update.status + " (" + update.color + ")"), false);
+            com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("Status gesetzt: " + update.status + " (" + update.color + ")"), false);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Setzen des Status.")); } catch(Exception ignore){}
             e.printStackTrace();
@@ -290,7 +291,7 @@ public class StatusCommand {
 
             MinecraftServer server = src.getServer();
             StatusTeamUtil.applyStatus(server.getScoreboard(), player, settings, "", "reset", PermissionUtil.hasAdminPermission(player));
-            src.sendSuccess(() -> Component.literal("Status gelöscht."), false);
+            com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("Status gelöscht."), false);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Löschen des Status.")); } catch(Exception ignore){}
             e.printStackTrace();
@@ -324,7 +325,7 @@ public class StatusCommand {
             }
 
             applyStatusUpdate(src, target, settings, update, false, null, false);
-            src.sendSuccess(() -> Component.literal("Status von " + targetName + " gesetzt: " + update.status + " (" + update.color + ")"), false);
+            com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("Status von " + targetName + " gesetzt: " + update.status + " (" + update.color + ")"), false);
             target.displayClientMessage(Component.literal("Dein Status wurde von einem Administrator gesetzt."), false);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Setzen des Status für '" + targetName + "'.")); } catch (Exception ignore) {}
@@ -350,7 +351,7 @@ public class StatusCommand {
             MinecraftServer server = src.getServer();
             StatusTeamUtil.applyStatus(server.getScoreboard(), target, settings, "", "reset", PermissionUtil.hasAdminPermission(target));
 
-            src.sendSuccess(() -> Component.literal("Status von " + targetName + " gelöscht."), false);
+            com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("Status von " + targetName + " gelöscht."), false);
             target.displayClientMessage(Component.literal("Dein Status wurde von einem Administrator gelöscht."), false);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Löschen des Status für '" + targetName + "'.")); } catch (Exception ignore) {}
@@ -373,7 +374,7 @@ public class StatusCommand {
 
             StatusUpdate update = new StatusUpdate(preset.status, preset.color, preset.font, true, null);
             applyStatusUpdate(src, player, settings, update, false, null, false);
-            src.sendSuccess(() -> Component.literal("Preset gesetzt: " + preset.status + " (" + preset.color + ")"), false);
+            com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("Preset gesetzt: " + preset.status + " (" + preset.color + ")"), false);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Setzen des Presets.")); } catch(Exception ignore){}
             e.printStackTrace();
@@ -396,7 +397,7 @@ public class StatusCommand {
             String randomColor = pickStableRandomColor(player.getUUID().toString());
             update.color = randomColor;
             applyStatusUpdate(src, player, settings, update, false, null, false);
-            src.sendSuccess(() -> Component.literal("Status gesetzt (random): " + update.status + " (" + update.color + ")"), false);
+            com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("Status gesetzt (random): " + update.status + " (" + update.color + ")"), false);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Setzen des random Status.")); } catch(Exception ignore){}
             e.printStackTrace();
@@ -417,7 +418,7 @@ public class StatusCommand {
             }
             long expiresAt = System.currentTimeMillis() + (minutes * 60L * 1000L);
             applyStatusUpdate(src, player, settings, update, false, expiresAt, false);
-            src.sendSuccess(() -> Component.literal("Status gesetzt für " + minutes + " Minuten."), false);
+            com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("Status gesetzt für " + minutes + " Minuten."), false);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Setzen des Timed-Status.")); } catch(Exception ignore){}
             e.printStackTrace();
@@ -437,7 +438,7 @@ public class StatusCommand {
                 return;
             }
             applyStatusUpdate(src, player, settings, update, true, null, false);
-            src.sendSuccess(() -> Component.literal("World-Status gesetzt."), false);
+            com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("World-Status gesetzt."), false);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Setzen des World-Status.")); } catch(Exception ignore){}
             e.printStackTrace();
@@ -449,7 +450,7 @@ public class StatusCommand {
             ServerPlayer player = src.getPlayer();
             if (isBlocked(src, player)) return;
             PlayerSettings settings = StatusMod.storage.forPlayer(player.getUUID().toString());
-            String key = getWorldKey(player);
+            String key = com.teufel.statusmod.util.CompatUtil.getWorldKey(player);
             if (key != null) {
                 if (settings.statusByWorld != null) settings.statusByWorld.remove(key);
                 if (settings.colorByWorld != null) settings.colorByWorld.remove(key);
@@ -459,7 +460,7 @@ public class StatusCommand {
                         StatusTextUtil.resolveColorForPlayer(settings, player),
                         PermissionUtil.hasAdminPermission(player));
             }
-            src.sendSuccess(() -> Component.literal("World-Status gelöscht."), false);
+            com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("World-Status gelöscht."), false);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Löschen des World-Status.")); } catch(Exception ignore){}
             e.printStackTrace();
@@ -471,14 +472,14 @@ public class StatusCommand {
             ServerPlayer player = src.getPlayer();
             if (isBlocked(src, player)) return;
             PlayerSettings settings = StatusMod.storage.forPlayer(player.getUUID().toString());
-            src.sendSuccess(() -> Component.literal("Status-Verlauf:"), false);
+            com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("Status-Verlauf:"), false);
             if (settings.statusHistory == null || settings.statusHistory.isEmpty()) {
-                src.sendSuccess(() -> Component.literal("- (leer)"), false);
+                com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("- (leer)"), false);
                 return;
             }
             for (String h : settings.statusHistory) {
                 if (h == null || h.isBlank()) continue;
-                src.sendSuccess(() -> Component.literal("- " + h), false);
+                com.teufel.statusmod.util.CommandUtil.sendSuccess(src, Component.literal("- " + h), false);
             }
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Anzeigen des Verlaufs.")); } catch(Exception ignore){}
@@ -524,7 +525,7 @@ public class StatusCommand {
         String color = update.color;
 
         if (perWorld) {
-            String key = getWorldKey(player);
+            String key = com.teufel.statusmod.util.CompatUtil.getWorldKey(player);
             if (key != null) {
                 if (settings.statusByWorld != null) settings.statusByWorld.put(key, status);
                 if (settings.colorByWorld != null) settings.colorByWorld.put(key, color);
@@ -605,13 +606,7 @@ public class StatusCommand {
         return ColorMapper.toHex(palette.get(idx));
     }
 
-    private static String getWorldKey(ServerPlayer player) {
-        try {
-            return player.level().dimension().toString();
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
+    // world lookup moved to CompatUtil for cross-version support
 
     private static class Preset {
         final String status;
