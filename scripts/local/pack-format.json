@@ -12,5 +12,6 @@
   { "min": "1.21.6", "max": "1.21.6", "pack_format": 80 },
   { "min": "1.21.7", "max": "1.21.8", "pack_format": 81 },
   { "min": "1.21.9", "max": "1.21.10", "pack_format": 88 },
-  { "min": "1.21.11", "max": "1.21.11", "pack_format": 94 }
+  { "min": "1.21.11", "max": "1.21.11", "pack_format": 94 },
+  { "min": "26.1.0", "max": "26.1.2", "pack_format": 94 }
 ]

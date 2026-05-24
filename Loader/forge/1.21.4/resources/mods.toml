@@ -1,0 +1,19 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+issueTrackerURL="https://github.com/Teufel2211/StatusMod/issues"
+
+[[mods]]
+modId="${modid}"
+version="${version}"
+displayName="${name}"
+description="Configurable player status tags for TAB and name rendering with /status, /settings, and admin controls."
+displayURL="https://github.com/Teufel2211/StatusMod"
+logoFile="icon.png"
+
+[[dependencies.${modid}]]
+modId="minecraft"
+mandatory=true
+versionRange="[${minecraft_version}]"
+ordering="NONE"
+side="BOTH"

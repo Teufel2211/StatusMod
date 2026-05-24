@@ -16,6 +16,8 @@ Players can set a custom status text and color that is shown in the player list 
 
 The active source of truth is the loader-specific module directories. `src_legacy/` is intentionally preserved as reference material and should not be treated as the primary build tree.
 
+Version subfolders inside each loader directory are reserved for release assets and loader/version-specific metadata. The Java source itself stays centralized inside each loader's `src/` tree so features are maintained once and packaged many times.
+
 ## Highlights
 
 - `/status <text> [color]` to set your status quickly

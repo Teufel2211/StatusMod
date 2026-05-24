@@ -1,6 +1,6 @@
 param(
     [string[]]$Loaders = @("fabric", "forge", "neoforge", "quilt", "datapack"),
-    [string]$MatrixPath = "scripts/local/mc-matrix-1.21.json",
+    [string]$MatrixPath = "scripts/local/mc-matrix-26.json",
     [string]$PackFormatMapPath = "scripts/local/pack-format.json",
     [string]$LoaderVersionsPath = "scripts/local/loader-versions.json",
     [string]$OutputDir = "dist/multiversion",
@@ -427,16 +427,6 @@ try {
                         }) | Out-Null
                         continue
                     }
-                    if ([string]::IsNullOrWhiteSpace($cfg.qsl_version)) {
-                        $results.Add([pscustomobject]@{
-                            loader = $loader
-                            minecraft = $mc
-                            status = "skipped"
-                            note = "qsl_version missing for this Minecraft version"
-                            artifact = ""
-                        }) | Out-Null
-                        continue
-                    }
                 }
 
                 if ($DryRun) {
@@ -464,7 +454,9 @@ try {
                 } elseif ($loader -eq "quilt") {
                     Set-GradlePropertyValue -FilePath $gradleProps -Key "quilt_loader_version" -Value ([string]$cfg.quilt_loader_version)
                     Set-GradlePropertyValue -FilePath $gradleProps -Key "quilt_mappings" -Value ([string]$cfg.quilt_mappings)
-                    Set-GradlePropertyValue -FilePath $gradleProps -Key "qsl_version" -Value ([string]$cfg.qsl_version)
+                    if ($null -ne $cfg.PSObject.Properties["qsl_version"]) {
+                        Set-GradlePropertyValue -FilePath $gradleProps -Key "qsl_version" -Value ([string]$cfg.qsl_version)
+                    }
                     Set-GradlePropertyValue -FilePath $gradleProps -Key "quilt_loom_version" -Value ([string]$cfg.quilt_loom_version)
                 }
 

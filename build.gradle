@@ -64,7 +64,11 @@ dependencies {
 sourceSets {
     main {
         java.srcDirs = ["fabric/src/main/java", "fabric/src/client/java"]
-        resources.srcDirs = ["fabric/src/main/resources", "fabric/src/client/resources"]
+        resources.srcDirs = [
+            "fabric/src/main/resources",
+            "fabric/src/client/resources",
+            "fabric/${minecraft_version}/resources"
+        ]
     }
 }
 
@@ -74,6 +78,9 @@ processResources {
     filesMatching(["fabric.mod.json", "META-INF/mods.toml", "META-INF/neoforge.mods.toml", "quilt.mod.json"]) {
         // Use a mod id that matches the assets folder so the icon and assets are packaged correctly
         expand "version": modVersion, "modid": "status-mod", "name": "Status Mod", "minecraft_version": minecraft_version
+    }
+    from("fabric/${minecraft_version}/resources") {
+        include "**/*"
     }
     // Also copy the mod icon to the jar root as `icon.png` so hosting platforms reliably detect it
     from("fabric/src/main/resources/assets/status-mod/icon.png") {
