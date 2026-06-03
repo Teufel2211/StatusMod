@@ -9,6 +9,7 @@ param(
     [string[]]$FabricExtraVersions = @("26.1", "26.1.1", "26.1.2"),
     [string]$FabricJavaHome = "C:\Program Files\Java\jdk-21",
     [string]$FabricJava25Home = "C:\Program Files\Java\jdk-25.0.3",
+    [string]$Fabric26ModuleRoot = "Loader/fabric26.1",
     [string]$LogDir = "",
     [switch]$UseIsolatedGradleHome = $true,
     [switch]$DryRun,
@@ -536,7 +537,12 @@ try {
                 }
                 $exit = if (Test-Path Variable:\LASTEXITCODE) { $LASTEXITCODE } else { 0 }
                 if ($exit -eq 0) {
-                    $jar = Get-ChildItem -Path (Join-Path $moduleRoot "build/libs") -Filter *.jar -File |
+                    $jarSearchRoot = if ($isFabricExtra) {
+                        Join-Path $moduleRoot "build/devlibs"
+                    } else {
+                        Join-Path $root "build/libs"
+                    }
+                    $jar = Get-ChildItem -Path $jarSearchRoot -Filter *.jar -File |
                         Where-Object { $_.Name -notlike "*-sources.jar" } |
                         Sort-Object Name |
                         Select-Object -First 1
@@ -579,6 +585,7 @@ try {
         $loaderOut = Join-Path $outputRoot $loader
         New-Item -ItemType Directory -Force -Path $loaderOut | Out-Null
         $sharedFabricRoot = Join-Path $root "Loader\fabric"
+        $fabric26Root = Join-Path $root $Fabric26ModuleRoot
 
         foreach ($entry in $matrix) {
             $mc = [string]$entry.minecraft_version
@@ -607,7 +614,12 @@ try {
 
             $versionOut = Join-Path $loaderOut $mc
             New-Item -ItemType Directory -Force -Path $versionOut | Out-Null
-            $moduleRoot = Join-Path $outputRoot ".fabric-work\$mc"
+            $moduleRoot = if ($isFabricExtra) { $fabric26Root } else { Join-Path $outputRoot ".fabric-work\$mc" }
+            $fabricBuildVersion = if ($isFabricExtra) {
+                "1.21.11"
+            } else {
+                $mc
+            }
 
             Write-Host "==> [$loader] Minecraft $mc"
             if ($DryRun) {
@@ -623,19 +635,25 @@ try {
                 continue
             }
 
-            if (Test-Path $moduleRoot) {
-                Remove-Item -LiteralPath $moduleRoot -Recurse -Force
-            }
-            New-Item -ItemType Directory -Force -Path $moduleRoot | Out-Null
+            if ($isFabricExtra) {
+                if (-not (Test-Path $moduleRoot)) {
+                    throw "Fabric 26.1 module not found: $moduleRoot"
+                }
+            } else {
+                if (Test-Path $moduleRoot) {
+                    Remove-Item -LiteralPath $moduleRoot -Recurse -Force
+                }
+                New-Item -ItemType Directory -Force -Path $moduleRoot | Out-Null
 
-            # Create an isolated source snapshot for this Minecraft version.
-            Copy-DirectoryContents -Source (Join-Path $sharedFabricRoot "src") -Destination (Join-Path $moduleRoot "src")
-            Copy-DirectoryContents -Source (Join-Path $sharedFabricRoot $mc) -Destination $moduleRoot
+                # Create an isolated source snapshot for this Minecraft version.
+                Copy-DirectoryContents -Source (Join-Path $sharedFabricRoot "src") -Destination (Join-Path $moduleRoot "src")
+                Copy-DirectoryContents -Source (Join-Path $sharedFabricRoot $mc) -Destination $moduleRoot
+            }
 
             $built = $false
             $lastError = ""
             foreach ($apiVersion in $apiCandidates) {
-                Set-GradlePropertyValue -FilePath $gradleProps -Key "minecraft_version" -Value $mc
+                Set-GradlePropertyValue -FilePath $gradleProps -Key "minecraft_version" -Value $fabricBuildVersion
                 # Use Mojang mappings consistently (code uses Mojang names).
                 Set-GradlePropertyValue -FilePath $gradleProps -Key "mappings_mode" -Value "mojang"
                 Set-GradlePropertyValue -FilePath $gradleProps -Key "yarn_mappings" -Value ""
@@ -648,13 +666,24 @@ try {
                 $ErrorActionPreference = "Continue"
                 try {
                     $javaHomeToUse = if ($isFabricExtra) { $resolvedFabricJava25Home } else { $resolvedFabricJavaHome }
-                    Invoke-GradleBuild -GradleExecutable $gradlew -ProjectDir $root -JavaHome $javaHomeToUse -Arguments ('-Pfabric_module_root="' + $moduleRoot + '" clean build writeVersion --no-daemon') -LogFile $logFile
+                    $projectDirToUse = if ($isFabricExtra) { $moduleRoot } else { $root }
+                    $gradleArgs = if ($isFabricExtra) {
+                        'clean build writeVersion --no-daemon'
+                    } else {
+                        '-Pfabric_module_root="' + $moduleRoot + '" clean build writeVersion --no-daemon'
+                    }
+                    Invoke-GradleBuild -GradleExecutable $gradlew -ProjectDir $projectDirToUse -JavaHome $javaHomeToUse -Arguments $gradleArgs -LogFile $logFile
                 } finally {
                     $ErrorActionPreference = $prevEap
                 }
                 $exit = if (Test-Path Variable:\LASTEXITCODE) { $LASTEXITCODE } else { 0 }
                 if ($exit -eq 0) {
-                    $jar = Get-ChildItem -Path (Join-Path $moduleRoot "build/libs") -Filter *.jar -File |
+                    $jarSearchRoot = if ($isFabricExtra) {
+                        Join-Path $moduleRoot "build/devlibs"
+                    } else {
+                        Join-Path $root "build/libs"
+                    }
+                    $jar = Get-ChildItem -Path $jarSearchRoot -Filter *.jar -File |
                         Where-Object { $_.Name -notlike "*-sources.jar" } |
                         Sort-Object Name |
                         Select-Object -First 1
@@ -713,7 +742,7 @@ try {
                 }
             }
 
-            if (Test-Path $moduleRoot) {
+            if (-not $isFabricExtra -and (Test-Path $moduleRoot)) {
                 Remove-Item -LiteralPath $moduleRoot -Recurse -Force
             }
         }

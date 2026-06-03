@@ -52,16 +52,23 @@ dependencies {
     def mappingsMode = project.findProperty("mappings_mode")?.toString()?.trim()?.toLowerCase()
     def minecraftVersionText = project.findProperty("minecraft_version")?.toString()?.trim()
     def isLegacyObfuscatedVersion = true
-    try {
-        isLegacyObfuscatedVersion = new BigDecimal(minecraftVersionText).compareTo(new BigDecimal("26.1")) < 0
-    } catch (ignored) {
-        isLegacyObfuscatedVersion = true
+    def minecraftVersionParts = minecraftVersionText ? (minecraftVersionText =~ /^(\d+)(?:\.(\d+))?(?:\.(\d+))?$/) : null
+    if (minecraftVersionParts?.matches()) {
+        def major = minecraftVersionParts[0][1] as int
+        def minor = (minecraftVersionParts[0][2] ?: "0") as int
+        def patch = (minecraftVersionParts[0][3] ?: "0") as int
+        // Treat the special 26.1 branch as its own family and compare everything else semantically.
+        if (major == 26 && minor == 1) {
+            isLegacyObfuscatedVersion = false
+        } else {
+            isLegacyObfuscatedVersion = (major < 26) || (major == 26 && minor < 1) || (major == 26 && minor == 1 && patch < 0)
+        }
     }
-    if (mappingsMode == "mojang" && isLegacyObfuscatedVersion) {
-        // Use Mojang mappings for base releases to keep readable names.
-        mappings loom.officialMojangMappings()
-    } else if (project.hasProperty("yarn_mappings") && project.yarn_mappings?.toString()?.trim()) {
+    if (project.hasProperty("yarn_mappings") && project.yarn_mappings?.toString()?.trim()) {
         mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    } else if (mappingsMode == "mojang" && isLegacyObfuscatedVersion) {
+        // Use Mojang mappings only when Yarn is unavailable for the target version.
+        mappings loom.officialMojangMappings()
     } else if (isLegacyObfuscatedVersion) {
         mappings loom.officialMojangMappings()
     }

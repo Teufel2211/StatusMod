@@ -5,18 +5,14 @@ Players can set a custom status text and color that is shown in the player list 
 
 ## Repository Layout
 
-- `fabric/` - Fabric-specific sources and resources
-- `forge/` - Forge module
-- `neoforge/` - NeoForge module
-- `quilt/` - Quilt module
-- `datapack/` - bundled datapack assets
-- `scripts/` - local build and release helpers
-- `docs/` - notes, descriptions, and handoff material
+- `Loader/fabric/` - main Fabric source tree for Minecraft 1.19 through 1.21.11
+- `Loader/fabric26.1/` - dedicated Fabric 26.1 branch
+- `scripts/local/` - local build and release helpers
 - `src_legacy/` - archived legacy source tree kept for reference during migration
 
-The active source of truth is the loader-specific module directories. `src_legacy/` is intentionally preserved as reference material and should not be treated as the primary build tree.
+The active source of truth is the Fabric loader directories. `src_legacy/` is intentionally preserved as reference material and should not be treated as the primary build tree.
 
-Version subfolders inside each loader directory are reserved for release assets and loader/version-specific metadata. The Java source itself stays centralized inside each loader's `src/` tree so features are maintained once and packaged many times.
+Version subfolders inside each Fabric loader directory are reserved for release assets and version-specific metadata. The Java source itself stays centralized inside each loader's `src/` tree so features are maintained once and packaged many times.
 
 ## Highlights
 
@@ -107,18 +103,33 @@ Reliability improvements include:
 
 ## Compatibility
 
-This repository currently builds against the versions in `gradle.properties`:
+This repository currently builds against the Fabric versions in the multiversion workflow:
 
-- Minecraft `1.20.1`
-- Fabric Loader `0.16.9`
-- Fabric API `0.92.2+1.20.1`
+- Minecraft `1.19` through `1.21.11`
+- Fabric API selected per Minecraft version by `scripts/local/build-multiversion.ps1`
+- Dedicated Fabric 26.1 builds for `26.1`, `26.1.1`, and `26.1.2`
 
 Release workflows can publish additional game-version variants depending on your CI setup.
 
+## Building
+
+Recommended local build flow:
+
+1. Build the shared Fabric line with `scripts/local/build-multiversion.ps1`.
+2. Build the dedicated 26.1 branch with `Loader/fabric26.1`.
+3. Inspect the generated artifacts in `dist/multiversion/` and `Loader/fabric26.1/build/`.
+
+Examples:
+
+```powershell
+.\scripts\local\build-multiversion.ps1 -Loaders fabric -ContinueOnError:$false
+.\gradlew.bat -p Loader\fabric26.1 clean build --no-daemon
+```
+
 ## Installation
 
-1. Download the release JAR.
-2. Put it in the `mods/` folder (server or client with matching Fabric/Minecraft versions).
+1. Download the release JAR that matches your Fabric Minecraft version.
+2. Put it in the `mods/` folder on the server or client.
 3. Start or restart Minecraft/server.
 
 ## Privacy and Security
