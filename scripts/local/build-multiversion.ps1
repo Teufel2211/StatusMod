@@ -4,6 +4,11 @@ param(
     [string]$PackFormatMapPath = "scripts/local/pack-format.json",
     [string]$LoaderVersionsPath = "scripts/local/loader-versions.json",
     [string]$OutputDir = "dist/multiversion",
+    [string]$FabricMaxVersion = "1.21.11",
+    [string]$FabricMinVersion = "1.19",
+    [string[]]$FabricExtraVersions = @("26.1", "26.1.1", "26.1.2"),
+    [string]$FabricJavaHome = "C:\Program Files\Java\jdk-21",
+    [string]$FabricJava25Home = "C:\Program Files\Java\jdk-25.0.3",
     [string]$LogDir = "",
     [switch]$UseIsolatedGradleHome = $true,
     [switch]$DryRun,
@@ -129,31 +134,31 @@ function Select-FabricApiCandidates {
 
 function Test-LoaderAvailable {
     param([string]$Root, [string]$Loader)
+    $moduleRoot = Join-Path $Root ("Loader\" + $Loader)
     switch ($Loader) {
         "fabric" {
-            return (Test-Path (Join-Path $Root "fabric.mod.json")) -or
-                   (Test-Path (Join-Path $Root "src/main/resources/fabric.mod.json"))
+            return (Test-Path (Join-Path $moduleRoot "build.gradle")) -or
+                   (Test-Path (Join-Path $moduleRoot "src/main/resources/fabric.mod.json")) -or
+                   (Test-Path (Join-Path $moduleRoot "src/main/resources/quilt.mod.json"))
         }
         "forge" {
-            return (Test-Path (Join-Path $Root "forge/build.gradle")) -or
-                   (Test-Path (Join-Path $Root "src/main/resources/META-INF/mods.toml")) -or
-                   (Test-Path (Join-Path $Root "forge/build.gradle")) -or
-                   (Test-Path (Join-Path $Root "forge"))
+            return (Test-Path (Join-Path $moduleRoot "build.gradle")) -or
+                   (Test-Path (Join-Path $moduleRoot "src/main/resources/META-INF/mods.toml")) -or
+                   (Test-Path (Join-Path $moduleRoot "src/main/resources/META-INF/neoforge.mods.toml"))
         }
         "neoforge" {
-            return (Test-Path (Join-Path $Root "src/main/resources/META-INF/neoforge.mods.toml")) -or
-                   (Test-Path (Join-Path $Root "neoforge/build.gradle")) -or
-                   (Test-Path (Join-Path $Root "neoforge"))
+            return (Test-Path (Join-Path $moduleRoot "build.gradle")) -or
+                   (Test-Path (Join-Path $moduleRoot "src/main/resources/META-INF/neoforge.mods.toml")) -or
+                   (Test-Path (Join-Path $moduleRoot "src/main/resources/META-INF/mods.toml"))
         }
         "quilt" {
-            return (Test-Path (Join-Path $Root "quilt/build.gradle")) -or
-                   (Test-Path (Join-Path $Root "quilt.mod.json")) -or
-                   (Test-Path (Join-Path $Root "src/main/resources/quilt.mod.json")) -or
-                   (Test-Path (Join-Path $Root "quilt"))
+            return (Test-Path (Join-Path $moduleRoot "build.gradle")) -or
+                   (Test-Path (Join-Path $moduleRoot "src/main/resources/quilt.mod.json")) -or
+                   (Test-Path (Join-Path $moduleRoot "src/main/resources/fabric.mod.json"))
         }
         "datapack" {
-            return (Test-Path (Join-Path $Root "datapack")) -or
-                   (Test-Path (Join-Path $Root "src/main/resources/datapack"))
+            return (Test-Path (Join-Path $Root "Loader\datapack")) -or
+                   (Test-Path (Join-Path $Root "datapack"))
         }
         default {
             return $false
@@ -176,6 +181,53 @@ function Write-TextFileWithRetry {
             Start-Sleep -Milliseconds (150 * $i)
         }
     }
+}
+
+function Copy-DirectoryContents {
+    param(
+        [string]$Source,
+        [string]$Destination
+    )
+    if (-not (Test-Path $Source)) {
+        return
+    }
+    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+    Copy-Item -Path (Join-Path $Source "*") -Destination $Destination -Recurse -Force
+}
+
+function Invoke-GradleBuild {
+    param(
+        [string]$GradleExecutable,
+        [string]$ProjectDir,
+        [string]$JavaHome,
+        [string]$Arguments,
+        [string]$LogFile
+    )
+    if ([string]::IsNullOrWhiteSpace($JavaHome) -or -not (Test-Path -LiteralPath $JavaHome)) {
+        throw "Java home not found: $JavaHome"
+    }
+
+    $previousJavaHome = [Environment]::GetEnvironmentVariable("JAVA_HOME", "Process")
+    $previousPath = [Environment]::GetEnvironmentVariable("Path", "Process")
+    try {
+        [Environment]::SetEnvironmentVariable("JAVA_HOME", $JavaHome, "Process")
+        [Environment]::SetEnvironmentVariable("Path", (Join-Path $JavaHome "bin") + ";" + $previousPath, "Process")
+        $cmdLine = '""' + $GradleExecutable + '" -p "' + $ProjectDir + '" ' + $Arguments + '"'
+        cmd /c $cmdLine 2>&1 | Tee-Object -FilePath $LogFile
+    } finally {
+        [Environment]::SetEnvironmentVariable("JAVA_HOME", $previousJavaHome, "Process")
+        [Environment]::SetEnvironmentVariable("Path", $previousPath, "Process")
+    }
+}
+
+function Resolve-FirstExistingPath {
+    param([string[]]$Candidates)
+    foreach ($candidate in @($Candidates)) {
+        if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -LiteralPath $candidate)) {
+            return $candidate
+        }
+    }
+    return $null
 }
 
 function Set-GradlePropertyValue {
@@ -278,6 +330,14 @@ try {
         [Environment]::SetEnvironmentVariable("GRADLE_USER_HOME", $isolatedGradleHome, "Process")
         Write-Host "Using isolated GRADLE_USER_HOME: $isolatedGradleHome"
     }
+    $resolvedFabricJavaHome = Resolve-FirstExistingPath -Candidates @($FabricJavaHome, "C:\Program Files\Java\jdk-21", "C:\Program Files\Java\jdk-21.0.0")
+    $resolvedFabricJava25Home = Resolve-FirstExistingPath -Candidates @($FabricJava25Home, "C:\Program Files\Java\jdk-25", "C:\Program Files\Java\jdk-25.0.3", "C:\Program Files\Java\latest")
+    if ([string]::IsNullOrWhiteSpace($resolvedFabricJavaHome)) {
+        throw "No usable Java 21 home found for Fabric base versions."
+    }
+    if ([string]::IsNullOrWhiteSpace($resolvedFabricJava25Home)) {
+        throw "No usable Java 25 home found for Fabric 26.1 builds."
+    }
     if ($allFabricApiVersions.Count -gt 0) {
         Write-Host "Resolved Fabric API version list from maven.fabricmc.net ($($allFabricApiVersions.Count) entries)."
     } else {
@@ -339,7 +399,7 @@ try {
                     Remove-Item -LiteralPath $tempDir -Recurse -Force
                 }
                 New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
-                $sourcePack = Join-Path $root "datapack"
+                $sourcePack = Join-Path $root "Loader\datapack"
                 if (Test-Path $sourcePack) {
                     Copy-Item -Path (Join-Path $sourcePack "*") -Destination $tempDir -Recurse -Force
                 }
@@ -372,6 +432,7 @@ try {
         }
 
         if ($loader -ne "fabric") {
+            $moduleRoot = Join-Path $root "Loader\$loader"
             $loaderOut = Join-Path $outputRoot $loader
             New-Item -ItemType Directory -Force -Path $loaderOut | Out-Null
 
@@ -467,16 +528,15 @@ try {
                 try {
                     $gradlewToUse = $gradlew
                     if ($loader -eq "neoforge") {
-                        $gradlewToUse = Join-Path $root "neoforge\gradlew.bat"
+                        $gradlewToUse = Join-Path $moduleRoot "gradlew.bat"
                     }
-                    $cmdLine = '""' + $gradlewToUse + '" -p "' + (Join-Path $root $loader) + '" clean build writeVersion --no-daemon"'
-                    cmd /c $cmdLine 2>&1 | Tee-Object -FilePath $logFile
+                    Invoke-GradleBuild -GradleExecutable $gradlewToUse -ProjectDir $moduleRoot -JavaHome $resolvedFabricJavaHome -Arguments 'clean build writeVersion --no-daemon' -LogFile $logFile
                 } finally {
                     $ErrorActionPreference = $prevEap
                 }
                 $exit = if (Test-Path Variable:\LASTEXITCODE) { $LASTEXITCODE } else { 0 }
                 if ($exit -eq 0) {
-                    $jar = Get-ChildItem -Path (Join-Path $root $loader "build/libs") -Filter *.jar -File |
+                    $jar = Get-ChildItem -Path (Join-Path $moduleRoot "build/libs") -Filter *.jar -File |
                         Where-Object { $_.Name -notlike "*-sources.jar" } |
                         Sort-Object Name |
                         Select-Object -First 1
@@ -518,11 +578,36 @@ try {
 
         $loaderOut = Join-Path $outputRoot $loader
         New-Item -ItemType Directory -Force -Path $loaderOut | Out-Null
+        $sharedFabricRoot = Join-Path $root "Loader\fabric"
 
         foreach ($entry in $matrix) {
             $mc = [string]$entry.minecraft_version
+            $isFabricExtra = $false
+            foreach ($extra in @($FabricExtraVersions)) {
+                if (-not [string]::IsNullOrWhiteSpace($extra) -and $mc -eq $extra.Trim()) {
+                    $isFabricExtra = $true
+                    break
+                }
+            }
+            try {
+                $mcVersion = [version]$mc
+                $maxVersion = [version]$FabricMaxVersion
+                $minVersion = [version]$FabricMinVersion
+            } catch {
+                $mcVersion = $null
+                $maxVersion = $null
+                $minVersion = $null
+            }
+            if (-not $isFabricExtra -and ($null -eq $mcVersion -or $mcVersion -gt $maxVersion -or $mcVersion -lt $minVersion)) {
+                Write-Host "==> [fabric] Minecraft $mc (skipped: outside requested range $FabricMinVersion..$FabricMaxVersion)"
+                continue
+            }
             $yarn = [string]$entry.yarn_mappings
             $apiCandidates = Select-FabricApiCandidates -MinecraftVersion $mc -ProvidedCandidates @($entry.fabric_api_candidates) -AllFabricApiVersions $allFabricApiVersions
+
+            $versionOut = Join-Path $loaderOut $mc
+            New-Item -ItemType Directory -Force -Path $versionOut | Out-Null
+            $moduleRoot = Join-Path $outputRoot ".fabric-work\$mc"
 
             Write-Host "==> [$loader] Minecraft $mc"
             if ($DryRun) {
@@ -537,6 +622,15 @@ try {
                 }) | Out-Null
                 continue
             }
+
+            if (Test-Path $moduleRoot) {
+                Remove-Item -LiteralPath $moduleRoot -Recurse -Force
+            }
+            New-Item -ItemType Directory -Force -Path $moduleRoot | Out-Null
+
+            # Create an isolated source snapshot for this Minecraft version.
+            Copy-DirectoryContents -Source (Join-Path $sharedFabricRoot "src") -Destination (Join-Path $moduleRoot "src")
+            Copy-DirectoryContents -Source (Join-Path $sharedFabricRoot $mc) -Destination $moduleRoot
 
             $built = $false
             $lastError = ""
@@ -553,14 +647,14 @@ try {
                 $prevEap = $ErrorActionPreference
                 $ErrorActionPreference = "Continue"
                 try {
-                    $cmdLine = '""' + $gradlew + '" clean build writeVersion --no-daemon"'
-                    cmd /c $cmdLine 2>&1 | Tee-Object -FilePath $logFile
+                    $javaHomeToUse = if ($isFabricExtra) { $resolvedFabricJava25Home } else { $resolvedFabricJavaHome }
+                    Invoke-GradleBuild -GradleExecutable $gradlew -ProjectDir $root -JavaHome $javaHomeToUse -Arguments ('-Pfabric_module_root="' + $moduleRoot + '" clean build writeVersion --no-daemon') -LogFile $logFile
                 } finally {
                     $ErrorActionPreference = $prevEap
                 }
                 $exit = if (Test-Path Variable:\LASTEXITCODE) { $LASTEXITCODE } else { 0 }
                 if ($exit -eq 0) {
-                    $jar = Get-ChildItem -Path (Join-Path $root "build/libs") -Filter *.jar -File |
+                    $jar = Get-ChildItem -Path (Join-Path $moduleRoot "build/libs") -Filter *.jar -File |
                         Where-Object { $_.Name -notlike "*-sources.jar" } |
                         Sort-Object Name |
                         Select-Object -First 1
@@ -568,8 +662,8 @@ try {
                         $lastError = "No runtime JAR found in build/libs."
                         continue
                     }
-                    $artifactName = "statusmod-$modVersion-$loader-$mc.jar"
-                    $artifactPath = Join-Path $loaderOut $artifactName
+                    $artifactName = "$mc-$loader.jar"
+                    $artifactPath = Join-Path $versionOut $artifactName
                     Copy-Item -LiteralPath $jar.FullName -Destination $artifactPath -Force
                     $results.Add([pscustomobject]@{
                         loader = $loader
@@ -617,6 +711,10 @@ try {
                 if (-not $ContinueOnError) {
                     throw "Build failed for loader=$loader mc=$mc ($lastError)"
                 }
+            }
+
+            if (Test-Path $moduleRoot) {
+                Remove-Item -LiteralPath $moduleRoot -Recurse -Force
             }
         }
     }
