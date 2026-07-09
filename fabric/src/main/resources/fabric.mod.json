@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "statusmod",
+  "version": "${version}",
+  "name": "Status Mod",
+  "entrypoints": {
+    "main": [
+      "com.teufel.statusmod.fabric.StatusModFabric"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "${minecraft_version}"
+  }
+}

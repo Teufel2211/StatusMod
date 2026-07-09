@@ -36,6 +36,14 @@ CURSEFORGE_LOADER_TAG = {
     "datapack": "Data Pack",
 }
 
+FABRIC_26_GAME_VERSION = "1.21.11"
+
+
+def normalize_game_version(loader: str, mc_version: str) -> str:
+    if loader == "fabric" and mc_version in {"26.1", "26.1.1", "26.1.2"}:
+        return FABRIC_26_GAME_VERSION
+    return mc_version
+
 
 @dataclass
 class Artifact:
@@ -117,13 +125,14 @@ def post_with_retry(url: str, headers: dict[str, str], *, files: dict, retries: 
 
 
 def upload_modrinth(artifact: Artifact, project_id: str, token: str, release_type: str, changelog: str, dry_run: bool) -> bool:
+    game_version = normalize_game_version(artifact.loader, artifact.mc_version)
     payload = {
         "project_id": project_id,
-        "version_number": f"{artifact.mod_version}+mc{artifact.mc_version}+{artifact.loader}",
+        "version_number": f"{artifact.mod_version}+mc{game_version}+{artifact.loader}",
         "version_type": release_type,
-        "name": f"StatusMod {artifact.mod_version} ({artifact.loader} {artifact.mc_version})",
+        "name": f"StatusMod {artifact.mod_version} ({artifact.loader} {game_version})",
         "loaders": [artifact.loader],
-        "game_versions": [artifact.mc_version],
+        "game_versions": [game_version],
         "changelog": changelog,
         "featured": False,
     }
@@ -146,12 +155,13 @@ def upload_modrinth(artifact: Artifact, project_id: str, token: str, release_typ
 
 
 def upload_curseforge(artifact: Artifact, project_id: str, api_key: str, release_type: str, changelog: str, dry_run: bool) -> bool:
+    game_version = normalize_game_version(artifact.loader, artifact.mc_version)
     loader_tag = CURSEFORGE_LOADER_TAG.get(artifact.loader, artifact.loader)
     metadata = {
-        "displayName": f"StatusMod {artifact.mod_version} ({artifact.loader} {artifact.mc_version})",
+        "displayName": f"StatusMod {artifact.mod_version} ({artifact.loader} {game_version})",
         "changelog": changelog,
         "releaseType": release_type,
-        "gameVersions": [artifact.mc_version, loader_tag],
+        "gameVersions": [game_version, loader_tag],
     }
     if dry_run:
         print(f"[dry-run] curseforge: {artifact.path.name} -> loader={loader_tag} mc={artifact.mc_version}")

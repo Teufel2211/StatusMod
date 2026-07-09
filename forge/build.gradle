@@ -1,0 +1,11 @@
+plugins {
+    id 'net.fabricmc.fabric-loom'
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    implementation "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    implementation "dev.architectury:architectury-forge:${architectury_version}"
+
+    implementation project(':common')
+}

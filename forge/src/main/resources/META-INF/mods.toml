@@ -1,0 +1,16 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="MIT"
+
+[[mods]]
+modId="statusmod"
+version="${version}"
+displayName="Status Mod"
+description="Status Mod on Forge"
+
+[[dependencies.statusmod]]
+modId="minecraft"
+mandatory=true
+versionRange="[${minecraft_version}]"
+ordering="NONE"
+side="BOTH"

@@ -1,128 +1,41 @@
-// Use legacy buildscript classpath for fabric-loom to ensure resolution from Fabric Maven
-buildscript {
-    repositories {
-        maven { url = uri("https://maven.fabricmc.net/") }
-        mavenCentral()
-        gradlePluginPortal()
-    }
-    dependencies {
-        classpath "net.fabricmc:fabric-loom:1.11.7"
-    }
-}
-
 plugins {
+    id 'net.fabricmc.fabric-loom' version "${loom_version}" apply false
     id 'maven-publish'
 }
 
-apply plugin: 'fabric-loom'
-
 group = 'com.teufel.statusmod'
-// Read version from version.txt so CI can bump it automatically
 version = file('version.txt').text.trim()
-def modVersion = version.toString()
-def fabricModuleRoot = project.findProperty("fabric_module_root")?.toString()?.trim()
-if (!fabricModuleRoot) {
-    fabricModuleRoot = "Loader/fabric"
-}
 
-base {
-    archivesName = 'statusmod'
-}
+allprojects {
+    group = rootProject.group
+    version = rootProject.version
 
-loom {
-    // Avoid failures when mods publish javadoc without intermediary namespace.
-    modProvidedJavadoc.set(false)
-}
-
-java {
-    toolchain {
-        // Use Java 21 for toolchain to match common Fabric tooling and avoid classfile compatibility issues
-        languageVersion = JavaLanguageVersion.of(21)
+    repositories {
+        mavenCentral()
+        maven { url = uri("https://maven.architectury.dev/") }
+        maven { url = uri("https://maven.fabricmc.net/") }
+        maven { url = uri("https://maven.minecraftforge.net/") }
+        maven { url = uri("https://maven.neoforged.net/releases/") }
+        maven { url = uri("https://maven.parchmentmc.org") }
+        maven { url = uri("https://libraries.minecraft.net/") }
+        maven { url = uri("${System.getProperty('user.home')}/.gradle/caches/fabric-loom/minecraftMaven/") }
     }
-    withSourcesJar()
 }
 
-repositories {
-    mavenCentral()
-    maven { url = uri("https://maven.fabricmc.net/") }
-}
+subprojects {
+    apply plugin: 'java-library'
 
-dependencies {
-    minecraft "com.mojang:minecraft:${minecraft_version}"
-    def mappingsMode = project.findProperty("mappings_mode")?.toString()?.trim()?.toLowerCase()
-    def minecraftVersionText = project.findProperty("minecraft_version")?.toString()?.trim()
-    def isLegacyObfuscatedVersion = true
-    def minecraftVersionParts = minecraftVersionText ? (minecraftVersionText =~ /^(\d+)(?:\.(\d+))?(?:\.(\d+))?$/) : null
-    if (minecraftVersionParts?.matches()) {
-        def major = minecraftVersionParts[0][1] as int
-        def minor = (minecraftVersionParts[0][2] ?: "0") as int
-        def patch = (minecraftVersionParts[0][3] ?: "0") as int
-        // Treat the special 26.1 branch as its own family and compare everything else semantically.
-        if (major == 26 && minor == 1) {
-            isLegacyObfuscatedVersion = false
-        } else {
-            isLegacyObfuscatedVersion = (major < 26) || (major == 26 && minor < 1) || (major == 26 && minor == 1 && patch < 0)
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(25)
         }
+        withSourcesJar()
     }
-    if (project.hasProperty("yarn_mappings") && project.yarn_mappings?.toString()?.trim()) {
-        mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-    } else if (mappingsMode == "mojang" && isLegacyObfuscatedVersion) {
-        // Use Mojang mappings only when Yarn is unavailable for the target version.
-        mappings loom.officialMojangMappings()
-    } else if (isLegacyObfuscatedVersion) {
-        mappings loom.officialMojangMappings()
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = "UTF-8"
     }
 
-    modImplementation "net.fabricmc:fabric-loader:${loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
-
-    implementation "com.mojang:brigadier:1.0.18"
-}
-
-sourceSets {
-    main {
-        java.srcDirs = ["${fabricModuleRoot}/src/main/java", "${fabricModuleRoot}/src/client/java"]
-        resources.srcDirs = [
-            "${fabricModuleRoot}/src/main/resources",
-            "${fabricModuleRoot}/src/client/resources",
-            "${fabricModuleRoot}/${minecraft_version}/resources"
-        ]
-    }
-}
-
-processResources {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    inputs.property "version", modVersion
-    inputs.property "minecraft_version", minecraft_version
-    filesMatching(["fabric.mod.json", "META-INF/mods.toml", "META-INF/neoforge.mods.toml", "quilt.mod.json"]) {
-        // Use a mod id that matches the assets folder so the icon and assets are packaged correctly
-        expand "version": modVersion, "modid": "status-mod", "name": "Status Mod", "minecraft_version": minecraft_version
-    }
-    from("${fabricModuleRoot}/${minecraft_version}/resources") {
-        include "**/*"
-    }
-    // Also copy the mod icon to the jar root as `icon.png` so hosting platforms reliably detect it
-    from("${fabricModuleRoot}/src/main/resources/assets/status-mod/icon.png") {
-        into ""
-        rename { "icon.png" }
-    }
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = "UTF-8"
-}
-
-tasks.withType(AbstractArchiveTask).configureEach {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
-// Write the project version into build/version.txt so CI can read the exact version
-tasks.register('writeVersion') {
-    def versionText = modVersion
-    doLast {
-        def outFile = file("${buildDir}/version.txt")
-        outFile.parentFile.mkdirs()
-        outFile.text = versionText
-        println "Wrote version ${versionText} to ${outFile}"
+    tasks.withType(AbstractArchiveTask).configureEach {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
 }
