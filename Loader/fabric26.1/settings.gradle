@@ -6,7 +6,7 @@ pluginManagement {
 		gradlePluginPortal()
 	}
 	plugins {
-		id 'fabric-loom' version '1.8.5'
+		id 'fabric-loom' version '1.17.13'  // ← Aktualisiert von 1.8.5
 	}
 }
 
