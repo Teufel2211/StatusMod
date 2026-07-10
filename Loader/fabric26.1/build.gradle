@@ -1,0 +1,32 @@
+plugins {
+    id 'fabric-loom'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs += file('../../common/src/main/java')
+            srcDirs += file('../fabric/src/main/java')
+        }
+        resources {
+            srcDirs += file('../../common/src/main/resources')
+            srcDirs += file('../fabric/src/main/resources')
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:1.21.11"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:0.16.9"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:0.136.0+1.21.11"
+    modImplementation "dev.architectury:architectury-fabric:13.0.8"
+    compileOnly "dev.architectury:architectury:13.0.8"
+    implementation "com.google.code.gson:gson:2.11.0"
+}
