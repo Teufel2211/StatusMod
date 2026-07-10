@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "statusmod",
+  "version": "${version}",
+  "name": "Status Mod",
+  "description": "Status Mod für Fabric 26.1.2",
+  "authors": ["Teufel"],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/statusmod/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.teufel.statusmod.fabric.StatusModFabric"
+    ]
+  },
+  "mixins": [],
+  "depends": {
+    "fabricloader": ">=0.16.9",
+    "minecraft": "1.21.11",
+    "java": ">=21"
+  }
+}

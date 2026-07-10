@@ -77,3 +77,8 @@ native/
 notifications/
 path/
 .tmp/
+
+# Loader/fabric26.1 spezifisch
+Loader/fabric26.1/build/
+Loader/fabric26.1/.gradle/
+Loader/fabric26.1/run/
