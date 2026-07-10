@@ -2,11 +2,28 @@ plugins {
     id 'fabric-loom'
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs += file('../common/src/main/java')
+        }
+        resources {
+            srcDirs += file('../common/src/main/resources')
+        }
+    }
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
     mappings loom.officialMojangMappings()
     implementation "net.neoforged:neoforge:${neoforge_version}"
     implementation "dev.architectury:architectury-neoforge:${architectury_version}"
-
-    implementation project(':common')
+    compileOnly "dev.architectury:architectury:${architectury_version}"
+    implementation "com.google.code.gson:gson:2.11.0"
 }
