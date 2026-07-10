@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "statusmod",
-  "version": "${version}",
+  "version": "1.2.9",
   "name": "Status Mod",
   "description": "Status Mod für Fabric 26.1.2",
   "authors": ["Teufel"],
@@ -17,7 +17,7 @@
   "mixins": [],
   "depends": {
     "fabricloader": ">=0.16.9",
-    "minecraft": "1.21.11",
+    "minecraft": "26.1.2",
     "java": ">=21"
   }
 }

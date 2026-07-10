@@ -5,12 +5,13 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 
 public final class ModBlocks {
-    public static final Block STATUS_BLOCK = new Block(BlockBehaviour.Properties.of());
-    public static final Item STATUS_BLOCK_ITEM = new Item(new Item.Properties());
+    public static Block STATUS_BLOCK;        // ← Nicht mehr initialisiert
+    public static Item STATUS_BLOCK_ITEM;    // ← Nicht mehr initialisiert
 
     private ModBlocks() {}
 
     public static void init() {
-        // Registration is handled by the loader-specific entry points for this target.
+        STATUS_BLOCK = new Block(BlockBehaviour.Properties.of());          // ← Verzögert
+        STATUS_BLOCK_ITEM = new Item(new Item.Properties());               // ← Verzögert
     }
 }

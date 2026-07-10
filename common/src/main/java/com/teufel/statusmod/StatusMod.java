@@ -1,23 +1,21 @@
 package com.teufel.statusmod;
 
-import com.teufel.statusmod.storage.BlockedPlayers;
-import com.teufel.statusmod.storage.ModConfig;
-import com.teufel.statusmod.storage.SettingsStorage;
-import com.teufel.statusmod.registry.ModRegistries;
 import com.teufel.statusmod.network.ModNetworking;
 import com.teufel.statusmod.platform.Platform;
 import com.teufel.statusmod.platform.PlatformServices;
+import com.teufel.statusmod.registry.ModRegistries;
+import com.teufel.statusmod.storage.BlockedPlayers;
+import com.teufel.statusmod.storage.ModConfig;
+import com.teufel.statusmod.storage.SettingsStorage;
 
 public final class StatusMod {
-    public static final String MOD_ID = "statusmod";
-    public static volatile ModConfig config;
-    public static volatile SettingsStorage storage;
-    public static volatile BlockedPlayers blockedPlayers;
-
-    private StatusMod() {}
+    public static ModConfig config;
+    public static SettingsStorage storage;
+    public static BlockedPlayers blockedPlayers;
 
     public static void init() {
         Platform platform = PlatformServices.getPlatform();
+        
         if (config == null) {
             config = ModConfig.load();
         }
@@ -28,32 +26,30 @@ public final class StatusMod {
             blockedPlayers = new BlockedPlayers();
         }
 
-        ModRegistries.init();
-        ModNetworking.init();
+        try {
+            ModRegistries.init();
+        } catch (Throwable e) {
+            System.err.println("[StatusMod] Registry init failed: " + e.getMessage());
+        }
 
-        System.out.println("[StatusMod] Initializing on " + platform.getName());
-        platform.registerItem("status_token");
-        platform.registerBlock("status_block");
+        try {
+            ModNetworking.init();
+        } catch (Throwable e) {
+            System.err.println("[StatusMod] Networking init failed: " + e.getMessage());
+        }
+
+        System.out.println("[StatusMod] Initialized on " + platform.getName());
     }
 
     public static ModConfig getConfig() {
-        if (config == null) {
-            config = ModConfig.load();
-        }
         return config;
     }
 
     public static SettingsStorage getStorage() {
-        if (storage == null) {
-            storage = new SettingsStorage();
-        }
         return storage;
     }
 
     public static BlockedPlayers getBlockedPlayers() {
-        if (blockedPlayers == null) {
-            blockedPlayers = new BlockedPlayers();
-        }
         return blockedPlayers;
     }
 }
