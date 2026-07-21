@@ -5,8 +5,8 @@ param(
     [string]$LoaderVersionsPath = "scripts/local/loader-versions.json",
     [string]$OutputDir = "dist/multiversion",
     [string]$FabricMaxVersion = "1.21.11",
-    [string]$FabricMinVersion = "1.19",
-    [string[]]$FabricExtraVersions = @("26.1", "26.1.1", "26.1.2"),
+    [string]$FabricMinVersion = "1.21.11",
+    [string[]]$FabricExtraVersions = @("26.2", "26.1", "26.1.1", "26.1.2"),
     [string]$FabricJavaHome = "C:\Program Files\Java\jdk-21",
     [string]$FabricJava25Home = "C:\Program Files\Java\jdk-25.0.3",
     [string]$Fabric26ModuleRoot = "Loader/fabric26.1",
@@ -135,7 +135,10 @@ function Select-FabricApiCandidates {
 
 function Test-LoaderAvailable {
     param([string]$Root, [string]$Loader)
-    $moduleRoot = Join-Path $Root ("Loader\" + $Loader)
+    $moduleRoot = Resolve-LoaderModuleRoot -Root $Root -Loader $Loader
+    if ([string]::IsNullOrWhiteSpace($moduleRoot)) {
+        return $false
+    }
     switch ($Loader) {
         "fabric" {
             return (Test-Path (Join-Path $moduleRoot "build.gradle")) -or
@@ -165,6 +168,19 @@ function Test-LoaderAvailable {
             return $false
         }
     }
+}
+
+function Resolve-LoaderModuleRoot {
+    param([string]$Root, [string]$Loader)
+    foreach ($candidate in @(
+        (Join-Path $Root ("Loader\" + $Loader)),
+        (Join-Path $Root $Loader)
+    )) {
+        if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -LiteralPath $candidate)) {
+            return $candidate
+        }
+    }
+    return ""
 }
 
 function Write-TextFileWithRetry {
@@ -317,13 +333,29 @@ function Get-LoaderVersionConfig {
     return $prop.Value
 }
 
+function Get-TargetMinecraftVersion {
+    param([object]$Entry)
+    if ($null -eq $Entry) { return "" }
+    $mc = ([string]$Entry.minecraft_version).Trim()
+    if ($null -ne $Entry.PSObject.Properties["target_minecraft_version"]) {
+        $target = [string]$Entry.target_minecraft_version
+        if (-not [string]::IsNullOrWhiteSpace($target)) {
+            return $target.Trim()
+        }
+    }
+    if ($mc -match '^26\.') {
+        return "1.21.11"
+    }
+    return $mc
+}
+
 New-Item -ItemType Directory -Force -Path $outputRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 
 $originalGradleProps = Get-Content -LiteralPath $gradleProps -Raw
 $oldGradleUserHome = [Environment]::GetEnvironmentVariable("GRADLE_USER_HOME", "Process")
 $results = New-Object System.Collections.Generic.List[object]
-$allFabricApiVersions = Get-FabricApiVersionsFromMaven
+$allFabricApiVersions = @(Get-FabricApiVersionsFromMaven)
 
 try {
     if ($UseIsolatedGradleHome) {
@@ -370,7 +402,11 @@ try {
 
             foreach ($entry in $matrix) {
                 $mc = [string]$entry.minecraft_version
+                $targetMc = Get-TargetMinecraftVersion -Entry $entry
                 $packFormat = Get-PackFormatForMinecraft -MinecraftVersion $mc -PackFormatRanges $packFormatRanges
+                if ($null -eq $packFormat -and $targetMc -ne $mc) {
+                    $packFormat = Get-PackFormatForMinecraft -MinecraftVersion $targetMc -PackFormatRanges $packFormatRanges
+                }
                 Write-Host "==> [datapack] Minecraft $mc"
 
                 if ($null -eq $packFormat) {
@@ -433,12 +469,13 @@ try {
         }
 
         if ($loader -ne "fabric") {
-            $moduleRoot = Join-Path $root "Loader\$loader"
+            $moduleRoot = Resolve-LoaderModuleRoot -Root $root -Loader $loader
             $loaderOut = Join-Path $outputRoot $loader
             New-Item -ItemType Directory -Force -Path $loaderOut | Out-Null
 
             foreach ($entry in $matrix) {
                 $mc = [string]$entry.minecraft_version
+                $targetMc = Get-TargetMinecraftVersion -Entry $entry
                 $yarn = [string]$entry.yarn_mappings
                 $cfg = Get-LoaderVersionConfig -Loader $loader -MinecraftVersion $mc -Map $loaderVersionMap
                 if ($null -eq $cfg) {
@@ -502,7 +539,7 @@ try {
                     continue
                 }
 
-                Set-GradlePropertyValue -FilePath $gradleProps -Key "minecraft_version" -Value $mc
+                Set-GradlePropertyValue -FilePath $gradleProps -Key "minecraft_version" -Value $targetMc
                 if (-not [string]::IsNullOrWhiteSpace($yarn)) {
                     Set-GradlePropertyValue -FilePath $gradleProps -Key "yarn_mappings" -Value $yarn
                 }
@@ -584,11 +621,12 @@ try {
 
         $loaderOut = Join-Path $outputRoot $loader
         New-Item -ItemType Directory -Force -Path $loaderOut | Out-Null
-        $sharedFabricRoot = Join-Path $root "Loader\fabric"
+        $sharedFabricRoot = Resolve-LoaderModuleRoot -Root $root -Loader "fabric"
         $fabric26Root = Join-Path $root $Fabric26ModuleRoot
 
         foreach ($entry in $matrix) {
             $mc = [string]$entry.minecraft_version
+            $targetMc = Get-TargetMinecraftVersion -Entry $entry
             $isFabricExtra = $false
             foreach ($extra in @($FabricExtraVersions)) {
                 if (-not [string]::IsNullOrWhiteSpace($extra) -and $mc -eq $extra.Trim()) {
@@ -610,15 +648,15 @@ try {
                 continue
             }
             $yarn = [string]$entry.yarn_mappings
-            $apiCandidates = Select-FabricApiCandidates -MinecraftVersion $mc -ProvidedCandidates @($entry.fabric_api_candidates) -AllFabricApiVersions $allFabricApiVersions
+            $apiCandidates = Select-FabricApiCandidates -MinecraftVersion $targetMc -ProvidedCandidates @($entry.fabric_api_candidates) -AllFabricApiVersions $allFabricApiVersions
 
             $versionOut = Join-Path $loaderOut $mc
             New-Item -ItemType Directory -Force -Path $versionOut | Out-Null
             $moduleRoot = if ($isFabricExtra) { $fabric26Root } else { Join-Path $outputRoot ".fabric-work\$mc" }
             $fabricBuildVersion = if ($isFabricExtra) {
-                "1.21.11"
+                $targetMc
             } else {
-                $mc
+                $targetMc
             }
 
             Write-Host "==> [$loader] Minecraft $mc"

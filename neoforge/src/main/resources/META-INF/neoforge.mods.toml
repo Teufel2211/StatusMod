@@ -11,6 +11,6 @@ description="Status Mod on NeoForge"
 [[dependencies.statusmod]]
 modId="minecraft"
 mandatory=true
-versionRange="[${minecraft_version}]"
+versionRange="[1.21,1.21.12)"
 ordering="NONE"
 side="BOTH"
