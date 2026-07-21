@@ -377,7 +377,12 @@ try {
         Write-Host "Warning: could not fetch Fabric API version list; using provided candidates only."
     }
 
-    foreach ($loaderRaw in $Loaders) {
+    $normalizedLoaders = @($Loaders | ForEach-Object {
+        if ($null -eq $_) { return }
+        ([string]$_).Split(",") | ForEach-Object { $_.Trim() } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    })
+
+    foreach ($loaderRaw in $normalizedLoaders) {
         $loader = if ($null -eq $loaderRaw) { "" } else { [string]$loaderRaw }
         $loader = $loader.Trim().ToLowerInvariant()
         if ([string]::IsNullOrWhiteSpace($loader)) {
