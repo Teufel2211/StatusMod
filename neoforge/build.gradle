@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom'
+    id 'dev.architectury.loom'
 }
 
 java {
@@ -22,7 +22,7 @@ sourceSets {
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
     mappings loom.officialMojangMappings()
-    implementation "net.neoforged:neoforge:${neoforge_version}"
+    neoForge "net.neoforged:neoforge:${neoforge_version}"
     implementation "dev.architectury:architectury-neoforge:${architectury_version}"
     compileOnly "dev.architectury:architectury:${architectury_version}"
     implementation "com.google.code.gson:gson:2.11.0"

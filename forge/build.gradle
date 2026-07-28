@@ -1,11 +1,32 @@
 plugins {
-    id 'fabric-loom'
+    id 'dev.architectury.loom'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs += file('../common/src/main/java')
+        }
+        resources {
+            srcDirs += file('../common/src/main/resources')
+        }
+    }
+}
+
+loom {
+    silentMojangMappingsLicense()
 }
 
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
     mappings loom.officialMojangMappings()
-    modImplementation "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
-    modImplementation "dev.architectury:architectury-forge:${architectury_version}"
-    implementation project(':common')
+    forge "net.minecraftforge:forge:${forge_minecraft_version}-${forge_version}"
+    compileOnly "dev.architectury:architectury:${architectury_version}"
+    implementation "com.google.code.gson:gson:2.11.0"
 }

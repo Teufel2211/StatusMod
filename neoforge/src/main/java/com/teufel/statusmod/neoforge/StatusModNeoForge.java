@@ -35,7 +35,7 @@ public final class StatusModNeoForge {
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            StatusLifecycle.onPlayerJoin(player.server, player);
+            StatusLifecycle.onPlayerJoin(player.level().getServer(), player);
         }
     }
 

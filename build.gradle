@@ -37,4 +37,16 @@ subprojects {
     tasks.withType(AbstractArchiveTask).configureEach {
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
+
+    tasks.register('writeVersion') {
+        doLast {
+            println "Version: ${project.version}"
+        }
+    }
+}
+
+tasks.register('writeVersion') {
+    doLast {
+        println "Version: ${project.version}"
+    }
 }
