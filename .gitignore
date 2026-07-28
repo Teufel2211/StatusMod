@@ -90,3 +90,6 @@ Loader/forge26.1/run/
 
 # Multiversion output
 dist/multiversion/.gradle-user-home/
+
+# Internal agent docs (not for public repo)
+AGENTS.md
