@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      force_publish:
+        description: "Publish even if version.txt unchanged"
+        type: boolean
+        default: false
 
 concurrency:
   group: build-${{ github.ref }}
@@ -52,9 +57,13 @@ jobs:
         run: |
           $old = git show HEAD~1:version.txt 2>$null
           $new = (Get-Content version.txt -Raw).Trim()
-          if ($old -ne $new) {
+          $force = "${{ github.event.inputs.force_publish }}" -eq "true"
+          $changed = $old -ne $new
+          echo "version=$new" >> $env:GITHUB_OUTPUT
+          if ($changed -or $force) {
             echo "changed=true" >> $env:GITHUB_OUTPUT
-            echo "Version changed ($old → $new): publishing enabled"
+            if ($force) { echo "Force publish: publishing enabled" }
+            else { echo "Version changed ($old → $new): publishing enabled" }
           } else {
             echo "changed=false" >> $env:GITHUB_OUTPUT
             echo "Version unchanged: build+verify only"
@@ -101,3 +110,37 @@ jobs:
           MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
           CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+
+      - name: Create GitHub Release
+        if: steps.version_check.outputs.changed == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ver = "${{ steps.version_check.outputs.version }}"
+          $tag = "v$ver"
+          $lastTag = git describe --tags --abbrev=0 2>$null
+          $changelogFile = "$env:RUNNER_TEMP\changelog.md"
+          $changelog = if ($lastTag) {
+            $lines = git log "$lastTag..HEAD" --oneline 2>$null
+            if ($lines) { "Changes since $lastTag`n`n$($lines -join "`n")" } else { "" }
+          } else {
+            $lines = git log --oneline -20 2>$null
+            if ($lines) { "Changes`n`n$($lines -join "`n")" } else { "" }
+          }
+          if ([string]::IsNullOrWhiteSpace($changelog)) { $changelog = "No changelog available" }
+          Set-Content -Path $changelogFile -Value $changelog
+
+          $tagExists = git tag -l "$tag" 2>$null
+          if ($tagExists) {
+            Write-Host "Tag $tag exists — deleting to recreate"
+            git tag -d $tag
+          }
+
+          git tag $tag
+          git push origin $tag
+
+          gh release create $tag `
+            --title "StatusMod $ver" `
+            --notes-file $changelogFile `
+            dist/multiversion/**/*.jar
