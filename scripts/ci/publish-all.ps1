@@ -100,17 +100,15 @@ foreach ($jar in $jars) {
     $body = @{
         project_id = $modrinthProjectId
         file_parts = @("file")
+        name = $versionName
         version_number = $versionNumber
-        version_title = $versionName
-        version_body = $changelog
-        dependencies = @()
-        release_channel = $vType
+        changelog = $changelog
+        game_versions = @($mcVersion)
+        version_type = $vType
         loaders = @($loader)
         featured = $false
+        dependencies = @()
         primary_file = "file"
-        fields = @{
-            game_versions = @($mcVersion)
-        }
     }
     try {
         Write-Host "   Modrinth..."
