@@ -26,7 +26,7 @@ loom {
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
     mappings loom.officialMojangMappings()
-    forge "net.minecraftforge:forge:${forge_minecraft_version}-${forge_version}"
+    forge "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     compileOnly "dev.architectury:architectury:${architectury_version}"
     implementation "com.google.code.gson:gson:2.11.0"
 }
