@@ -26,14 +26,16 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $foundKeys = New-Object System.Collections.Generic.HashSet[string]
 $errors = 0
 
+$pattern = "(?i)^Statusmod-$([Regex]::Escape($modVersion))-(fabric|forge|neoforge)-(\d+(?:\.\d+)*)\.jar$"
+
 foreach ($jar in $jars) {
     $relPath = $jar.FullName.Substring($distDir.Length).TrimStart("\")
     Write-Host "==> $relPath"
 
-    if ($jar.Name -match "statusmod-$([Regex]::Escape($modVersion))-(fabric|forge|neoforge)-([\d\.]+)" -or
-        $jar.Name -match "([\d\.]+)-(fabric|forge|neoforge)\.jar") {
-        $loader = if ($matches[1] -in @("fabric","forge","neoforge")) { $matches[1] } else { $matches[2] }
-        $mc = if ($matches[1] -in @("fabric","forge","neoforge")) { $matches[2] } else { $matches[1] }
+    $m = [regex]::Match($jar.Name, $pattern)
+    if ($m.Success) {
+        $loader = $m.Groups[1].Value
+        $mc = $m.Groups[2].Value
         $foundKeys.Add("$loader-$mc") | Out-Null
     }
 

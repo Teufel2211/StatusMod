@@ -695,7 +695,7 @@ try {
                                 }) | Out-Null
                                 continue
                             }
-                            $artifactName = "statusmod-$modVersion-$loader-$mc.jar"
+                            $artifactName = "Statusmod-$modVersion-$loader-$mc.jar"
                             $artifactPath = Join-Path $loaderOut $artifactName
                             Copy-Item -LiteralPath $jar.FullName -Destination $artifactPath -Force
                             $results.Add([pscustomobject]@{
@@ -817,7 +817,7 @@ try {
                         }) | Out-Null
                         continue
                     }
-                    $artifactName = "statusmod-$modVersion-$loader-$mc.jar"
+                    $artifactName = "Statusmod-$modVersion-$loader-$mc.jar"
                     $artifactPath = Join-Path $loaderOut $artifactName
                     Copy-Item -LiteralPath $jar.FullName -Destination $artifactPath -Force
                     $results.Add([pscustomobject]@{
@@ -953,7 +953,7 @@ try {
                         $lastError = "No runtime JAR found in build/libs."
                         continue
                     }
-                    $artifactName = "$mc-$loader.jar"
+                    $artifactName = "Statusmod-$modVersion-$loader-$mc.jar"
                     $artifactPath = Join-Path $versionOut $artifactName
                     Copy-Item -LiteralPath $jar.FullName -Destination $artifactPath -Force
                     $results.Add([pscustomobject]@{
