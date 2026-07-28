@@ -96,21 +96,25 @@ foreach ($jar in $jars) {
 
     Write-Host "==> $versionName"
 
-    # --- Modrinth ---
+    # --- Modrinth (v2 API: POST /v2/version) ---
     $body = @{
-        name = $versionName
+        project_id = $modrinthProjectId
+        file_parts = @("file")
         version_number = $versionNumber
-        changelog = $changelog
+        version_title = $versionName
+        version_body = $changelog
         dependencies = @()
-        game_versions = @($mcVersion)
-        version_type = $vType
+        release_channel = $vType
         loaders = @($loader)
         featured = $false
-        project_id = $modrinthProjectId
+        primary_file = "file"
+        fields = @{
+            game_versions = @($mcVersion)
+        }
     }
     try {
         Write-Host "   Modrinth..."
-        $response = Invoke-RestMethod -Uri "https://api.modrinth.com/v2/versions" -Method Post `
+        $response = Invoke-RestMethod -Uri "https://api.modrinth.com/v2/version" -Method Post `
             -Headers @{ "Authorization" = $modrinthToken } `
             -Form @{
                 data = ($body | ConvertTo-Json -Depth 4 -Compress)
@@ -119,6 +123,9 @@ foreach ($jar in $jars) {
         Write-Host "   OK id=$($response.id)"
     } catch {
         Write-Warning "   Modrinth FAILED: $($_.Exception.Message)"
+        if ($_.Exception.Response) {
+            try { $err = $_.Exception.Response.GetResponseStream(); $reader = New-Object System.IO.StreamReader($err); $errBody = $reader.ReadToEnd(); Write-Warning "   Response: $errBody" } catch {}
+        }
         $fail++
         continue
     }
