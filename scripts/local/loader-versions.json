@@ -1,45 +1,41 @@
 {
   "forge": {
     "26.2": {
-      "forge_version": "65.1.0",
-      "forge_gradle_version": "unused"
+      "forge_version": "65.1.0"
     },
     "26.1.2": {
-      "forge_version": "64.1.0",
-      "forge_gradle_version": "unused"
+      "forge_version": "64.1.0"
     },
     "26.1.1": {
-      "forge_version": "63.0.2",
-      "forge_gradle_version": "unused"
+      "forge_version": "63.0.2"
     },
     "26.1": {
-      "forge_version": "62.0.9",
-      "forge_gradle_version": "unused"
+      "forge_version": "62.0.9"
     },
-    "1.21.11": { "forge_version": "61.1.14", "forge_gradle_version": "unused" },
-    "1.21.10": { "forge_version": "60.1.13", "forge_gradle_version": "unused" },
-    "1.21.9": { "forge_version": "59.0.5", "forge_gradle_version": "unused" },
-    "1.21.8": { "forge_version": "58.1.20", "forge_gradle_version": "unused" },
-    "1.21.7": { "forge_version": "57.0.3", "forge_gradle_version": "unused" },
-    "1.21.6": { "forge_version": "56.0.9", "forge_gradle_version": "unused" },
-    "1.21.5": { "forge_version": "55.1.11", "forge_gradle_version": "unused" },
-    "1.21.4": { "forge_version": "54.1.17", "forge_gradle_version": "unused" },
-    "1.21.3": { "forge_version": "53.1.11", "forge_gradle_version": "unused" },
-    "1.21.2": { "forge_version": "53.1.10", "forge_gradle_version": "unused" },
-    "1.21.1": { "forge_version": "52.1.16", "forge_gradle_version": "unused" },
-    "1.21": { "forge_version": "51.0.33", "forge_gradle_version": "unused" },
-    "1.20.6": { "forge_version": "50.2.10", "forge_gradle_version": "unused" },
-    "1.20.5": { "forge_version": "50.2.7", "forge_gradle_version": "unused" },
-    "1.20.4": { "forge_version": "49.2.8", "forge_gradle_version": "unused" },
-    "1.20.3": { "forge_version": "49.0.2", "forge_gradle_version": "unused" },
-    "1.20.2": { "forge_version": "48.1.0", "forge_gradle_version": "unused" },
-    "1.20.1": { "forge_version": "47.4.22", "forge_gradle_version": "unused" },
-    "1.20": { "forge_version": "46.0.14", "forge_gradle_version": "unused" },
-    "1.19.4": { "forge_version": "45.4.3", "forge_gradle_version": "unused" },
-    "1.19.3": { "forge_version": "44.1.23", "forge_gradle_version": "unused" },
-    "1.19.2": { "forge_version": "43.5.2", "forge_gradle_version": "unused" },
-    "1.19.1": { "forge_version": "42.0.9", "forge_gradle_version": "unused" },
-    "1.19": { "forge_version": "41.1.0", "forge_gradle_version": "unused" }
+    "1.21.11": { "forge_version": "61.1.14" },
+    "1.21.10": { "forge_version": "60.1.13" },
+    "1.21.9": { "forge_version": "59.0.5" },
+    "1.21.8": { "forge_version": "58.1.20" },
+    "1.21.7": { "forge_version": "57.0.3" },
+    "1.21.6": { "forge_version": "56.0.9" },
+    "1.21.5": { "forge_version": "55.1.11" },
+    "1.21.4": { "forge_version": "54.1.17" },
+    "1.21.3": { "forge_version": "53.1.11" },
+    "1.21.2": { "forge_version": "53.1.10" },
+    "1.21.1": { "forge_version": "52.1.16" },
+    "1.21": { "forge_version": "51.0.33" },
+    "1.20.6": { "forge_version": "50.2.10" },
+    "1.20.5": { "forge_version": "50.2.7" },
+    "1.20.4": { "forge_version": "49.2.8" },
+    "1.20.3": { "forge_version": "49.0.2" },
+    "1.20.2": { "forge_version": "48.1.0" },
+    "1.20.1": { "forge_version": "47.4.22" },
+    "1.20": { "forge_version": "46.0.14" },
+    "1.19.4": { "forge_version": "45.4.3" },
+    "1.19.3": { "forge_version": "44.1.23" },
+    "1.19.2": { "forge_version": "43.5.2" },
+    "1.19.1": { "forge_version": "42.0.9" },
+    "1.19": { "forge_version": "41.1.0" }
   },
   "neoforge": {
     "26.2": {
