@@ -930,7 +930,7 @@ try {
                     $javaHomeToUse = if ($isFabricExtra) { $resolvedFabricJava25Home } else { $resolvedFabricJavaHome }
                     $projectDirToUse = if ($isFabricExtra) { $moduleRoot } else { $root }
                     $gradleArgs = if ($isFabricExtra) {
-                        'clean build writeVersion --no-daemon'
+                        "-Pversion=$modVersion clean build writeVersion --no-daemon"
                     } else {
                         '-Pfabric_module_root="' + $moduleRoot + '" clean build writeVersion --no-daemon'
                     }

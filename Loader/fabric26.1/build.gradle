@@ -19,11 +19,11 @@ sourceSets {
     main {
         java {
             srcDirs += file('../../common/src/main/java')
-            srcDirs += file('../fabric/src/main/java')
+            srcDirs += file('../../fabric/src/main/java')
         }
         resources {
             srcDirs += file('../../common/src/main/resources')
-            srcDirs += file('../fabric/src/main/resources')
+            srcDirs += file('../../fabric/src/main/resources')
         }
     }
 }
