@@ -1,18 +1,22 @@
 # StatusMod
 
-StatusMod adds lightweight status tags for players on Fabric servers and clients.
+StatusMod adds lightweight status tags for players on Minecraft servers and clients.
 Players can set a custom status text and color that is shown in the player list (TAB) and name rendering via scoreboard team prefix/suffix.
 
 ## Repository Layout
 
-- `Loader/fabric/` - main Fabric source tree for Minecraft 1.19 through 1.21.11
-- `Loader/fabric26.1/` - dedicated Fabric 26.1 branch
+- `Loader/fabric/` - main Fabric source tree (MC 1.19 - 1.21.11)
+- `Loader/fabric26.1/` - dedicated Fabric 26.x branch (MC 26.1 - 26.2)
+- `Loader/forge26.1/` - dedicated Forge 26.x branch (MC 26.1 - 26.2)
+- `forge/` - Forge source tree (MC 1.19 - 25.x, uses Architectury Loom)
+- `neoforge/` - NeoForge source tree (MC 1.21+, uses Architectury Loom)
+- `common/` - shared code across all loaders
 - `scripts/local/` - local build and release helpers
 - `src_legacy/` - archived legacy source tree kept for reference during migration
 
 The active source of truth is the Fabric loader directories. `src_legacy/` is intentionally preserved as reference material and should not be treated as the primary build tree.
 
-Version subfolders inside each Fabric loader directory are reserved for release assets and version-specific metadata. The Java source itself stays centralized inside each loader's `src/` tree so features are maintained once and packaged many times.
+Version subfolders inside each loader directory are reserved for release assets and version-specific metadata. The Java source itself stays centralized inside each loader's `src/` tree so features are maintained once and packaged many times.
 
 ## Highlights
 
@@ -103,34 +107,52 @@ Reliability improvements include:
 
 ## Compatibility
 
-This repository currently builds against the Fabric versions in the multiversion workflow:
+This repository builds against multiple loaders and Minecraft versions:
 
-- Minecraft `1.19` through `1.21.11`
-- Fabric API selected per Minecraft version by `scripts/local/build-multiversion.ps1`
-- Dedicated Fabric 26.1 builds for `26.1`, `26.1.1`, and `26.1.2`
+| Loader | Minecraft versions | Build system |
+|--------|-------------------|--------------|
+| Fabric | 1.19 - 1.21.11 | Architectury Loom |
+| Fabric | 26.1 - 26.2 | Standalone Loom (`Loader/fabric26.1/`) |
+| Forge | 1.19 - 25.x | Architectury Loom (`loom.platform=forge`) |
+| Forge | 26.1 - 26.2 | Standalone ForgeGradle 7 (`Loader/forge26.1/`) |
+| NeoForge | 1.21+ | Architectury Loom (`loom.platform=neoforge`) |
 
 Release workflows can publish additional game-version variants depending on your CI setup.
 
 ## Building
 
-Recommended local build flow:
+### All loaders (recommended)
 
-1. Build the shared Fabric line with `scripts/local/build-multiversion.ps1`.
-2. Build the dedicated 26.1 branch with `Loader/fabric26.1`.
-3. Inspect the generated artifacts in `dist/multiversion/` and `Loader/fabric26.1/build/`.
+Build all 15 combinations (fabric/forge/neoforge × 26.2/26.1.2/26.1.1/26.1/1.21.11):
 
-Examples:
+```powershell
+.\scripts\local\build-multiversion.ps1 -Loaders fabric,forge,neoforge -ContinueOnError:$false
+```
+
+### Single loader
 
 ```powershell
 .\scripts\local\build-multiversion.ps1 -Loaders fabric -ContinueOnError:$false
-.\gradlew.bat -p Loader\fabric26.1 clean build --no-daemon
+.\scripts\local\build-multiversion.ps1 -Loaders forge -ContinueOnError:$false
+.\scripts\local\build-multiversion.ps1 -Loaders neoforge -ContinueOnError:$false
 ```
+
+### Standalone 26.x branches
+
+```powershell
+.\gradlew.bat -p Loader\fabric26.1 clean build --no-daemon
+.\gradlew.bat -p Loader\forge26.1 clean build --no-daemon
+```
+
+Output is written to `dist/multiversion/` for the shared line and `Loader/<loader>26.1/build/` for the 26.x branches.
 
 ## Installation
 
-1. Download the release JAR that matches your Fabric Minecraft version.
+1. Download the release JAR that matches your loader and Minecraft version.
 2. Put it in the `mods/` folder on the server or client.
 3. Start or restart Minecraft/server.
+
+**Note:** Forge/NeoForge builds require the corresponding mod loader installed on the server/client.
 
 ## Privacy and Security
 
