@@ -28,6 +28,12 @@ sourceSets {
     }
 }
 
+processResources {
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version, "loader_version": "0.16.9"
+    }
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:1.21.11"
     mappings loom.officialMojangMappings()

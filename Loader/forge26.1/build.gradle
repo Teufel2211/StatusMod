@@ -43,6 +43,12 @@ repositories {
     maven { url = uri('https://maven.architectury.dev/') }
 }
 
+processResources {
+    filesMatching("META-INF/mods.toml") {
+        expand "version": project.version
+    }
+}
+
 dependencies {
     implementation minecraft.dependency("net.minecraftforge:forge:${project.findProperty('forge_minecraft_version') ?: '26.1'}-${project.findProperty('forge_version') ?: '62.0.9'}")
     compileOnly "dev.architectury:architectury:${project.findProperty('architectury_version') ?: '13.0.8'}"

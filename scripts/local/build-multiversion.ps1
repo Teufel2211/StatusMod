@@ -281,6 +281,40 @@ function Set-GradlePropertyValue {
     Write-TextFileWithRetry -Path $FilePath -Content $raw
 }
 
+function Expand-MetadataVersion {
+    param(
+        [string]$RootDir,
+        [string]$ModVersion
+    )
+    $tomlFiles = @(
+        (Join-Path $RootDir "src/main/resources/META-INF/mods.toml"),
+        (Join-Path $RootDir "src/main/resources/META-INF/neoforge.mods.toml")
+    )
+    $backups = @()
+    foreach ($f in $tomlFiles) {
+        if (Test-Path -LiteralPath $f) {
+            $bak = "$f.bak"
+            Copy-Item -LiteralPath $f -Destination $bak -Force
+            $content = Get-Content -LiteralPath $f -Raw
+            $content = $content.Replace('${version}', $ModVersion)
+            Write-TextFileWithRetry -Path $f -Content $content
+            $backups += $f
+        }
+    }
+    return $backups
+}
+
+function Restore-MetadataVersion {
+    param([string[]]$BackupFiles)
+    foreach ($f in $BackupFiles) {
+        $bak = "$f.bak"
+        if (Test-Path -LiteralPath $bak) {
+            Copy-Item -LiteralPath $bak -Destination $f -Force
+            Remove-Item -LiteralPath $bak -Force
+        }
+    }
+}
+
 function ConvertTo-MarkdownTableValue {
     param([string]$Value)
     if ($null -eq $Value) { return "" }
@@ -630,12 +664,19 @@ try {
                         $javaToUse = $resolvedFabricJava25Home
                         Write-Host "==> [$loader] Minecraft $mc (standalone ForgeGradle)"
                         $logFile = Join-Path $logRoot "$loader-$mc-fg.log"
+                        $expandedToml = @()
+                        $result = Expand-MetadataVersion -RootDir $forge26Root -ModVersion $modVersion
+                        if ($result) { $expandedToml = @($result) }
                         $prevEap = $ErrorActionPreference
                         $ErrorActionPreference = "Continue"
                         try {
-                            Invoke-GradleBuild -GradleExecutable $gradlew -ProjectDir $forge26Root -JavaHome $javaToUse -Arguments 'clean build writeVersion --no-daemon' -LogFile $logFile
+                            $buildArgs = "-Pversion=$modVersion clean build writeVersion --no-daemon"
+                            Invoke-GradleBuild -GradleExecutable $gradlew -ProjectDir $forge26Root -JavaHome $javaToUse -Arguments $buildArgs -LogFile $logFile
                         } finally {
                             $ErrorActionPreference = $prevEap
+                            if ($expandedToml.Count -gt 0) {
+                                Restore-MetadataVersion -BackupFiles $expandedToml
+                            }
                         }
                         $exit = if (Test-Path Variable:\LASTEXITCODE) { $LASTEXITCODE } else { 0 }
                         if ($exit -eq 0) {
@@ -743,6 +784,11 @@ try {
                 }
                 Write-Host "==> [$loader] Minecraft $mc"
                 $logFile = Join-Path $logRoot "$loader-$mc.log"
+                $expandedToml = @()
+                if ($loader -eq "forge" -or $loader -eq "neoforge") {
+                    $result = Expand-MetadataVersion -RootDir $moduleRoot -ModVersion $modVersion
+                    if ($result) { $expandedToml = @($result) }
+                }
                 $prevEap = $ErrorActionPreference
                 $ErrorActionPreference = "Continue"
                 try {
@@ -750,6 +796,9 @@ try {
                     Invoke-GradleBuild -GradleExecutable $gradlewToUse -ProjectDir $moduleRoot -JavaHome $javaToUse -Arguments 'clean build writeVersion --no-daemon' -LogFile $logFile
                 } finally {
                     $ErrorActionPreference = $prevEap
+                    if ($expandedToml.Count -gt 0) {
+                        Restore-MetadataVersion -BackupFiles $expandedToml
+                    }
                 }
                 $exit = if (Test-Path Variable:\LASTEXITCODE) { $LASTEXITCODE } else { 0 }
                 if ($exit -eq 0) {
