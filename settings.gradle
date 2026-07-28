@@ -7,10 +7,12 @@ pluginManagement {
 		gradlePluginPortal()
 	}
 	plugins {
-		id 'fabric-loom' version '1.17.13'
+		id 'dev.architectury.loom' version '1.17.491'
 	}
 }
 
 include 'common'
 include 'fabric'
+include 'forge'
+include 'neoforge'
 // include 'neoforge'    // Ausgeschlossen - wird über build-multiversion.ps1 gebaut

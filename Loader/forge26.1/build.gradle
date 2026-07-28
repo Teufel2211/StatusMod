@@ -1,0 +1,56 @@
+plugins {
+    id 'java'
+    id 'net.minecraftforge.gradle' version '[7.0.29,8.0)'
+}
+
+version = project.findProperty('version') ?: '1.0'
+group = project.findProperty('maven_group') ?: 'com.teufel.statusmod'
+base {
+    archivesName = project.findProperty('archives_base_name') ?: 'statusmod-forge26.1'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+sourceSets {
+    main {
+        java {
+            srcDirs += file('../../common/src/main/java')
+            srcDirs += file('../../forge/src/main/java')
+        }
+        resources {
+            srcDirs += file('../../common/src/main/resources')
+            srcDirs += file('../../forge/src/main/resources')
+        }
+    }
+}
+
+minecraft {
+    // MC 26.x ships unobfuscated - no mappings needed
+    runs {
+        configureEach {
+            workingDir = layout.projectDirectory.dir('run')
+        }
+        register('client')
+        register('server')
+    }
+}
+
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    mavenCentral()
+    maven { url = uri('https://maven.architectury.dev/') }
+}
+
+dependencies {
+    implementation minecraft.dependency("net.minecraftforge:forge:${project.findProperty('forge_minecraft_version') ?: '26.1'}-${project.findProperty('forge_version') ?: '62.0.9'}")
+    compileOnly "dev.architectury:architectury:${project.findProperty('architectury_version') ?: '13.0.8'}"
+    implementation "com.google.code.gson:gson:2.11.0"
+}
+
+tasks.register('writeVersion') {
+    doLast {
+        println "Version: ${project.version}"
+    }
+}

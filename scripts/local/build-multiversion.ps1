@@ -10,11 +10,15 @@ param(
     [string]$FabricJavaHome = "C:\Program Files\Java\jdk-21",
     [string]$FabricJava25Home = "C:\Program Files\Java\jdk-25.0.3",
     [string]$Fabric26ModuleRoot = "Loader/fabric26.1",
+    [string]$Forge26ModuleRoot = "Loader/forge26.1",
     [string]$LogDir = "",
-    [switch]$UseIsolatedGradleHome = $true,
+    [switch]$UseIsolatedGradleHome,
     [switch]$DryRun,
-    [switch]$ContinueOnError = $true
+    [switch]$ContinueOnError
 )
+
+$UseIsolatedGradleHome = if ($PSBoundParameters.ContainsKey('UseIsolatedGradleHome')) { [bool]$UseIsolatedGradleHome } else { $true }
+$ContinueOnError = if ($PSBoundParameters.ContainsKey('ContinueOnError')) { [bool]$ContinueOnError } else { $true }
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -63,7 +67,7 @@ function Compare-McVersion {
     return 0
 }
 
-function Is-BaseRelease {
+function Test-IsBaseRelease {
     param([string]$Mc)
     return ($Mc -match '^\d+\.\d+$')
 }
@@ -119,7 +123,7 @@ function Select-FabricApiCandidates {
     # Fallback: pick newest within same minor (e.g. 1.21.*) if exact doesn't exist.
     if ($exact.Count -eq 0) {
         $mcParts = Get-McVersionParts -Mc $mc
-        if ($mcParts -ne $null) {
+        if ($null -ne $mcParts) {
             $minorPrefix = "$($mcParts[0]).$($mcParts[1])."
             $escapedMinor = [Regex]::Escape($minorPrefix)
             $withinMinor = @($AllFabricApiVersions | Where-Object { $_ -match ("\+" + $escapedMinor + "\d+$") })
@@ -240,8 +244,19 @@ function Invoke-GradleBuild {
 function Resolve-FirstExistingPath {
     param([string[]]$Candidates)
     foreach ($candidate in @($Candidates)) {
-        if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -LiteralPath $candidate)) {
-            return $candidate
+        if ([string]::IsNullOrWhiteSpace($candidate)) {
+            continue
+        }
+
+        if (Test-Path -LiteralPath $candidate) {
+            return (Resolve-Path -LiteralPath $candidate).Path
+        }
+
+        if ($candidate -match '[\*\?\[]') {
+            $matches = @(Get-ChildItem -Path $candidate -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName -First 1)
+            if ($matches.Count -gt 0) {
+                return $matches[0]
+            }
         }
     }
     return $null
@@ -266,6 +281,88 @@ function Set-GradlePropertyValue {
     Write-TextFileWithRetry -Path $FilePath -Content $raw
 }
 
+function ConvertTo-MarkdownTableValue {
+    param([string]$Value)
+    if ($null -eq $Value) { return "" }
+    return $Value.Replace("\", "\\").Replace("|", "\|").Replace("`r", " ").Replace("`n", " ")
+}
+
+function Write-MarkdownBuildReport {
+    param(
+        $ReportPath,
+        $Results,
+        $LogRoot,
+        $JsonReportPath,
+        $ModVersion,
+        $DryRun
+    )
+
+    $lines = New-Object System.Collections.ArrayList
+    $lines.Add("# StatusMod Build Report") | Out-Null
+    $lines.Add("") | Out-Null
+    $lines.Add("- Generated: $((Get-Date).ToString('yyyy-MM-dd HH:mm:ss zzz'))") | Out-Null
+    $lines.Add("- Mod version: $ModVersion") | Out-Null
+    $lines.Add("- JSON report: ``$JsonReportPath``") | Out-Null
+    $lines.Add("- Log directory: ``$LogRoot``") | Out-Null
+    $lines.Add("- Dry run: $([bool]$DryRun)") | Out-Null
+    $lines.Add("") | Out-Null
+
+    $lines.Add("## Results") | Out-Null
+    $lines.Add("") | Out-Null
+    $lines.Add("| Loader | Minecraft | Status | Note | Artifact |") | Out-Null
+    $lines.Add("| --- | --- | --- | --- | --- |") | Out-Null
+    foreach ($result in @($Results)) {
+        $lines.Add("| $(ConvertTo-MarkdownTableValue ([string]$result.loader)) | $(ConvertTo-MarkdownTableValue ([string]$result.minecraft)) | $(ConvertTo-MarkdownTableValue ([string]$result.status)) | $(ConvertTo-MarkdownTableValue ([string]$result.note)) | $(ConvertTo-MarkdownTableValue ([string]$result.artifact)) |") | Out-Null
+    }
+    $lines.Add("") | Out-Null
+
+    $logPaths = New-Object System.Collections.Generic.List[string]
+    foreach ($result in @($Results)) {
+        $note = [string]$result.note
+        foreach ($match in [regex]::Matches($note, 'log=([^;]+)|\(log:\s*([^)]+)\)')) {
+            $candidate = if (-not [string]::IsNullOrWhiteSpace($match.Groups[1].Value)) {
+                $match.Groups[1].Value.Trim()
+            } else {
+                $match.Groups[2].Value.Trim()
+            }
+            if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path -LiteralPath $candidate)) {
+                $logPaths.Add($candidate) | Out-Null
+            }
+        }
+    }
+    $logFiles = @($logPaths | Select-Object -Unique | ForEach-Object { Get-Item -LiteralPath $_ } | Sort-Object Name)
+
+    $lines.Add("## Logs") | Out-Null
+    $lines.Add("") | Out-Null
+    if ($logFiles.Count -eq 0) {
+        $lines.Add('No `.log` files were generated.') | Out-Null
+    } else {
+        foreach ($logFile in $logFiles) {
+            $lines.Add("### $($logFile.Name)") | Out-Null
+            $lines.Add("") | Out-Null
+            $lines.Add("Path: ``$($logFile.FullName)``") | Out-Null
+            $lines.Add("") | Out-Null
+            $lines.Add('```text') | Out-Null
+            try {
+                $content = Get-Content -LiteralPath $logFile.FullName -Raw
+                if ([string]::IsNullOrWhiteSpace($content)) {
+                    $lines.Add("<empty log>") | Out-Null
+                } else {
+                    $content.TrimEnd([char[]]"`r`n").Split("`n") | ForEach-Object {
+                        $lines.Add($_.TrimEnd([char[]]"`r")) | Out-Null
+                    }
+                }
+            } catch {
+                $lines.Add("Failed to read log: $($_.Exception.Message)") | Out-Null
+            }
+            $lines.Add('```') | Out-Null
+            $lines.Add("") | Out-Null
+        }
+    }
+
+    Write-TextFileWithRetry -Path $ReportPath -Content (((@($lines) | ForEach-Object { [string]$_ }) -join "`r`n") + "`r`n")
+}
+
 $root = Resolve-Path (Join-Path $PSScriptRoot "../..")
 $gradlew = Join-Path $root "gradlew.bat"
 $gradleProps = Join-Path $root "gradle.properties"
@@ -274,6 +371,7 @@ $packFormatFile = Join-Path $root $PackFormatMapPath
 $loaderVersionsFile = Join-Path $root $LoaderVersionsPath
 $outputRoot = Join-Path $root $OutputDir
 $reportFile = Join-Path $outputRoot "build-report.json"
+$markdownReportFile = Join-Path $outputRoot "build-report.md"
 $modVersion = (Get-Content -LiteralPath (Join-Path $root "version.txt") -Raw).Trim()
 $logRoot = if ([string]::IsNullOrWhiteSpace($LogDir)) { Join-Path $outputRoot "logs" } else { Join-Path $root $LogDir }
 $isolatedGradleHome = Join-Path $outputRoot ".gradle-user-home"
@@ -363,8 +461,8 @@ try {
         [Environment]::SetEnvironmentVariable("GRADLE_USER_HOME", $isolatedGradleHome, "Process")
         Write-Host "Using isolated GRADLE_USER_HOME: $isolatedGradleHome"
     }
-    $resolvedFabricJavaHome = Resolve-FirstExistingPath -Candidates @($FabricJavaHome, "C:\Program Files\Java\jdk-21", "C:\Program Files\Java\jdk-21.0.0")
-    $resolvedFabricJava25Home = Resolve-FirstExistingPath -Candidates @($FabricJava25Home, "C:\Program Files\Java\jdk-25", "C:\Program Files\Java\jdk-25.0.3", "C:\Program Files\Java\latest")
+    $resolvedFabricJavaHome = Resolve-FirstExistingPath -Candidates @($FabricJavaHome, $env:JAVA_HOME, "C:\Program Files\Java\jdk-21", "C:\Program Files\Java\jdk-21.0.0", "C:\Program Files\Eclipse Adoptium\jdk-21*", "C:\Program Files\Microsoft\jdk-21")
+    $resolvedFabricJava25Home = Resolve-FirstExistingPath -Candidates @($FabricJava25Home, $env:JAVA_HOME, "C:\Program Files\Java\jdk-25", "C:\Program Files\Java\jdk-25.0.3", "C:\Program Files\Java\latest", "C:\Program Files\Eclipse Adoptium\jdk-25*", "C:\Program Files\Microsoft\jdk-25")
     if ([string]::IsNullOrWhiteSpace($resolvedFabricJavaHome)) {
         throw "No usable Java 21 home found for Fabric base versions."
     }
@@ -495,14 +593,89 @@ try {
                 }
 
                 if ($loader -eq "forge") {
-                    if ([string]::IsNullOrWhiteSpace($cfg.forge_version) -or [string]::IsNullOrWhiteSpace($cfg.forge_gradle_version)) {
+                    if ([string]::IsNullOrWhiteSpace($cfg.forge_version)) {
                         $results.Add([pscustomobject]@{
                             loader = $loader
                             minecraft = $mc
                             status = "skipped"
-                            note = "forge_version/forge_gradle_version missing"
+                            note = "forge_version missing"
                             artifact = ""
                         }) | Out-Null
+                        continue
+                    }
+                    # Forge 26.x uses standalone ForgeGradle (Loom can't handle unobfuscated MC 26.x)
+                    $mcPartsForForge = Get-McVersionParts -Mc $mc
+                    if ($null -ne $mcPartsForForge -and $mcPartsForForge[0] -ge 26) {
+                        $forge26Root = Join-Path $root $Forge26ModuleRoot
+                        if (-not (Test-Path $forge26Root)) {
+                            $results.Add([pscustomobject]@{
+                                loader = $loader
+                                minecraft = $mc
+                                status = "skipped"
+                                note = "standalone ForgeGradle project not found: $forge26Root"
+                                artifact = ""
+                            }) | Out-Null
+                            continue
+                        }
+                        if ($DryRun) {
+                            $results.Add([pscustomobject]@{
+                                loader = $loader
+                                minecraft = $mc
+                                status = "dry-run"
+                                note = "build skipped by -DryRun (standalone ForgeGradle)"
+                                artifact = ""
+                            }) | Out-Null
+                            continue
+                        }
+                        $javaToUse = $resolvedFabricJava25Home
+                        Write-Host "==> [$loader] Minecraft $mc (standalone ForgeGradle)"
+                        $logFile = Join-Path $logRoot "$loader-$mc-fg.log"
+                        $prevEap = $ErrorActionPreference
+                        $ErrorActionPreference = "Continue"
+                        try {
+                            Invoke-GradleBuild -GradleExecutable $gradlew -ProjectDir $forge26Root -JavaHome $javaToUse -Arguments 'clean build writeVersion --no-daemon' -LogFile $logFile
+                        } finally {
+                            $ErrorActionPreference = $prevEap
+                        }
+                        $exit = if (Test-Path Variable:\LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+                        if ($exit -eq 0) {
+                            $jarSearchRoot = Join-Path $forge26Root "build/libs"
+                            $jar = Get-ChildItem -Path $jarSearchRoot -Filter *.jar -File |
+                                Where-Object { $_.Name -notlike "*-sources.jar" } |
+                                Sort-Object Name |
+                                Select-Object -First 1
+                            if (-not $jar) {
+                                $results.Add([pscustomobject]@{
+                                    loader = $loader
+                                    minecraft = $mc
+                                    status = "failed"
+                                    note = "no runtime jar found in $jarSearchRoot"
+                                    artifact = ""
+                                }) | Out-Null
+                                continue
+                            }
+                            $artifactName = "statusmod-$modVersion-$loader-$mc.jar"
+                            $artifactPath = Join-Path $loaderOut $artifactName
+                            Copy-Item -LiteralPath $jar.FullName -Destination $artifactPath -Force
+                            $results.Add([pscustomobject]@{
+                                loader = $loader
+                                minecraft = $mc
+                                status = "ok"
+                                note = "log=$logFile (standalone ForgeGradle)"
+                                artifact = $artifactPath
+                            }) | Out-Null
+                        } else {
+                            $results.Add([pscustomobject]@{
+                                loader = $loader
+                                minecraft = $mc
+                                status = "failed"
+                                note = "gradle exit code $exit; log=$logFile"
+                                artifact = ""
+                            }) | Out-Null
+                            if (-not $ContinueOnError) {
+                                throw "Build failed for loader=$loader mc=$mc (exit $exit)"
+                            }
+                        }
                         continue
                     }
                 }
@@ -551,7 +724,7 @@ try {
 
                 if ($loader -eq "forge") {
                     Set-GradlePropertyValue -FilePath $gradleProps -Key "forge_version" -Value ([string]$cfg.forge_version)
-                    Set-GradlePropertyValue -FilePath $gradleProps -Key "forge_gradle_version" -Value ([string]$cfg.forge_gradle_version)
+                    Set-GradlePropertyValue -FilePath $gradleProps -Key "forge_minecraft_version" -Value $mc
                 } elseif ($loader -eq "neoforge") {
                     Set-GradlePropertyValue -FilePath $gradleProps -Key "neoforge_version" -Value ([string]$cfg.neoforge_version)
                     Set-GradlePropertyValue -FilePath $gradleProps -Key "neogradle_version" -Value ([string]$cfg.neogradle_version)
@@ -564,26 +737,24 @@ try {
                     Set-GradlePropertyValue -FilePath $gradleProps -Key "quilt_loom_version" -Value ([string]$cfg.quilt_loom_version)
                 }
 
+                $javaToUse = $resolvedFabricJavaHome
+                $mcParts = Get-McVersionParts -Mc $mc
+                if ($null -ne $mcParts -and $mcParts[0] -ge 26) {
+                    $javaToUse = $resolvedFabricJava25Home
+                }
                 Write-Host "==> [$loader] Minecraft $mc"
                 $logFile = Join-Path $logRoot "$loader-$mc.log"
                 $prevEap = $ErrorActionPreference
                 $ErrorActionPreference = "Continue"
                 try {
                     $gradlewToUse = $gradlew
-                    if ($loader -eq "neoforge") {
-                        $gradlewToUse = Join-Path $moduleRoot "gradlew.bat"
-                    }
-                    Invoke-GradleBuild -GradleExecutable $gradlewToUse -ProjectDir $moduleRoot -JavaHome $resolvedFabricJavaHome -Arguments 'clean build writeVersion --no-daemon' -LogFile $logFile
+                    Invoke-GradleBuild -GradleExecutable $gradlewToUse -ProjectDir $moduleRoot -JavaHome $javaToUse -Arguments 'clean build writeVersion --no-daemon' -LogFile $logFile
                 } finally {
                     $ErrorActionPreference = $prevEap
                 }
                 $exit = if (Test-Path Variable:\LASTEXITCODE) { $LASTEXITCODE } else { 0 }
                 if ($exit -eq 0) {
-                    $jarSearchRoot = if ($isFabricExtra) {
-                        Join-Path $moduleRoot "build/devlibs"
-                    } else {
-                        Join-Path $root "build/libs"
-                    }
+                    $jarSearchRoot = Join-Path $moduleRoot "build/libs"
                     $jar = Get-ChildItem -Path $jarSearchRoot -Filter *.jar -File |
                         Where-Object { $_.Name -notlike "*-sources.jar" } |
                         Sort-Object Name |
@@ -593,7 +764,7 @@ try {
                             loader = $loader
                             minecraft = $mc
                             status = "failed"
-                            note = "no runtime jar found"
+                            note = "no runtime jar found in $jarSearchRoot"
                             artifact = ""
                         }) | Out-Null
                         continue
@@ -724,7 +895,7 @@ try {
                     $jarSearchRoot = if ($isFabricExtra) {
                         Join-Path $moduleRoot "build/devlibs"
                     } else {
-                        Join-Path $root "build/libs"
+                        Join-Path $root "fabric/build/libs"
                     }
                     $jar = Get-ChildItem -Path $jarSearchRoot -Filter *.jar -File |
                         Where-Object { $_.Name -notlike "*-sources.jar" } |
@@ -797,8 +968,24 @@ finally {
 }
 
 $results | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $reportFile
+try {
+    $markdownResults = @($results | ForEach-Object { $_ })
+    $markdownReportArgs = @{
+        ReportPath = $markdownReportFile
+        Results = $markdownResults
+        LogRoot = $logRoot
+        JsonReportPath = $reportFile
+        ModVersion = $modVersion
+        DryRun = ([bool]$DryRun)
+    }
+    Write-MarkdownBuildReport @markdownReportArgs
+} catch {
+    Write-Host "Warning: failed to write markdown report: $($_.Exception.Message)"
+    Write-Host $_.ScriptStackTrace
+}
 Write-Host ""
 Write-Host "Build report: $reportFile"
+Write-Host "Markdown report: $markdownReportFile"
 $results | Format-Table -AutoSize | Out-String | Write-Host
 
 $failed = @($results | Where-Object { $_.status -eq "failed" }).Count

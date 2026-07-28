@@ -12,7 +12,7 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.eventbus.api.listener.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 @Mod(StatusMod.MOD_ID)
@@ -34,14 +34,12 @@ public final class StatusModForge {
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            StatusLifecycle.onPlayerJoin(player.server, player);
+            StatusLifecycle.onPlayerJoin(player.level().getServer(), player);
         }
     }
 
     @SubscribeEvent
-    public void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) {
-            StatusLifecycle.onServerTick(event.getServer());
-        }
+    public void onServerTick(TickEvent.ServerTickEvent.Post event) {
+        StatusLifecycle.onServerTick(event.server());
     }
 }
