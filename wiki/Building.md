@@ -33,6 +33,19 @@ Build all 15 combinations (fabric/forge/neoforge × 26.2/26.1.2/26.1.1/26.1/1.21
 
 Output is written to `dist/multiversion/` for the shared line and `Loader/<loader>26.1/build/` for the 26.x branches.
 
+## Local release publishing
+
+```powershell
+.\scripts\local\run-workflow-local.ps1 -Workflow build
+.\scripts\local\run-workflow-local.ps1 -Workflow publish -DryRun
+.\scripts\local\run-workflow-local.ps1 -Workflow publish-multi-version -ReleaseType release
+```
+
+Output JARs are named `statusmod-<modversion>-<modloader>-<minecraftversion>.jar`.
+
+Required env vars: `MODRINTH_PROJECT_ID`, `MODRINT_TOKEN`, `CURSEFORGE_PROJECT_ID`, `CURSEFORGE_API_KEY`.
+Optional: copy `scripts/local/.release.env.example` to `scripts/local/.release.env`.
+
 ## Requirements
 
 - Java 21 for MC < 26
