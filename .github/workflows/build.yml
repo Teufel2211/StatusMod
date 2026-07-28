@@ -1,0 +1,103 @@
+name: Build & Verify
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-verify:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Save Java 21 Home
+        shell: pwsh
+        run: echo "JAVA_21_HOME=$env:JAVA_HOME" >> $env:GITHUB_ENV
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Save Java 25 Home
+        shell: pwsh
+        run: echo "JAVA_25_HOME=$env:JAVA_HOME" >> $env:GITHUB_ENV
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle', '**/gradle.properties', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Detect version change
+        id: version_check
+        shell: pwsh
+        run: |
+          $old = git show HEAD~1:version.txt 2>$null
+          $new = (Get-Content version.txt -Raw).Trim()
+          if ($old -ne $new) {
+            echo "changed=true" >> $env:GITHUB_OUTPUT
+            echo "Version changed ($old → $new): publishing enabled"
+          } else {
+            echo "changed=false" >> $env:GITHUB_OUTPUT
+            echo "Version unchanged: build+verify only"
+          }
+
+      - name: Verify Java homes
+        shell: pwsh
+        run: |
+          Write-Host "JAVA_21_HOME=$env:JAVA_21_HOME"
+          Write-Host "JAVA_25_HOME=$env:JAVA_25_HOME"
+          if (-not (Test-Path "$env:JAVA_21_HOME")) { throw "Java 21 home not found: $env:JAVA_21_HOME" }
+          if (-not (Test-Path "$env:JAVA_25_HOME")) { throw "Java 25 home not found: $env:JAVA_25_HOME" }
+
+      - name: Build all versions
+        shell: pwsh
+        run: .\scripts\local\build-multiversion.ps1 -Loaders fabric,forge,neoforge -ContinueOnError:$false -UseIsolatedGradleHome:$false -FabricJavaHome "$env:JAVA_21_HOME" -FabricJava25Home "$env:JAVA_25_HOME"
+
+      - name: Print build report
+        shell: pwsh
+        run: Get-Content dist/multiversion/build-report.md -Raw | Write-Host
+
+      - name: Verify JARs
+        shell: pwsh
+        run: .\scripts\ci\verify-jars.ps1
+
+      - name: Upload JARs
+        uses: actions/upload-artifact@v4
+        with:
+          name: statusmod-jars
+          path: dist/multiversion/**/*.jar
+
+      - name: Upload build report
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-report
+          path: dist/multiversion/build-report.*
+
+      - name: Publish to Modrinth & CurseForge
+        if: steps.version_check.outputs.changed == 'true'
+        shell: pwsh
+        run: .\scripts\ci\publish-all.ps1
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
