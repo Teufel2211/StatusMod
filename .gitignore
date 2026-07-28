@@ -1,79 +1,92 @@
-# gradle
-
+# Gradle
 .gradle/
 build/
 out/
 classes/
+.caches/
+daemon/
+native/
+notifications/
+path/
 
-# eclipse
-
+# Eclipse
 *.launch
+.project
+.settings/
 
-# idea
-
+# IntelliJ IDEA
 .idea/
 *.iml
 *.ipr
 *.iws
 
-# vscode
-
-.settings/
+# VS Code
 .vscode/
-bin/
 .classpath
-.project
+bin/
 
-# macos
-
+# macOS
 *.DS_Store
 
-# fabric
-
-run/
-
-# java
-
+# Java
 hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
 *.class
-*.jar
-*.properties
+*.dll
 *.lock
-*.bin
-*.pon
-*.marker
+
+# Minecraft mod build artifacts
+run/
+dist/
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# Forge/NeoGradle caches
+forge/build/
+neoforge/build/
+fabric/build/
+common/build/
+Loader/*/build/
+Loader/*/.gradle/
+Loader/*/run/
+
+# Temp files
+_tmp_*/
+.tmp_*/
+.tmp/
+*.temp
+*.backup
+*.log
+
+# Local release secrets
+scripts/local/.release.env
+scripts/.release.env
+
+# Local tooling
+.venv/
+
+# Unpick/unmapped
+*.unpick
 *.tiny
 *.crl
 *.pom
 *.receipt
-*.log
-*.temp
 *.module
-*.dll
-*.unpick
-*.backup
+*.pon
+*.marker
+*.bin
 *.TAG
-
-# local release secrets
-scripts/local/.release.env
-scripts/.release.env
-
-# local build artifacts
-dist/
-
-# local tooling
-.venv/
-_tmp_*/
-.tmp_*/
 release-matrix-*.log
 
-# local caches / generated dirs
-caches/
-daemon/
-native/
-notifications/
-path/
-.tmp/
+# Loader standalone build caches
+Loader/fabric26.1/.gradle/
+Loader/fabric26.1/build/
+Loader/fabric26.1/run/
+Loader/forge26.1/.gradle/
+Loader/forge26.1/build/
+Loader/forge26.1/run/
+
+# Multiversion output
+dist/multiversion/.gradle-user-home/

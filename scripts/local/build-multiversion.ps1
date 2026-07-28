@@ -724,7 +724,6 @@ try {
 
                 if ($loader -eq "forge") {
                     Set-GradlePropertyValue -FilePath $gradleProps -Key "forge_version" -Value ([string]$cfg.forge_version)
-                    Set-GradlePropertyValue -FilePath $gradleProps -Key "forge_minecraft_version" -Value $mc
                 } elseif ($loader -eq "neoforge") {
                     Set-GradlePropertyValue -FilePath $gradleProps -Key "neoforge_version" -Value ([string]$cfg.neoforge_version)
                     Set-GradlePropertyValue -FilePath $gradleProps -Key "neogradle_version" -Value ([string]$cfg.neogradle_version)
