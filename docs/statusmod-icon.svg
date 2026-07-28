@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg-glow" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#1e2a3a"/>
+      <stop offset="60%" stop-color="#0f1520"/>
+      <stop offset="100%" stop-color="#080b12"/>
+    </radialGradient>
+    <linearGradient id="badge-body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#546e7a"/>
+      <stop offset="40%" stop-color="#37474f"/>
+      <stop offset="100%" stop-color="#263238"/>
+    </linearGradient>
+    <linearGradient id="badge-accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4fc3f7"/>
+      <stop offset="50%" stop-color="#29b6f6"/>
+      <stop offset="100%" stop-color="#0288d1"/>
+    </linearGradient>
+    <linearGradient id="badge-accent-h" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#4fc3f7" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#0288d1" stop-opacity="0.2"/>
+    </linearGradient>
+    <linearGradient id="dot-green" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#81c784"/>
+      <stop offset="50%" stop-color="#4caf50"/>
+      <stop offset="100%" stop-color="#2e7d32"/>
+    </linearGradient>
+    <linearGradient id="dot-yellow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff176"/>
+      <stop offset="50%" stop-color="#ffca28"/>
+      <stop offset="100%" stop-color="#f57f17"/>
+    </linearGradient>
+    <linearGradient id="dot-red" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ef9a9a"/>
+      <stop offset="50%" stop-color="#ef5350"/>
+      <stop offset="100%" stop-color="#c62828"/>
+    </linearGradient>
+    <linearGradient id="dot-gray" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#bdbdbd"/>
+      <stop offset="50%" stop-color="#757575"/>
+      <stop offset="100%" stop-color="#424242"/>
+    </linearGradient>
+    <filter id="glow-green">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-blue">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#000" flood-opacity="0.6"/>
+    </filter>
+    <filter id="inner-shadow">
+      <feOffset dx="0" dy="2"/>
+      <feGaussianBlur stdDeviation="3" result="offset-blur"/>
+      <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse"/>
+      <feFlood flood-color="black" flood-opacity="0.5" result="color"/>
+      <feComposite operator="in" in="color" in2="inverse" result="shadow"/>
+      <feComposite operator="over" in="shadow" in2="SourceGraphic"/>
+    </filter>
+    <clipPath id="badge-clip">
+      <path d="M 160 128 L 352 128 C 384 128 400 144 400 176 L 400 336 C 400 368 384 384 352 384 L 160 384 C 128 384 112 368 112 336 L 112 176 C 112 144 128 128 160 128 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="64" fill="url(#bg-glow)"/>
+
+  <!-- Anvil grid pattern -->
+  <g opacity="0.04">
+    <path d="M 0 64 L 512 64 M 0 128 L 512 128 M 0 192 L 512 192 M 0 256 L 512 256 M 0 320 L 512 320 M 0 384 L 512 384 M 0 448 L 512 448" stroke="#4fc3f7" stroke-width="1"/>
+    <path d="M 64 0 L 64 512 M 128 0 L 128 512 M 192 0 L 192 512 M 256 0 L 256 512 M 320 0 L 320 512 M 384 0 L 384 512 M 448 0 L 448 512" stroke="#4fc3f7" stroke-width="1"/>
+  </g>
+
+  <!-- Cross-glow -->
+  <g opacity="0.06">
+    <line x1="256" y1="0" x2="256" y2="512" stroke="url(#badge-accent)" stroke-width="2"/>
+    <line x1="0" y1="256" x2="512" y2="256" stroke="url(#badge-accent)" stroke-width="2"/>
+  </g>
+
+  <!-- Outer ring -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="url(#badge-accent)" stroke-width="1.5" opacity="0.1" stroke-dasharray="4 8"/>
+  <circle cx="256" cy="256" r="190" fill="none" stroke="url(#badge-accent)" stroke-width="1" opacity="0.06" stroke-dasharray="2 12"/>
+
+  <!-- Main badge body -->
+  <g filter="url(#shadow)">
+    <path d="M 160 128 L 352 128 C 384 128 400 144 400 176 L 400 336 C 400 368 384 384 352 384 L 160 384 C 128 384 112 368 112 336 L 112 176 C 112 144 128 128 160 128 Z" fill="url(#badge-body)" stroke="url(#badge-accent)" stroke-width="2.5"/>
+  </g>
+
+  <!-- Badge inner highlight -->
+  <path d="M 160 128 L 352 128 C 384 128 400 144 400 176 L 400 336 C 400 368 384 384 352 384 L 160 384 C 128 384 112 368 112 336 L 112 176 C 112 144 128 128 160 128 Z" fill="url(#badge-accent-h)" opacity="0.08"/>
+
+  <!-- Badge top edge highlight -->
+  <path d="M 160 128 L 352 128 C 384 128 400 144 400 176 L 400 180 L 112 180 L 112 176 C 112 144 128 128 160 128 Z" fill="#4fc3f7" opacity="0.15"/>
+
+  <!-- Badge bottom edge shadow -->
+  <path d="M 160 384 L 352 384 C 384 384 400 368 400 336 L 400 378 C 400 382 384 384 352 384 L 160 384 Z" fill="#000" opacity="0.15"/>
+
+  <!-- Badge divider lines -->
+  <line x1="112" y1="200" x2="400" y2="200" stroke="#000" stroke-width="1.5" opacity="0.2"/>
+  <line x1="112" y1="202" x2="400" y2="202" stroke="#4fc3f7" stroke-width="0.5" opacity="0.15"/>
+
+  <!-- Section label: STATUS TAGS -->
+  <text x="256" y="178" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="600" fill="#4fc3f7" text-anchor="middle" letter-spacing="6" opacity="0.8">STATUS TAGS</text>
+
+  <!-- Status dot row: Online -->
+  <circle cx="160" cy="248" r="16" fill="url(#dot-green)" filter="url(#glow-green)"/>
+  <circle cx="160" cy="248" r="13" fill="#66bb6a"/>
+  <circle cx="155" cy="243" r="5" fill="#c8e6c9" opacity="0.5"/>
+  <text x="184" y="253" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="400" fill="#e0e0e0">Online</text>
+
+  <!-- Status dot row: AFK -->
+  <circle cx="160" cy="286" r="16" fill="url(#dot-yellow)"/>
+  <circle cx="160" cy="286" r="13" fill="#ffca28"/>
+  <circle cx="155" cy="281" r="5" fill="#fff9c4" opacity="0.5"/>
+  <text x="184" y="291" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="400" fill="#e0e0e0">AFK</text>
+  <text x="340" y="253" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="400" fill="#e0e0e0">DND</text>
+  <circle cx="316" cy="248" r="16" fill="url(#dot-red)"/>
+  <circle cx="316" cy="248" r="13" fill="#ef5350"/>
+  <circle cx="311" cy="243" r="5" fill="#ffcdd2" opacity="0.5"/>
+
+  <!-- Status dot row: Offline -->
+  <text x="340" y="291" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="400" fill="#9e9e9e">Offline</text>
+  <circle cx="316" cy="286" r="16" fill="url(#dot-gray)"/>
+  <circle cx="316" cy="286" r="13" fill="#757575"/>
+  <circle cx="311" cy="281" r="5" fill="#eeeeee" opacity="0.3"/>
+
+  <!-- Bottom section divider -->
+  <line x1="112" y1="317" x2="400" y2="317" stroke="#000" stroke-width="1.5" opacity="0.2"/>
+  <line x1="112" y1="319" x2="400" y2="319" stroke="#4fc3f7" stroke-width="0.5" opacity="0.15"/>
+
+  <!-- Bottom: player count -->
+  <text x="256" y="346" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="400" fill="#78909c" text-anchor="middle" letter-spacing="2">12 / 100 PLAYERS</text>
+
+  <!-- Decorative dots left/right bottom -->
+  <circle cx="152" cy="342" r="3" fill="#4fc3f7" opacity="0.4"/>
+  <circle cx="360" cy="342" r="3" fill="#4fc3f7" opacity="0.4"/>
+
+  <!-- Corner brackets -->
+  <path d="M 40 40 L 80 40 L 80 48 L 48 48 L 48 80 L 40 80 Z" fill="url(#badge-accent)" opacity="0.25"/>
+  <path d="M 472 40 L 432 40 L 432 48 L 464 48 L 464 80 L 472 80 Z" fill="url(#badge-accent)" opacity="0.25"/>
+  <path d="M 40 472 L 80 472 L 80 464 L 48 464 L 48 432 L 40 432 Z" fill="url(#badge-accent)" opacity="0.25"/>
+  <path d="M 472 472 L 432 472 L 432 464 L 464 464 L 464 432 L 472 432 Z" fill="url(#badge-accent)" opacity="0.25"/>
+</svg>
