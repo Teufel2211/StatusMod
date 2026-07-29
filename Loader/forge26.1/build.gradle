@@ -44,6 +44,7 @@ repositories {
 }
 
 processResources {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     filesMatching("META-INF/mods.toml") {
         expand "version": project.version
     }
