@@ -9,6 +9,14 @@ on:
         description: "Publish even if version.txt unchanged"
         type: boolean
         default: false
+      loaders:
+        description: "Loaders to publish (comma-separated: fabric,forge,neoforge). Empty = all"
+        type: string
+        default: ""
+      mc_versions:
+        description: "MC versions to publish (comma-separated: 1.21.11,26.2). Empty = all"
+        type: string
+        default: ""
 
 concurrency:
   group: build-${{ github.ref }}
@@ -104,7 +112,7 @@ jobs:
       - name: Publish to Modrinth & CurseForge
         if: steps.version_check.outputs.changed == 'true'
         shell: pwsh
-        run: .\scripts\ci\publish-all.ps1
+        run: .\scripts\ci\publish-all.ps1 -Loaders "${{ github.event.inputs.loaders }}" -McVersions "${{ github.event.inputs.mc_versions }}"
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}

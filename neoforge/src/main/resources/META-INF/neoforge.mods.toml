@@ -6,11 +6,12 @@ license="MIT"
 modId="statusmod"
 version="${version}"
 displayName="Status Mod"
-description="Status Mod on NeoForge"
+description="Lightweight player status tags — Online, AFK, DND, Offline"
+logo="logo.png"
 
 [[dependencies.statusmod]]
 modId="minecraft"
 mandatory=true
-versionRange="[1.21,1.21.12)"
+versionRange="[1.21.11,26.2]"
 ordering="NONE"
 side="BOTH"

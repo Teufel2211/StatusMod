@@ -1,4 +1,7 @@
-param()
+param(
+  [string]$Loaders = "",
+  [string]$McVersions = ""
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -28,9 +31,6 @@ if ([string]::IsNullOrWhiteSpace($modrinthProjectId)) { throw "MODRINTH_PROJECT_
 $hasCurseForge = (-not [string]::IsNullOrWhiteSpace($curseforgeToken)) -and
                   (-not [string]::IsNullOrWhiteSpace($curseforgeProjectId))
 
-$jars = @(Get-ChildItem -Path $distDir -Recurse -File -Filter *.jar)
-if ($jars.Count -eq 0) { throw "No JARs found under $distDir" }
-
 $pattern = "(?i)^Statusmod-$([Regex]::Escape($modVersion))-(fabric|forge|neoforge)-(\d+(?:\.\d+)*)\.jar$"
 
 function Parse-JarName {
@@ -39,6 +39,31 @@ function Parse-JarName {
     if (-not $m.Success) { return $null }
     return @($m.Groups[1].Value, $m.Groups[2].Value)
 }
+
+$jars = @(Get-ChildItem -Path $distDir -Recurse -File -Filter *.jar)
+if ($jars.Count -eq 0) { throw "No JARs found under $distDir" }
+
+# Filter by Loaders parameter
+if ($Loaders) {
+    $allowedLoaders = $Loaders.Split(',').Trim().ToLower()
+    $jars = @($jars | Where-Object {
+        $parsed = Parse-JarName -Name $_.Name
+        $parsed -and $allowedLoaders -contains $parsed[0]
+    })
+    Write-Host "Filtered to loaders: $($allowedLoaders -join ', ') → $($jars.Count) JARs"
+}
+
+# Filter by McVersions parameter
+if ($McVersions) {
+    $allowedVersions = $McVersions.Split(',').Trim()
+    $jars = @($jars | Where-Object {
+        $parsed = Parse-JarName -Name $_.Name
+        $parsed -and $allowedVersions -contains $parsed[1]
+    })
+    Write-Host "Filtered to MC versions: $($allowedVersions -join ', ') → $($jars.Count) JARs"
+}
+
+if ($jars.Count -eq 0) { throw "No matching JARs after filtering" }
 
 # --- CurseForge: resolve numeric game version IDs ---
 $cfGameVersionCache = $null

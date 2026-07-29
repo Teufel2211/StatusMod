@@ -3,6 +3,11 @@
   "id": "statusmod",
   "version": "${version}",
   "name": "Status Mod",
+  "description": "Lightweight player status tags — Online, AFK, DND, Offline",
+  "icon": "assets/statusmod/icon.png",
+  "authors": ["teufel"],
+  "license": "MIT",
+  "environment": "*",
   "entrypoints": {
     "main": [
       "com.teufel.statusmod.fabric.StatusModFabric"
@@ -10,6 +15,6 @@
   },
   "depends": {
     "fabricloader": ">=${loader_version}",
-    "minecraft": ">=1.21.0"
+    "minecraft": ">=1.21.11"
   }
 }
