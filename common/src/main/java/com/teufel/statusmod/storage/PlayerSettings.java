@@ -16,6 +16,9 @@ public class PlayerSettings {
     public long lastStatusChangeAtMs = 0L;
     public long statusExpiresAtMs = 0L;
 
+    public long lastActivityAtMs = System.currentTimeMillis();
+    public boolean autoAfk = false;
+
     public List<String> statusHistory = new ArrayList<>();
     public Map<String, String> statusByWorld = new HashMap<>();
     public Map<String, String> colorByWorld = new HashMap<>();

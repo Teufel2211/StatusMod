@@ -1,6 +1,7 @@
 package com.teufel.statusmod.fabric.platform;
 
 import com.teufel.statusmod.platform.Platform;
+import net.fabricmc.loader.api.FabricLoader;
 
 public final class FabricPlatform implements Platform {
     @Override
@@ -13,7 +14,11 @@ public final class FabricPlatform implements Platform {
 
     @Override
     public boolean isDevelopmentEnvironment() {
-        return true;
+        try {
+            return FabricLoader.getInstance().isDevelopmentEnvironment();
+        } catch (Exception e) {
+            return true;
+        }
     }
 
     @Override

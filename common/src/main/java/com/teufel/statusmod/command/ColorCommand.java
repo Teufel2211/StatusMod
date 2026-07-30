@@ -1,6 +1,7 @@
 package com.teufel.statusmod.command;
 
 import com.teufel.statusmod.StatusMod;
+import com.teufel.statusmod.storage.AuditLogger;
 import com.teufel.statusmod.storage.PlayerSettings;
 import com.teufel.statusmod.util.CommandUtil;
 import com.teufel.statusmod.util.ColorMapper;
@@ -24,6 +25,7 @@ public class ColorCommand {
 
     private static void setColor(CommandSourceStack src, String colorInput) {
         try {
+            if (!PermissionUtil.hasStatusPermission(src)) { src.sendFailure(Component.literal("Du hast keine Berechtigung.")); return; }
             colorInput = colorInput == null ? "" : colorInput.trim();
             ServerPlayer player = src.getPlayer();
             if (player == null) {
@@ -35,7 +37,14 @@ public class ColorCommand {
                 src.sendFailure(Component.literal("Du wurdest vom Status-Mod blockiert."));
                 return;
             }
+            if (StatusMod.getMutedPlayers().isMuted(uuid)) {
+                long until = StatusMod.getMutedPlayers().getMutedUntil(uuid);
+                long remaining = Math.max(1, (until - System.currentTimeMillis()) / 1000L);
+                src.sendFailure(Component.literal("Du bist noch " + remaining + "s vom Status-Mod gestummt."));
+                return;
+            }
             PlayerSettings settings = StatusMod.getStorage().forPlayer(uuid);
+            if (!StatusCommand.checkCooldown(src, settings)) return;
             if (colorInput.equalsIgnoreCase("reset")) {
                 settings.color = "reset";
                 StatusMod.getStorage().put(uuid, settings);
@@ -50,6 +59,7 @@ public class ColorCommand {
             settings.color = colorInput;
             StatusMod.getStorage().put(uuid, settings);
             applyCurrentStatusToTeam(src, player, settings);
+            AuditLogger.logSet(player.getScoreboardName(), player.getScoreboardName(), "", colorInput);
             CommandUtil.sendSuccess(src, Component.literal("Deine Status-Farbe wurde auf " + colorInput + " gesetzt."), true);
         } catch (Exception e) {
             try { src.sendFailure(Component.literal("Fehler beim Setzen der Farbe.")); } catch (Exception ignored) {}

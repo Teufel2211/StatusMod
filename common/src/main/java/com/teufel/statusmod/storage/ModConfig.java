@@ -18,9 +18,12 @@ public class ModConfig {
     public int statusReapplyTicks = 100;
     public int statusCooldownSeconds = 2;
     public int statusHistorySize = 5;
-    public boolean enableStaffBadge = true;
+    public boolean enableStaffBadge = false;
     public String staffBadgeText = "[STAFF]";
     public String staffBadgeColor = "red";
+
+    public boolean enableAutoAfk = true;
+    public int afkTimeoutSeconds = 300;
 
     private static final Gson GSON = new Gson();
     private static final int MIN_REAPPLY_TICKS = 20;
@@ -77,7 +80,7 @@ public class ModConfig {
     }
 
     private void normalize() {
-        if (adminOpLevel < 0) adminOpLevel = 0;
+        if (adminOpLevel < 1) adminOpLevel = 1;
         if (adminOpLevel > 4) adminOpLevel = 4;
         if (statusPermissionNode == null || statusPermissionNode.trim().isEmpty()) statusPermissionNode = "statusmod.use";
         else statusPermissionNode = statusPermissionNode.trim();
@@ -95,5 +98,7 @@ public class ModConfig {
         else staffBadgeText = staffBadgeText.trim();
         if (staffBadgeColor == null || staffBadgeColor.trim().isEmpty()) staffBadgeColor = "red";
         else staffBadgeColor = staffBadgeColor.trim();
+        if (afkTimeoutSeconds < 30) afkTimeoutSeconds = 30;
+        if (afkTimeoutSeconds > 3600) afkTimeoutSeconds = 3600;
     }
 }

@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.teufel.statusmod.StatusMod;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.nio.file.Files;
@@ -19,11 +20,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PermissionUtil {
     private static boolean luckypermsAvailable = false;
     private static Object luckypermsApi = null;
-    private static final Map<String, Long> LAST_DENY_LOG_AT = new ConcurrentHashMap<>();
-    private static final long DENY_LOG_COOLDOWN_MS = 30_000L;
     private static final long OPS_FILE_CACHE_MS = 10_000L;
     private static volatile long lastOpsFileReadAt = 0L;
     private static volatile Set<String> cachedOpsNames = new HashSet<>();
+    private static volatile Map<String, Integer> cachedOpsLevels = new ConcurrentHashMap<>();
 
     static {
         try {
@@ -68,7 +68,8 @@ public class PermissionUtil {
                 if (checkLuckyPermsPermission(player, StatusMod.getConfig().adminPermissionNode)) return true;
             }
         } catch (Exception ignored) {}
-        return hasPlayerPermissionLevel(player, 2) || isOpByOpsFileFallback(player);
+        int requiredLevel = Math.max(1, StatusMod.getConfig() != null ? StatusMod.getConfig().adminOpLevel : 2);
+        return hasPlayerPermissionLevel(player, requiredLevel) || isOpByOpsFileFallback(player, requiredLevel);
     }
 
     private static boolean checkLuckyPermsPermission(ServerPlayer player, String permission) {
@@ -89,6 +90,7 @@ public class PermissionUtil {
             java.lang.reflect.Method asBooleanMethod = result.getClass().getMethod("asBoolean");
             return (boolean) asBooleanMethod.invoke(result);
         } catch (Exception e) {
+            System.err.println("[StatusMod] LuckyPerms permission check failed: " + e.getMessage());
             return false;
         }
     }
@@ -136,44 +138,67 @@ public class PermissionUtil {
     }
 
     private static boolean isOpByOpsFileFallback(ServerPlayer player) {
+        return isOpByOpsFileFallback(player, 0);
+    }
+
+    private static boolean isOpByOpsFileFallback(ServerPlayer player, int minLevel) {
         try {
             if (player == null) return false;
             String currentName = player.getScoreboardName();
             if (currentName == null || currentName.isBlank()) return false;
             long now = System.currentTimeMillis();
             if ((now - lastOpsFileReadAt) > OPS_FILE_CACHE_MS) {
-                reloadOpsFileCache();
-                lastOpsFileReadAt = now;
+                try {
+                    java.lang.reflect.Method m = player.getClass().getMethod("getServer");
+                    net.minecraft.server.MinecraftServer server = (net.minecraft.server.MinecraftServer) m.invoke(player);
+                    if (server != null) {
+                        reloadOpsFileCache(server);
+                        lastOpsFileReadAt = now;
+                    }
+                } catch (Exception ignored) {}
             }
-            return cachedOpsNames.contains(currentName.toLowerCase());
+            String key = currentName.toLowerCase();
+            if (!cachedOpsNames.contains(key)) return false;
+            if (minLevel <= 0) return true;
+            Integer level = cachedOpsLevels.get(key);
+            return level != null && level >= minLevel;
         } catch (Exception ignored) {
             return false;
         }
     }
 
-    private static void reloadOpsFileCache() {
+    private static void reloadOpsFileCache(MinecraftServer server) {
         Set<String> names = new HashSet<>();
+        Map<String, Integer> levels = new ConcurrentHashMap<>();
         try {
-            Path opsPath = Paths.get("ops.json");
+            Path opsPath = server.getServerDirectory().resolve("ops.json");
             if (!Files.exists(opsPath)) {
                 cachedOpsNames = names;
+                cachedOpsLevels = levels;
                 return;
             }
             String json = Files.readString(opsPath);
             JsonElement root = JsonParser.parseString(json);
             if (!(root instanceof JsonArray arr)) {
                 cachedOpsNames = names;
+                cachedOpsLevels = levels;
                 return;
             }
             for (JsonElement e : arr) {
                 if (!(e instanceof JsonObject obj)) continue;
                 JsonElement nameEl = obj.get("name");
-                if (nameEl == null) continue;
+                if (nameEl == null || nameEl.isJsonNull()) continue;
+                JsonElement levelEl = obj.get("level");
+                int level = (levelEl != null && !levelEl.isJsonNull()) ? levelEl.getAsInt() : 0;
                 String n = nameEl.getAsString();
-                if (n != null && !n.isBlank()) names.add(n.toLowerCase());
+                if (n == null || n.isBlank()) continue;
+                String key = n.toLowerCase();
+                names.add(key);
+                levels.put(key, level);
             }
         } catch (Exception ignored) {}
         cachedOpsNames = names;
+        cachedOpsLevels = levels;
     }
 
     private static boolean hasSourcePermissionLevel(CommandSourceStack src, int level) {
