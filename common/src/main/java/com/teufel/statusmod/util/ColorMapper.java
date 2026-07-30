@@ -22,7 +22,20 @@ public final class ColorMapper {
     }
 
     public static boolean isValidColorInput(String color) {
-        return color != null && !color.isBlank();
+        if (color == null || color.isBlank()) return false;
+        String trimmed = color.trim().toLowerCase(Locale.ROOT);
+        if (KEYS.contains(trimmed)) return true;
+        if (isAnimatedColorInput(color)) return true;
+        if (trimmed.startsWith("#")) {
+            String hex = trimmed.substring(1);
+            if (hex.length() == 3 || hex.length() == 6) {
+                try {
+                    Integer.parseInt(hex, 16);
+                    return true;
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return false;
     }
 
     public static List<TextColor> parseColorPalette(String color) {
@@ -65,6 +78,6 @@ public final class ColorMapper {
     }
 
     public static String toHex(TextColor color) {
-        return color == null ? "reset" : "#" + Integer.toHexString(color.getValue());
+        return color == null ? "reset" : "#" + String.format("%06x", color.getValue());
     }
 }

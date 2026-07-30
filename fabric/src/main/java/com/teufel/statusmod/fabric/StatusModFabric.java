@@ -24,6 +24,7 @@ public final class StatusModFabric implements ModInitializer {
             ColorCommand.register(dispatcher);
         });
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> StatusLifecycle.onPlayerJoin(server, handler.getPlayer()));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> StatusLifecycle.onPlayerDisconnect(handler.getPlayer()));
         ServerTickEvents.END_SERVER_TICK.register(StatusLifecycle::onServerTick);
     }
 }

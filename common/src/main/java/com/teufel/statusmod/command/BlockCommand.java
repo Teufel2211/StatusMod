@@ -1,6 +1,7 @@
 package com.teufel.statusmod.command;
 
 import com.teufel.statusmod.StatusMod;
+import com.teufel.statusmod.storage.AuditLogger;
 import com.teufel.statusmod.storage.PlayerSettings;
 import com.teufel.statusmod.util.CommandUtil;
 import com.teufel.statusmod.util.PermissionUtil;
@@ -43,6 +44,7 @@ public class BlockCommand {
                 return;
             }
             StatusMod.getBlockedPlayers().block(uuid);
+            AuditLogger.logBlock(src.getTextName(), playerName);
             PlayerSettings settings = StatusMod.getStorage().forPlayer(uuid);
             settings.status = "";
             settings.color = StatusMod.getConfig() != null && StatusMod.getConfig().defaultColor != null ? StatusMod.getConfig().defaultColor : "reset";
@@ -68,6 +70,7 @@ public class BlockCommand {
                 return;
             }
             StatusMod.getBlockedPlayers().unblock(targetUuid);
+            AuditLogger.logUnblock(src.getTextName(), playerName);
             CommandUtil.sendSuccess(src, Component.literal(playerName + " wurde vom Status-Mod freigegeben."), true);
             if (targetPlayer != null) targetPlayer.sendSystemMessage(Component.literal("Du wurdest vom Status-Mod freigegeben."));
         } catch (Exception e) {

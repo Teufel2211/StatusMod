@@ -40,6 +40,13 @@ public final class StatusModNeoForge {
     }
 
     @SubscribeEvent
+    public void onPlayerLeave(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            StatusLifecycle.onPlayerDisconnect(player);
+        }
+    }
+
+    @SubscribeEvent
     public void onServerTick(ServerTickEvent.Post event) {
         StatusLifecycle.onServerTick(event.getServer());
     }

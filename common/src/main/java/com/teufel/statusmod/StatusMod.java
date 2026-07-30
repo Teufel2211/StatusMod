@@ -1,7 +1,10 @@
 package com.teufel.statusmod;
 
+import com.teufel.statusmod.storage.AuditLogger;
 import com.teufel.statusmod.storage.BlockedPlayers;
+import com.teufel.statusmod.storage.CustomPresets;
 import com.teufel.statusmod.storage.ModConfig;
+import com.teufel.statusmod.storage.MutedPlayers;
 import com.teufel.statusmod.storage.SettingsStorage;
 import com.teufel.statusmod.registry.ModRegistries;
 import com.teufel.statusmod.network.ModNetworking;
@@ -13,6 +16,8 @@ public final class StatusMod {
     public static volatile ModConfig config;
     public static volatile SettingsStorage storage;
     public static volatile BlockedPlayers blockedPlayers;
+    public static volatile MutedPlayers mutedPlayers;
+    public static volatile CustomPresets customPresets;
 
     private StatusMod() {}
 
@@ -27,6 +32,13 @@ public final class StatusMod {
         if (blockedPlayers == null) {
             blockedPlayers = new BlockedPlayers();
         }
+        if (mutedPlayers == null) {
+            mutedPlayers = new MutedPlayers();
+        }
+        if (customPresets == null) {
+            customPresets = new CustomPresets();
+        }
+        AuditLogger.init();
 
         ModRegistries.init();
         ModNetworking.init();
@@ -37,23 +49,22 @@ public final class StatusMod {
     }
 
     public static ModConfig getConfig() {
-        if (config == null) {
-            config = ModConfig.load();
-        }
         return config;
     }
 
     public static SettingsStorage getStorage() {
-        if (storage == null) {
-            storage = new SettingsStorage();
-        }
         return storage;
     }
 
     public static BlockedPlayers getBlockedPlayers() {
-        if (blockedPlayers == null) {
-            blockedPlayers = new BlockedPlayers();
-        }
         return blockedPlayers;
+    }
+
+    public static MutedPlayers getMutedPlayers() {
+        return mutedPlayers;
+    }
+
+    public static CustomPresets getCustomPresets() {
+        return customPresets;
     }
 }

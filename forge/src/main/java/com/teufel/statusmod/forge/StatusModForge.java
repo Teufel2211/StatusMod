@@ -39,6 +39,13 @@ public final class StatusModForge {
     }
 
     @SubscribeEvent
+    public void onPlayerLeave(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            StatusLifecycle.onPlayerDisconnect(player);
+        }
+    }
+
+    @SubscribeEvent
     public void onServerTick(TickEvent.ServerTickEvent.Post event) {
         StatusLifecycle.onServerTick(event.server());
     }

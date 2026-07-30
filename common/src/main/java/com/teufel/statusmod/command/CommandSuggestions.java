@@ -29,8 +29,26 @@ public final class CommandSuggestions {
     };
 
     public static final SuggestionProvider<CommandSourceStack> STATUS_SUGGESTIONS = (context, builder) -> suggestStatusWithHistory(context.getSource(), builder);
-    public static final SuggestionProvider<CommandSourceStack> PRESET_SUGGESTIONS = (context, builder) -> SharedSuggestionProvider.suggest(PRESET_SAMPLES, builder);
+    public static final SuggestionProvider<CommandSourceStack> PRESET_SUGGESTIONS = (context, builder) -> {
+        SharedSuggestionProvider.suggest(PRESET_SAMPLES, builder);
+        try {
+            var presets = StatusMod.getCustomPresets().getNames();
+            for (String name : presets) {
+                if (name != null && !name.isEmpty()) builder.suggest(name);
+            }
+        } catch (Exception ignored) {}
+        return CompletableFuture.completedFuture(builder.build());
+    };
     public static final SuggestionProvider<CommandSourceStack> FONT_SUGGESTIONS = (context, builder) -> SharedSuggestionProvider.suggest(new String[]{"normal","smallcaps","bold"}, builder);
+    public static final SuggestionProvider<CommandSourceStack> CUSTOM_PRESET_SUGGESTIONS = (context, builder) -> {
+        try {
+            var presets = StatusMod.getCustomPresets().getNames();
+            for (String name : presets) {
+                if (name != null && !name.isEmpty()) builder.suggest(name);
+            }
+        } catch (Exception ignored) {}
+        return CompletableFuture.completedFuture(builder.build());
+    };
 
     private static CompletableFuture<Suggestions> suggestStatusWithHistory(CommandSourceStack src, SuggestionsBuilder builder) {
         try {

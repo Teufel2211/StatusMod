@@ -13,6 +13,11 @@ public final class ForgePlatform implements Platform {
 
     @Override
     public boolean isDevelopmentEnvironment() {
+        try {
+            Class<?> loaderClass = Class.forName("net.minecraftforge.fml.loading.FMLLoader");
+            java.lang.reflect.Method m = loaderClass.getMethod("isProduction");
+            return !(boolean) m.invoke(null);
+        } catch (Exception ignored) {}
         return true;
     }
 

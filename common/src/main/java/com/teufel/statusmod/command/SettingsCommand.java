@@ -22,7 +22,7 @@ public class SettingsCommand {
         dispatcher.register(Commands.literal("settings")
             .then(Commands.literal("brackets").then(Commands.argument("value", StringArgumentType.word()).suggests((ctx, builder) -> SharedSuggestionProvider.suggest(new String[]{"on","off","true","false"}, builder)).executes(ctx -> { toggleBrackets(ctx.getSource(), ctx.getSource().getPlayer(), isTrue(StringArgumentType.getString(ctx, "value"))); return 1; })))
             .then(Commands.literal("position").then(Commands.argument("value", StringArgumentType.word()).suggests((ctx, builder) -> SharedSuggestionProvider.suggest(new String[]{"before","after"}, builder)).executes(ctx -> { setPosition(ctx.getSource(), ctx.getSource().getPlayer(), isBefore(StringArgumentType.getString(ctx, "value"))); return 1; })))
-            .then(Commands.literal("words").then(Commands.argument("value", IntegerArgumentType.integer(1)).executes(ctx -> { setWords(ctx.getSource(), ctx.getSource().getPlayer(), IntegerArgumentType.getInteger(ctx, "value")); return 1; })))
+            .then(Commands.literal("words").then(Commands.argument("value", IntegerArgumentType.integer(1, 10)).executes(ctx -> { setWords(ctx.getSource(), ctx.getSource().getPlayer(), IntegerArgumentType.getInteger(ctx, "value")); return 1; })))
             .then(Commands.literal("font").then(Commands.argument("value", StringArgumentType.word()).suggests(CommandSuggestions.FONT_SUGGESTIONS).executes(ctx -> { setFont(ctx.getSource(), ctx.getSource().getPlayer(), StringArgumentType.getString(ctx, "value")); return 1; })))
         );
     }
@@ -37,8 +37,11 @@ public class SettingsCommand {
 
     private static void update(CommandSourceStack src, ServerPlayer p, java.util.function.Consumer<PlayerSettings> mutator, String msg) {
         try {
+            if (!PermissionUtil.hasStatusPermission(src)) { src.sendFailure(Component.literal("Du hast keine Berechtigung.")); return; }
             if (p == null) { src.sendFailure(Component.literal("Nur Spieler können diesen Befehl nutzen.")); return; }
             String uuid = p.getUUID().toString();
+            if (StatusMod.getBlockedPlayers().isBlocked(uuid)) { src.sendFailure(Component.literal("Du wurdest vom Status-Mod blockiert.")); return; }
+            if (StatusMod.getMutedPlayers().isMuted(uuid)) { src.sendFailure(Component.literal("Du bist vom Status-Mod gestummt.")); return; }
             PlayerSettings s = StatusMod.getStorage().forPlayer(uuid);
             mutator.accept(s);
             StatusMod.getStorage().put(uuid, s);

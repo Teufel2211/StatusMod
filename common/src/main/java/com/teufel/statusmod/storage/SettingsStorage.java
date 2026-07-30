@@ -99,10 +99,13 @@ public class SettingsStorage {
         }
     }
 
+    private static final int MAX_STATUS_LENGTH = 64;
+
     private boolean sanitizeSettings(PlayerSettings ps) {
         boolean changed = false;
         if (ps.statusWords <= 0) { ps.statusWords = 1; changed = true; }
         if (ps.status == null) { ps.status = ""; changed = true; }
+        if (ps.status.length() > MAX_STATUS_LENGTH) { ps.status = ps.status.substring(0, MAX_STATUS_LENGTH); changed = true; }
         if (ps.color == null || ps.color.isEmpty()) {
             try {
                 ps.color = (com.teufel.statusmod.StatusMod.getConfig() != null &&
@@ -124,6 +127,7 @@ public class SettingsStorage {
         while (ps.statusHistory.size() > maxHistory) { ps.statusHistory.remove(0); changed = true; }
         if (ps.statusByWorld == null) { ps.statusByWorld = new HashMap<>(); changed = true; }
         if (ps.colorByWorld == null) { ps.colorByWorld = new HashMap<>(); changed = true; }
+        if (ps.lastActivityAtMs <= 0L) { ps.lastActivityAtMs = System.currentTimeMillis(); changed = true; }
         return changed;
     }
 
