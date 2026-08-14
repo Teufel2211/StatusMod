@@ -7,9 +7,4 @@ public final class FontMapper {
         if (style == null || style.isBlank()) return "normal";
         return style.trim().toLowerCase();
     }
-
-    public static String apply(String style, String text) {
-        if (text == null) return "";
-        return text;
-    }
 }

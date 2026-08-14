@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "quilt_loader": {
+    "group": "com.teufel.statusmod",
+    "id": "statusmod",
+    "version": "${version}",
+    "metadata": {
+      "name": "Status Mod",
+      "description": "Lightweight player status tags - Online, AFK, DND, Offline",
+      "icon": "assets/statusmod/icon.png",
+      "contributors": {
+        "teufel": "Owner"
+      },
+      "license": "MIT",
+      "environment": "*"
+    },
+    "entrypoints": {
+      "main": [
+        "com.teufel.statusmod.fabric.StatusModFabric"
+      ]
+    },
+    "intermediate_mappings": "net.fabricmc:intermediary",
+    "depends": [
+      {
+        "id": "quilt_loader",
+        "versions": ">=${quilt_loader_version}"
+      },
+      {
+        "id": "minecraft",
+        "versions": ">=1.21.11"
+      },
+      {
+        "id": "fabric-api",
+        "versions": "*"
+      }
+    ]
+  },
+  "minecraft": {
+    "environment": "*"
+  }
+}

@@ -81,52 +81,52 @@
   },
   "quilt": {
     "26.2": {
-      "quilt_loader_version": "0.29.2",
+      "quilt_loader_version": "0.30.0",
       "quilt_mappings": "1.21.11+build.2",
       "qsl_version": "",
-      "quilt_loom_version": "1.8.5"
+      "quilt_loom_version": "1.15.1"
     },
     "26.1.2": {
-      "quilt_loader_version": "0.29.2",
+      "quilt_loader_version": "0.30.0",
       "quilt_mappings": "1.21.11+build.2",
       "qsl_version": "",
-      "quilt_loom_version": "1.8.5"
+      "quilt_loom_version": "1.15.1"
     },
     "26.1.1": {
-      "quilt_loader_version": "0.29.2",
+      "quilt_loader_version": "0.30.0",
       "quilt_mappings": "1.21.11+build.2",
       "qsl_version": "",
-      "quilt_loom_version": "1.8.5"
+      "quilt_loom_version": "1.15.1"
     },
     "26.1": {
-      "quilt_loader_version": "0.29.2",
+      "quilt_loader_version": "0.30.0",
       "quilt_mappings": "1.21.11+build.2",
       "qsl_version": "",
-      "quilt_loom_version": "1.8.5"
+      "quilt_loom_version": "1.15.1"
     },
-    "1.21.11": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.21.11+build.2", "qsl_version": "", "quilt_loom_version": "1.8.5" },
-    "1.21.10": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.21.10+build.4", "qsl_version": "", "quilt_loom_version": "1.8.5" },
-    "1.21.9": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.21.9+build.2", "qsl_version": "", "quilt_loom_version": "1.8.5" },
-    "1.21.8": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.21.8+build.1", "qsl_version": "", "quilt_loom_version": "1.8.5" },
-    "1.21.7": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.21.7+build.7", "qsl_version": "", "quilt_loom_version": "1.8.5" },
-    "1.21.6": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.21.6+build.6", "qsl_version": "", "quilt_loom_version": "1.8.5" },
-    "1.21.5": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.21.5+build.10", "qsl_version": "", "quilt_loom_version": "1.8.5" },
-    "1.21.4": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.21.4+build.5", "qsl_version": "", "quilt_loom_version": "1.8.5" },
-    "1.21.3": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.21.3+build.8", "qsl_version": "", "quilt_loom_version": "1.8.5" },
-    "1.21.2": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.21.2+build.3", "qsl_version": "", "quilt_loom_version": "1.8.5" },
-    "1.21.1": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.21.1+build.9", "qsl_version": "10.0.0-alpha.5+1.21.1", "quilt_loom_version": "1.8.5" },
-    "1.21": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.21+build.19", "qsl_version": "10.0.0-alpha.1+1.21", "quilt_loom_version": "1.8.5" },
-    "1.20.6": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.20.6+build.6", "qsl_version": "9.0.0-alpha.1+1.20.6", "quilt_loom_version": "1.8.5" },
-    "1.20.5": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.20.5+build.1", "qsl_version": "", "quilt_loom_version": "1.8.5" },
-    "1.20.4": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.20.4+build.3", "qsl_version": "8.0.0-alpha.13+1.20.4", "quilt_loom_version": "1.8.5" },
-    "1.20.3": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.20.3+build.3", "qsl_version": "", "quilt_loom_version": "1.8.5" },
-    "1.20.2": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.20.2+build.3", "qsl_version": "7.0.0-alpha.13+1.20.2", "quilt_loom_version": "1.8.5" },
-    "1.20.1": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.20.1+build.23", "qsl_version": "6.3.0+1.20.1", "quilt_loom_version": "1.8.5" },
-    "1.20": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.20+build.4", "qsl_version": "6.0.1+1.20", "quilt_loom_version": "1.8.5" },
-    "1.19.4": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.19.4+build.10", "qsl_version": "5.0.0-beta.11+1.19.4", "quilt_loom_version": "1.8.5" },
-    "1.19.3": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.19.3+build.28", "qsl_version": "4.0.0-beta.13+1.19.3", "quilt_loom_version": "1.8.5" },
-    "1.19.2": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.19.2+build.22", "qsl_version": "3.0.0-beta.29+1.19.2", "quilt_loom_version": "1.8.5" },
-    "1.19.1": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.19.1+build.4", "qsl_version": "3.0.0-beta.9+1.19.1", "quilt_loom_version": "1.8.5" },
-    "1.19": { "quilt_loader_version": "0.29.2", "quilt_mappings": "1.19+build.1", "qsl_version": "2.0.0-beta.16+1.19", "quilt_loom_version": "1.8.5" }
+    "1.21.11": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.21.11+build.2", "qsl_version": "", "quilt_loom_version": "1.15.1" },
+    "1.21.10": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.21.10+build.4", "qsl_version": "", "quilt_loom_version": "1.15.1" },
+    "1.21.9": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.21.9+build.2", "qsl_version": "", "quilt_loom_version": "1.15.1" },
+    "1.21.8": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.21.8+build.1", "qsl_version": "", "quilt_loom_version": "1.15.1" },
+    "1.21.7": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.21.7+build.7", "qsl_version": "", "quilt_loom_version": "1.15.1" },
+    "1.21.6": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.21.6+build.6", "qsl_version": "", "quilt_loom_version": "1.15.1" },
+    "1.21.5": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.21.5+build.10", "qsl_version": "", "quilt_loom_version": "1.15.1" },
+    "1.21.4": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.21.4+build.5", "qsl_version": "", "quilt_loom_version": "1.15.1" },
+    "1.21.3": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.21.3+build.8", "qsl_version": "", "quilt_loom_version": "1.15.1" },
+    "1.21.2": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.21.2+build.3", "qsl_version": "", "quilt_loom_version": "1.15.1" },
+    "1.21.1": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.21.1+build.9", "qsl_version": "10.0.0-alpha.5+1.21.1", "quilt_loom_version": "1.15.1" },
+    "1.21": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.21+build.19", "qsl_version": "10.0.0-alpha.1+1.21", "quilt_loom_version": "1.15.1" },
+    "1.20.6": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.20.6+build.6", "qsl_version": "9.0.0-alpha.1+1.20.6", "quilt_loom_version": "1.15.1" },
+    "1.20.5": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.20.5+build.1", "qsl_version": "", "quilt_loom_version": "1.15.1" },
+    "1.20.4": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.20.4+build.3", "qsl_version": "8.0.0-alpha.13+1.20.4", "quilt_loom_version": "1.15.1" },
+    "1.20.3": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.20.3+build.3", "qsl_version": "", "quilt_loom_version": "1.15.1" },
+    "1.20.2": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.20.2+build.3", "qsl_version": "7.0.0-alpha.13+1.20.2", "quilt_loom_version": "1.15.1" },
+    "1.20.1": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.20.1+build.23", "qsl_version": "6.3.0+1.20.1", "quilt_loom_version": "1.15.1" },
+    "1.20": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.20+build.4", "qsl_version": "6.0.1+1.20", "quilt_loom_version": "1.15.1" },
+    "1.19.4": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.19.4+build.10", "qsl_version": "5.0.0-beta.11+1.19.4", "quilt_loom_version": "1.15.1" },
+    "1.19.3": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.19.3+build.28", "qsl_version": "4.0.0-beta.13+1.19.3", "quilt_loom_version": "1.15.1" },
+    "1.19.2": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.19.2+build.22", "qsl_version": "3.0.0-beta.29+1.19.2", "quilt_loom_version": "1.15.1" },
+    "1.19.1": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.19.1+build.4", "qsl_version": "3.0.0-beta.9+1.19.1", "quilt_loom_version": "1.15.1" },
+    "1.19": { "quilt_loader_version": "0.30.0", "quilt_mappings": "1.19+build.1", "qsl_version": "2.0.0-beta.16+1.19", "quilt_loom_version": "1.15.1" }
   }
 }

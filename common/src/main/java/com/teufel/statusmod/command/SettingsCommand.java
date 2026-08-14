@@ -37,6 +37,7 @@ public class SettingsCommand {
 
     private static void update(CommandSourceStack src, ServerPlayer p, java.util.function.Consumer<PlayerSettings> mutator, String msg) {
         try {
+            if (!StatusMod.getConfig().isEnabled("status")) { src.sendFailure(Component.literal("Das Status-Feature ist auf diesem Server deaktiviert.")); return; }
             if (!PermissionUtil.hasStatusPermission(src)) { src.sendFailure(Component.literal("Du hast keine Berechtigung.")); return; }
             if (p == null) { src.sendFailure(Component.literal("Nur Spieler können diesen Befehl nutzen.")); return; }
             String uuid = p.getUUID().toString();

@@ -69,10 +69,6 @@ public final class ColorMapper {
         }
     }
 
-    public static Set<String> keys() {
-        return new HashSet<>(KEYS);
-    }
-
     public static List<TextColor> rainbowPalette() {
         return List.of(TextColor.fromRgb(0xFF0000), TextColor.fromRgb(0x00FF00), TextColor.fromRgb(0x0000FF));
     }

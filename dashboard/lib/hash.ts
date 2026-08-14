@@ -1,0 +1,77 @@
+import crypto from "crypto"
+import { hash as argon2Hash, verify as argon2Verify } from "@node-rs/argon2"
+
+const ALGORITHM = "aes-256-gcm"
+const KEY_LENGTH = 32
+const IV_LENGTH = 16
+const TAG_LENGTH = 16
+
+function getEncryptionKey(): Buffer {
+  const env = process.env.SERVICE_ROLE_KEY ?? process.env.JWT_SECRET ?? ""
+  return crypto.createHash("sha256").update(env).digest()
+}
+
+export function encryptSecret(plaintext: string): string {
+  const key = getEncryptionKey()
+  const iv = crypto.randomBytes(IV_LENGTH)
+  const cipher = crypto.createCipheriv(ALGORITHM, key, iv)
+  let encrypted = cipher.update(plaintext, "utf8", "hex")
+  encrypted += cipher.final("hex")
+  const tag = cipher.getAuthTag()
+  return `${iv.toString("hex")}:${tag.toString("hex")}:${encrypted}`
+}
+
+export function decryptSecret(ciphertext: string): string | null {
+  try {
+    const key = getEncryptionKey()
+    const parts = ciphertext.split(":")
+    if (parts.length !== 3) return null
+    const iv = Buffer.from(parts[0], "hex")
+    const tag = Buffer.from(parts[1], "hex")
+    const encrypted = parts[2]
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv)
+    decipher.setAuthTag(tag)
+    let decrypted = decipher.update(encrypted, "hex", "utf8")
+    decrypted += decipher.final("utf8")
+    return decrypted
+  } catch {
+    return null
+  }
+}
+
+function sha256Hex(input: string): string {
+  return crypto.createHash("sha256").update(input).digest("hex")
+}
+
+export function hashIp(ip: string): string {
+  return sha256Hex(ip)
+}
+
+export function hashUserAgent(ua: string): string {
+  return sha256Hex(ua)
+}
+
+export function hashAuditUuid(uuid: string): string {
+  return sha256Hex(uuid)
+}
+
+export async function hashArgon2id(plaintext: string): Promise<string> {
+  return argon2Hash(plaintext, {
+    memoryCost: 19456,
+    timeCost: 2,
+    parallelism: 1,
+    outputLen: 32,
+  })
+}
+
+export async function verifyArgon2id(hash: string, plaintext: string): Promise<boolean> {
+  try {
+    return await argon2Verify(hash, plaintext)
+  } catch {
+    return false
+  }
+}
+
+export function hmacUuid(uuid: string, serverSecret: string): string {
+  return crypto.createHmac("sha256", serverSecret).update(uuid).digest("hex")
+}

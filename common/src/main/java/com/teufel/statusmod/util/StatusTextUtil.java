@@ -6,22 +6,11 @@ import net.minecraft.server.level.ServerPlayer;
 public final class StatusTextUtil {
     private StatusTextUtil() {}
 
-    public static String renderStatusText(PlayerSettings settings) {
-        if (settings == null) return "";
-        return renderStatusText(settings.status, settings);
-    }
-
-    public static String renderStatusText(String rawStatus, PlayerSettings settings) {
-        return renderStatusText(rawStatus, settings, null);
-    }
-
     public static String renderStatusText(String rawStatus, PlayerSettings settings, ServerPlayer player) {
         String status = rawStatus == null ? "" : rawStatus;
-        String font = settings == null ? "normal" : settings.fontStyle;
         boolean brackets = settings != null && settings.brackets;
         status = applyPlaceholders(status, player);
-        String transformed = FontMapper.apply(font, status);
-        return (brackets ? "[" : "") + transformed + (brackets ? "]" : "");
+        return (brackets ? "[" : "") + status + (brackets ? "]" : "");
     }
 
     public static String resolveStatusForPlayer(PlayerSettings settings, ServerPlayer player) {

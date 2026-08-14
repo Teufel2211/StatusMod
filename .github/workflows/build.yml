@@ -10,13 +10,17 @@ on:
         type: boolean
         default: false
       loaders:
-        description: "Loaders to publish (comma-separated: fabric,forge,neoforge). Empty = all"
+        description: "Loaders to publish (comma-separated: fabric,forge,neoforge,quilt). Empty = all"
         type: string
         default: ""
       mc_versions:
         description: "MC versions to publish (comma-separated: 1.21.11,26.2). Empty = all"
         type: string
         default: ""
+      runtime_sp:
+        description: "Run singleplayer (client) runtime test. Default true (needs GPU-capable runner; disable on GPU-less CI)"
+        type: boolean
+        default: true
 
 concurrency:
   group: build-${{ github.ref }}
@@ -25,6 +29,9 @@ concurrency:
 jobs:
   build-and-verify:
     runs-on: windows-latest
+    outputs:
+      changed: ${{ steps.version_check.outputs.changed }}
+      version: ${{ steps.version_check.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -87,7 +94,7 @@ jobs:
 
       - name: Build all versions
         shell: pwsh
-        run: .\scripts\local\build-multiversion.ps1 -Loaders fabric,forge,neoforge -ContinueOnError:$false -UseIsolatedGradleHome:$false -FabricJavaHome "$env:JAVA_21_HOME" -FabricJava25Home "$env:JAVA_25_HOME"
+        run: .\scripts\local\build-multiversion.ps1 -Loaders fabric,forge,neoforge,quilt -ContinueOnError:$false -UseIsolatedGradleHome:$false -FabricJavaHome "$env:JAVA_21_HOME" -FabricJava25Home "$env:JAVA_25_HOME"
 
       - name: Print build report
         shell: pwsh
@@ -109,8 +116,92 @@ jobs:
           name: build-report
           path: dist/multiversion/build-report.*
 
+  matrix-prep:
+    needs: build-and-verify
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: statusmod-jars
+          path: jars
+
+      - name: Build runtime-test matrix
+        id: matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          find jars -name '*.jar' | sort | while read -r f; do
+            base=$(basename "$f")
+            stem=${base%.jar}
+            stem=${stem#Statusmod-}
+            mc=${stem##*-}
+            rest=${stem%-*}
+            loader=${rest##*-}
+            ver=${rest%-*}
+            printf '%s|%s|%s|%s\n' "$base" "$loader" "$mc" "$ver"
+          done > rows.txt
+          cat rows.txt
+          jq -R -s -c '
+            split("\n") |
+            map(select(length > 0) | split("|") | {jar: .[0], loader: .[1], mc: .[2], ver: .[3]}) |
+            {include: .}
+          ' rows.txt > matrix.json
+          echo "matrix=$(cat matrix.json)" >> "$GITHUB_OUTPUT"
+
+  runtime-test:
+    needs: matrix-prep
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.matrix-prep.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: statusmod-jars
+          path: dist/multiversion
+
+      - name: Run runtime test
+        shell: pwsh
+        run: |
+          $jar = Get-ChildItem -Path dist/multiversion -Recurse -Filter "${{ matrix.jar }}" -File | Select-Object -First 1
+          if (-not $jar) { throw "JAR not found: ${{ matrix.jar }}" }
+          Write-Host "Runtime-testing $($jar.FullName)"
+          $extra = @()
+          if ("${{ inputs.runtime_sp }}" -ne "true") { $extra += "-SkipSinglePlayer" }
+          & .\scripts\ci\test-runtime.ps1 -JarPath $jar.FullName -Loader "${{ matrix.loader }}" -McVersion "${{ matrix.mc }}" -JavaHome "$env:JAVA_HOME" -WorkDir "${{ runner.temp }}\rt" @extra
+
+      - name: Upload runtime logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-${{ matrix.loader }}-${{ matrix.mc }}
+          path: ${{ runner.temp }}/rt
+
+  publish:
+    needs: [build-and-verify, runtime-test]
+    if: needs.build-and-verify.outputs.changed == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: statusmod-jars
+          path: dist/multiversion
+
       - name: Publish to Modrinth & CurseForge
-        if: steps.version_check.outputs.changed == 'true'
         shell: pwsh
         run: .\scripts\ci\publish-all.ps1 -Loaders "${{ github.event.inputs.loaders }}" -McVersions "${{ github.event.inputs.mc_versions }}"
         env:
@@ -120,12 +211,11 @@ jobs:
           CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
 
       - name: Create GitHub Release
-        if: steps.version_check.outputs.changed == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $ver = "${{ steps.version_check.outputs.version }}"
+          $ver = "${{ needs.build-and-verify.outputs.version }}"
           $tag = "v$ver"
           $lastTag = git describe --tags --abbrev=0 2>$null
           $changelogFile = "$env:RUNNER_TEMP\changelog.md"

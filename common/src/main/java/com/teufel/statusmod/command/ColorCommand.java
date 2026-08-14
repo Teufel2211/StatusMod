@@ -25,6 +25,7 @@ public class ColorCommand {
 
     private static void setColor(CommandSourceStack src, String colorInput) {
         try {
+            if (!StatusMod.getConfig().isEnabled("status")) { src.sendFailure(Component.literal("Das Status-Feature ist auf diesem Server deaktiviert.")); return; }
             if (!PermissionUtil.hasStatusPermission(src)) { src.sendFailure(Component.literal("Du hast keine Berechtigung.")); return; }
             colorInput = colorInput == null ? "" : colorInput.trim();
             ServerPlayer player = src.getPlayer();

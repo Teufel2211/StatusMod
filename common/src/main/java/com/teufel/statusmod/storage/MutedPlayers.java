@@ -55,6 +55,15 @@ public class MutedPlayers {
         save();
     }
 
+    public synchronized void muteUntil(String uuid, long untilMs) {
+        if (uuid == null || uuid.isBlank() || untilMs <= System.currentTimeMillis()) return;
+        Long existing = mutedUntil.get(uuid);
+        if (existing == null || untilMs > existing) {
+            mutedUntil.put(uuid, untilMs);
+            save();
+        }
+    }
+
     public synchronized void unmute(String uuid) {
         if (uuid == null || uuid.isBlank()) return;
         if (mutedUntil.remove(uuid) != null) save();
@@ -83,9 +92,8 @@ public class MutedPlayers {
         } catch (Exception e) {
             System.err.println("[StatusMod] Error loading muted players:");
             e.printStackTrace();
-            safeBackupCorrupted(file.toPath(), "muted_players.corrupt-" + System.currentTimeMillis() + ".json");
-            mutedUntil = new HashMap<>();
-        }
+            StorageFiles.backupCorrupted(file.toPath(), "muted_players.corrupt-" + System.currentTimeMillis() + ".json");
+            mutedUntil = new HashMap<>();        }
     }
 
     public synchronized void save() {
@@ -108,13 +116,5 @@ public class MutedPlayers {
             System.err.println("[StatusMod] Error saving muted players:");
             e.printStackTrace();
         }
-    }
-
-    private void safeBackupCorrupted(Path source, String backupName) {
-        try {
-            if (!Files.exists(source)) return;
-            Path backup = source.resolveSibling(backupName);
-            Files.copy(source, backup, StandardCopyOption.REPLACE_EXISTING);
-        } catch (Exception ignored) {}
     }
 }

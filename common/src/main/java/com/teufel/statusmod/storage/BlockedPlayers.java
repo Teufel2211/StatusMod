@@ -56,7 +56,7 @@ public class BlockedPlayers {
         } catch (Exception e) {
             System.err.println("[StatusMod] Error loading blocked players:");
             e.printStackTrace();
-            safeBackupCorrupted(file.toPath(), "blocked_players.corrupt-" + System.currentTimeMillis() + ".json");
+            StorageFiles.backupCorrupted(file.toPath(), "blocked_players.corrupt-" + System.currentTimeMillis() + ".json");
             blockedUuids = new HashSet<>();
         }
     }
@@ -80,13 +80,5 @@ public class BlockedPlayers {
             System.err.println("[StatusMod] Error saving blocked players:");
             e.printStackTrace();
         }
-    }
-
-    private void safeBackupCorrupted(Path source, String backupName) {
-        try {
-            if (!Files.exists(source)) return;
-            Path backup = source.resolveSibling(backupName);
-            Files.copy(source, backup, StandardCopyOption.REPLACE_EXISTING);
-        } catch (Exception ignored) {}
     }
 }

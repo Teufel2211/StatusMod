@@ -31,7 +31,7 @@ if ([string]::IsNullOrWhiteSpace($modrinthProjectId)) { throw "MODRINTH_PROJECT_
 $hasCurseForge = (-not [string]::IsNullOrWhiteSpace($curseforgeToken)) -and
                   (-not [string]::IsNullOrWhiteSpace($curseforgeProjectId))
 
-$pattern = "(?i)^Statusmod-$([Regex]::Escape($modVersion))-(fabric|forge|neoforge)-(\d+(?:\.\d+)*)\.jar$"
+$pattern = "(?i)^Statusmod-$([Regex]::Escape($modVersion))-(fabric|forge|neoforge|quilt)-(\d+(?:\.\d+)*)\.jar$"
 
 function Parse-JarName {
     param([string]$Name)
@@ -161,7 +161,7 @@ foreach ($jar in $jars) {
     if ($mcId) { $cfGameVersions.Add($mcId) }
     $loaderId = Get-CfVersionId -Name ($loader.Substring(0,1).ToUpper() + $loader.Substring(1))
     if (-not $loaderId) {
-        $cfAliases = @{ "fabric" = "Fabric"; "forge" = "Forge"; "neoforge" = "NeoForge" }
+        $cfAliases = @{ "fabric" = "Fabric"; "forge" = "Forge"; "neoforge" = "NeoForge"; "quilt" = "Quilt" }
         $loaderId = Get-CfVersionId -Name $cfAliases[$loader]
     }
     if ($loaderId) { $cfGameVersions.Add($loaderId) }

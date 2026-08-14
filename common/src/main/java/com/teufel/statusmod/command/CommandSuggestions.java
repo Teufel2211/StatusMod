@@ -1,8 +1,6 @@
 package com.teufel.statusmod.command;
 
 import com.teufel.statusmod.StatusMod;
-import com.teufel.statusmod.util.ColorMapper;
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.suggestion.Suggestions;
