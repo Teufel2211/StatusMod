@@ -1,0 +1,37 @@
+plugins {
+    id 'org.quiltmc.loom'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs += [file('../common/src/main/java'), file('../fabric/src/main/java')]
+        }
+        resources {
+            srcDirs += [file('../common/src/main/resources'), file('../fabric/src/main/resources')]
+        }
+    }
+}
+
+processResources {
+    exclude("fabric.mod.json")
+    filesMatching("quilt.mod.json") {
+        expand "version": project.version, "quilt_loader_version": project.findProperty('quilt_loader_version') ?: ""
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "org.quiltmc:quilt-loader:${quilt_loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+    modImplementation "dev.architectury:architectury-fabric:${architectury_version}"
+    compileOnly "dev.architectury:architectury:${architectury_version}"
+    implementation "com.google.code.gson:gson:2.11.0"
+}

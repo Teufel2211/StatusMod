@@ -4,30 +4,14 @@ import com.teufel.statusmod.platform.Platform;
 
 public final class NeoForgePlatform implements Platform {
     @Override
-    public void registerItem(String id) {
-    }
-
-    @Override
-    public void registerBlock(String id) {
-    }
-
-    @Override
-    public boolean isDevelopmentEnvironment() {
+    public boolean isDedicatedServer() {
         try {
-            Class<?> modListClass = Class.forName("net.neoforged.fml.ModList");
-            java.lang.reflect.Method getMethod = modListClass.getMethod("get");
-            Object modList = getMethod.invoke(null);
-            if (modList != null) {
-                java.lang.reflect.Method isDevMethod = modList.getClass().getMethod("isDevelopmentEnvironment");
-                return (boolean) isDevMethod.invoke(modList);
-            }
+            Class<?> envClass = Class.forName("net.neoforged.fml.loading.FMLEnvironment");
+            java.lang.reflect.Field distField = envClass.getField("dist");
+            Object dist = distField.get(null);
+            return dist != null && dist.toString().equals("DEDICATED_SERVER");
         } catch (Exception ignored) {}
-        try {
-            Class<?> loaderClass = Class.forName("net.neoforged.fml.loading.FMLLoader");
-            java.lang.reflect.Method m = loaderClass.getMethod("isProduction");
-            return !(boolean) m.invoke(null);
-        } catch (Exception ignored) {}
-        return true;
+        return false;
     }
 
     @Override

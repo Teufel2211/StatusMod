@@ -30,6 +30,10 @@ public class BlockCommand {
 
     private static void blockPlayer(CommandSourceStack src, String uuid, String playerName) {
         try {
+            if (!StatusMod.getConfig().isEnabled("block")) {
+                src.sendFailure(Component.literal("Das Block-Feature ist auf diesem Server deaktiviert."));
+                return;
+            }
             if (!PermissionUtil.hasAdminPermission(src)) {
                 src.sendFailure(Component.literal("Du hast keine Berechtigung für diesen Befehl."));
                 return;
@@ -59,6 +63,10 @@ public class BlockCommand {
 
     private static void unblockPlayer(CommandSourceStack src, String uuid, String playerName) {
         try {
+            if (!StatusMod.getConfig().isEnabled("block")) {
+                src.sendFailure(Component.literal("Das Block-Feature ist auf diesem Server deaktiviert."));
+                return;
+            }
             if (!PermissionUtil.hasAdminPermission(src)) {
                 src.sendFailure(Component.literal("Du hast keine Berechtigung für diesen Befehl."));
                 return;

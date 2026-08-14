@@ -10,7 +10,8 @@ if (-not (Test-Path $distDir)) {
     throw "dist directory not found: $distDir"
 }
 
-$jars = @(Get-ChildItem -Path $distDir -Recurse -File -Filter *.jar)
+$jars = @(Get-ChildItem -Path $distDir -Recurse -File -Filter *.jar |
+    Where-Object { $_.FullName -notmatch "\\.gradle-user-home\\|\\logs\\" })
 if ($jars.Count -eq 0) {
     throw "No JARs found under $distDir"
 }
@@ -18,7 +19,8 @@ if ($jars.Count -eq 0) {
 $expected = @(
     "fabric-1.21.11", "fabric-26.2", "fabric-26.1", "fabric-26.1.1", "fabric-26.1.2",
     "forge-1.21.11", "forge-26.2", "forge-26.1", "forge-26.1.1", "forge-26.1.2",
-    "neoforge-1.21.11", "neoforge-26.2", "neoforge-26.1", "neoforge-26.1.1", "neoforge-26.1.2"
+    "neoforge-1.21.11", "neoforge-26.2", "neoforge-26.1", "neoforge-26.1.1", "neoforge-26.1.2",
+    "quilt-1.21.11", "quilt-26.2", "quilt-26.1", "quilt-26.1.1", "quilt-26.1.2"
 )
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -26,7 +28,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $foundKeys = New-Object System.Collections.Generic.HashSet[string]
 $errors = 0
 
-$pattern = "(?i)^Statusmod-$([Regex]::Escape($modVersion))-(fabric|forge|neoforge)-(\d+(?:\.\d+)*)\.jar$"
+$pattern = "(?i)^Statusmod-$([Regex]::Escape($modVersion))-(fabric|forge|neoforge|quilt)-(\d+(?:\.\d+)*)\.jar$"
 
 foreach ($jar in $jars) {
     $relPath = $jar.FullName.Substring($distDir.Length).TrimStart("\")
@@ -52,6 +54,17 @@ foreach ($jar in $jars) {
                         throw "fabric.mod.json version is '$($json.version)', expected '$modVersion'"
                     }
                     Write-Host "   fabric.mod.json version=$($json.version) OK"
+                    $checked = $true
+                    break
+                }
+                if ($entry.Name -eq "quilt.mod.json") {
+                    $reader = [System.IO.StreamReader]::new($entry.Open())
+                    $json = $reader.ReadToEnd() | ConvertFrom-Json
+                    $reader.Close()
+                    if ($json.quilt_loader.version -ne $modVersion) {
+                        throw "quilt.mod.json version is '$($json.quilt_loader.version)', expected '$modVersion'"
+                    }
+                    Write-Host "   quilt.mod.json version=$($json.quilt_loader.version) OK"
                     $checked = $true
                     break
                 }

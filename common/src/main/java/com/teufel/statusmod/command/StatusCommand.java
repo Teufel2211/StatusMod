@@ -18,7 +18,6 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.io.IOException;
@@ -60,14 +59,43 @@ public class StatusCommand {
                 .then(Commands.literal("unmute").then(Commands.argument("player", net.minecraft.commands.arguments.EntityArgument.player()).executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte.")); return 0; } ServerPlayer target = net.minecraft.commands.arguments.EntityArgument.getPlayer(ctx, "player"); unmutePlayer(ctx.getSource(), target); return 1; })))
                 .then(Commands.literal("audit").executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte.")); return 0; } showAuditLog(ctx.getSource()); return 1; }))
             );
+            statusTree = statusTree.then(Commands.literal("badge")
+                .then(Commands.literal("clear").then(Commands.argument("player", net.minecraft.commands.arguments.EntityArgument.player()).executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte.")); return 0; } ServerPlayer target = net.minecraft.commands.arguments.EntityArgument.getPlayer(ctx, "player"); clearPlayerBadge(ctx.getSource(), target); return 1; })))
+                .then(Commands.argument("player", net.minecraft.commands.arguments.EntityArgument.player())
+                    .executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte.")); return 0; } ServerPlayer target = net.minecraft.commands.arguments.EntityArgument.getPlayer(ctx, "player"); showPlayerBadge(ctx.getSource(), target); return 1; })
+                    .then(Commands.argument("badge", StringArgumentType.greedyString()).executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte.")); return 0; } ServerPlayer target = net.minecraft.commands.arguments.EntityArgument.getPlayer(ctx, "player"); setPlayerBadge(ctx.getSource(), target, StringArgumentType.getString(ctx, "badge")); return 1; })))
+            );
         }
-        statusTree = statusTree.then(Commands.literal("config").then(Commands.literal("reload").executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte, um diese Aktion auszuführen.")); return 0; } StatusMod.config = ModConfig.load(); CommandUtil.sendSuccess(ctx.getSource(), Component.literal("StatusMod configuration reloaded."), false); return 1; }))
-            .then(Commands.literal("show").executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte, um diese Aktion auszuführen.")); return 0; } ModConfig c = StatusMod.getConfig(); CommandUtil.sendSuccess(ctx.getSource(), Component.literal("StatusMod configuration:"), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" adminOpLevel = " + c.adminOpLevel), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusPermissionNode = " + c.statusPermissionNode), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" adminPermissionNode = " + c.adminPermissionNode), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" enableAdminOverrides = " + c.enableAdminOverrides), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" defaultColor = " + c.defaultColor), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusReapplyTicks = " + c.statusReapplyTicks), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusCooldownSeconds = " + c.statusCooldownSeconds), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusHistorySize = " + c.statusHistorySize), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" enableStaffBadge = " + c.enableStaffBadge), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadgeText = " + c.staffBadgeText), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadgeColor = " + c.staffBadgeColor), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" enableAutoAfk = " + c.enableAutoAfk), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" afkTimeoutSeconds = " + c.afkTimeoutSeconds), false); return 1; })));
+        statusTree = statusTree.then(Commands.literal("config").then(Commands.literal("reload").executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte, um diese Aktion auszuführen.")); return 0; } StatusMod.config = ModConfig.load(); CommandUtil.sendSuccess(ctx.getSource(), Component.literal("StatusMod configuration reloaded."), false); return 1; }))            .then(Commands.literal("show").executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte, um diese Aktion auszuführen.")); return 0; } ModConfig c = StatusMod.getConfig(); CommandUtil.sendSuccess(ctx.getSource(), Component.literal("StatusMod configuration:"), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" adminOpLevel = " + c.adminOpLevel), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusPermissionNode = " + c.statusPermissionNode), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" adminPermissionNode = " + c.adminPermissionNode), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" enableAdminOverrides = " + c.enableAdminOverrides), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" defaultColor = " + c.defaultColor), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusReapplyTicks = " + c.statusReapplyTicks), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusCooldownSeconds = " + c.statusCooldownSeconds), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusHistorySize = " + c.statusHistorySize), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" enableStaffBadge = " + c.enableStaffBadge), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadgeText = " + c.staffBadgeText), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadgeColor = " + c.staffBadgeColor), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadgeBrackets = " + c.staffBadgeBrackets), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadges (Overrides) = " + (c.staffBadges == null ? 0 : c.staffBadges.size())), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" enableAutoAfk = " + c.enableAutoAfk), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" afkTimeoutSeconds = " + c.afkTimeoutSeconds), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" Features:"), false); for (Map.Entry<String, Boolean> fe : c.features.entrySet()) { CommandUtil.sendSuccess(ctx.getSource(), Component.literal("   " + fe.getKey() + " = " + fe.getValue()), false); } return 1; })));
+        statusTree = statusTree.then(Commands.literal("feature").then(Commands.literal("list").executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte.")); return 0; } ModConfig c = StatusMod.getConfig(); CommandUtil.sendSuccess(ctx.getSource(), Component.literal("Features:"), false); for (Map.Entry<String, Boolean> fe : c.features.entrySet()) { CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" " + fe.getKey() + " = " + fe.getValue()), false); } return 1; }))
+            .then(Commands.argument("key", StringArgumentType.word()).then(Commands.argument("value", StringArgumentType.word()).suggests((ctx, builder) -> net.minecraft.commands.SharedSuggestionProvider.suggest(new String[]{"on","off","true","false","an","aus"}, builder)).executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte.")); return 0; } return setFeature(ctx.getSource(), StringArgumentType.getString(ctx, "key"), StringArgumentType.getString(ctx, "value")); }))));
         dispatcher.register(statusTree);
+    }
+
+    private static int setFeature(CommandSourceStack src, String key, String value) {
+        try {
+            ModConfig c = StatusMod.getConfig();
+            if (c == null) { src.sendFailure(Component.literal("Keine Konfiguration geladen.")); return 0; }
+            if (!c.features.containsKey(key)) {
+                src.sendFailure(Component.literal("Unbekanntes Feature: " + key + " (verfügbar: " + String.join(", ", c.features.keySet()) + ")"));
+                return 0;
+            }
+            boolean on = value != null && (value.equalsIgnoreCase("on") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("an") || value.equalsIgnoreCase("ein"));
+            boolean off = value != null && (value.equalsIgnoreCase("off") || value.equalsIgnoreCase("false") || value.equalsIgnoreCase("aus"));
+            if (!on && !off) {
+                src.sendFailure(Component.literal("Ungültiger Wert. Nutze on/off/true/false."));
+                return 0;
+            }
+            c.setFeature(key, on);
+            c.save();
+            CommandUtil.sendSuccess(src, Component.literal("Feature '" + key + "' ist jetzt " + (on ? "AN" : "AUS") + "."), false);
+            return 1;
+        } catch (Exception e) { e.printStackTrace(); return 0; }
     }
 
     private static void setStatus(CommandSourceStack src, String status, String colorKey) {
         try {
+            if (!StatusMod.getConfig().isEnabled("status")) { src.sendFailure(Component.literal("Das Status-Feature ist auf diesem Server deaktiviert.")); return; }
             ServerPlayer player = src.getPlayer();
             if (player == null) { src.sendFailure(Component.literal("Nur Spieler können diesen Befehl nutzen.")); return; }
             if (!PermissionUtil.hasStatusPermission(src)) { src.sendFailure(Component.literal("Du hast keine Berechtigung, den Status-Mod zu nutzen.")); return; }
@@ -89,6 +117,7 @@ public class StatusCommand {
     private static void adminClearStatus(CommandSourceStack src, String targetName) { try { ServerPlayer target = src.getServer().getPlayerList().getPlayerByName(targetName); if (target == null) { src.sendFailure(Component.literal("Spieler '" + targetName + "' ist nicht online.")); return; } PlayerSettings settings = StatusMod.getStorage().forPlayer(target.getUUID().toString()); settings.status=""; settings.color="reset"; settings.statusExpiresAtMs=0L; StatusMod.getStorage().put(target.getUUID().toString(), settings); StatusTeamUtil.applyStatus(src.getServer().getScoreboard(), target, settings, "", "reset", PermissionUtil.hasAdminPermission(target)); String who = src.getTextName(); AuditLogger.logClear(who, targetName); CommandUtil.sendSuccess(src, Component.literal("Status von " + targetName + " gelöscht."), false); target.sendSystemMessage(Component.literal("Dein Status wurde von einem Administrator gelöscht."));} catch (Exception e){try{src.sendFailure(Component.literal("Fehler beim Löschen des Status für '" + targetName + "'."));}catch(Exception ignore){} e.printStackTrace();}}
     private static void applyPreset(CommandSourceStack src, String name) {
         try {
+            if (!StatusMod.getConfig().isEnabled("presets")) { src.sendFailure(Component.literal("Das Preset-Feature ist auf diesem Server deaktiviert.")); return; }
             if (!PermissionUtil.hasStatusPermission(src)) { src.sendFailure(Component.literal("Du hast keine Berechtigung.")); return; }
             String key = (name == null ? "" : name).toLowerCase();
             Preset preset = PRESETS.get(key);
@@ -128,6 +157,7 @@ public class StatusCommand {
 
     private static void saveCustomPreset(CommandSourceStack src, String name, String status, String colorKey) {
         try {
+            if (!StatusMod.getConfig().isEnabled("presets")) { src.sendFailure(Component.literal("Das Preset-Feature ist auf diesem Server deaktiviert.")); return; }
             if (!PermissionUtil.hasStatusPermission(src)) { src.sendFailure(Component.literal("Du hast keine Berechtigung.")); return; }
             ServerPlayer player = src.getPlayer();
             if (player == null) { src.sendFailure(Component.literal("Nur Spieler können Presets speichern.")); return; }
@@ -179,6 +209,7 @@ public class StatusCommand {
 
     private static void mutePlayer(CommandSourceStack src, ServerPlayer target, int minutes) {
         try {
+            if (!StatusMod.getConfig().isEnabled("mute")) { src.sendFailure(Component.literal("Das Mute-Feature ist auf diesem Server deaktiviert.")); return; }
             String uuid = target.getUUID().toString();
             StatusMod.getMutedPlayers().mute(uuid, minutes);
             String who = src.getTextName();
@@ -190,6 +221,7 @@ public class StatusCommand {
 
     private static void unmutePlayer(CommandSourceStack src, ServerPlayer target) {
         try {
+            if (!StatusMod.getConfig().isEnabled("mute")) { src.sendFailure(Component.literal("Das Mute-Feature ist auf diesem Server deaktiviert.")); return; }
             String uuid = target.getUUID().toString();
             StatusMod.getMutedPlayers().unmute(uuid);
             String who = src.getTextName();
@@ -215,6 +247,109 @@ public class StatusCommand {
         } catch (IOException e) {
             src.sendFailure(Component.literal("Fehler beim Lesen des Audit-Logs."));
         }
+    }
+
+    private static void setPlayerBadge(CommandSourceStack src, ServerPlayer target, String input) {
+        try {
+            if (!StatusMod.getConfig().isEnabled("badge")) { src.sendFailure(Component.literal("Das Badge-Feature ist auf diesem Server deaktiviert.")); return; }
+            String[] tokens = input == null ? new String[0] : input.trim().split("\\s+");
+            if (tokens.length == 0) {
+                src.sendFailure(Component.literal("Verwendung: /status badge <Spieler> <Text> [Farbe] [brackets:true|false]"));
+                return;
+            }
+            String text = tokens[0];
+            String color = null;
+            boolean brackets = true;
+            boolean bracketsSet = false;
+
+            for (String t : tokens) {
+                String lower = t.toLowerCase();
+                if (lower.equals("brackets:true") || lower.equals("brackets:false") || lower.equals("true") || lower.equals("false")) {
+                    brackets = lower.contains("true");
+                    bracketsSet = true;
+                    break;
+                }
+            }
+
+            for (String t : tokens) {
+                if (ColorMapper.isValidColorInput(t)) {
+                    color = t;
+                    break;
+                }
+            }
+
+            if (color == null) color = "red";
+
+            if (text.length() > 32) {
+                src.sendFailure(Component.literal("Badge-Text darf maximal 32 Zeichen lang sein."));
+                return;
+            }
+
+            ModConfig cfg = StatusMod.getConfig();
+            if (cfg.staffBadges == null) cfg.staffBadges = new HashMap<>();
+            ModConfig.StaffBadge existing = cfg.staffBadges.get(target.getUUID().toString());
+            if (existing == null) existing = new ModConfig.StaffBadge();
+            existing.text = text;
+            existing.color = color;
+            if (bracketsSet) existing.brackets = brackets;
+            cfg.staffBadges.put(target.getUUID().toString(), existing);
+            cfg.save();
+
+            String rendered = existing.brackets ? "[" + existing.text + "]" : existing.text;
+            CommandUtil.sendSuccess(src, Component.literal("Staff-Badge für " + target.getScoreboardName() + " gesetzt: " + rendered + " (" + existing.color + ")"), true);
+            target.sendSystemMessage(Component.literal("Dein Staff-Badge wurde geändert: " + rendered));
+
+            refreshBadgeDisplay(src, target);
+        } catch (Exception e) {
+            try { src.sendFailure(Component.literal("Fehler beim Setzen des Staff-Badges.")); } catch(Exception ignore){} e.printStackTrace();
+        }
+    }
+
+    private static void clearPlayerBadge(CommandSourceStack src, ServerPlayer target) {
+        try {
+            if (!StatusMod.getConfig().isEnabled("badge")) { src.sendFailure(Component.literal("Das Badge-Feature ist auf diesem Server deaktiviert.")); return; }
+            ModConfig cfg = StatusMod.getConfig();
+            if (cfg.staffBadges != null && cfg.staffBadges.remove(target.getUUID().toString()) != null) {
+                cfg.save();
+                CommandUtil.sendSuccess(src, Component.literal("Staff-Badge für " + target.getScoreboardName() + " entfernt. Globaler Fallback gilt wieder."), true);
+                target.sendSystemMessage(Component.literal("Dein Staff-Badge wurde entfernt."));
+            } else {
+                CommandUtil.sendSuccess(src, Component.literal("Kein eigener Staff-Badge für " + target.getScoreboardName() + " gesetzt."), false);
+            }
+            refreshBadgeDisplay(src, target);
+        } catch (Exception e) {
+            try { src.sendFailure(Component.literal("Fehler beim Entfernen des Staff-Badges.")); } catch(Exception ignore){} e.printStackTrace();
+        }
+    }
+
+    private static void showPlayerBadge(CommandSourceStack src, ServerPlayer target) {
+        try {
+            if (!StatusMod.getConfig().isEnabled("badge")) { src.sendFailure(Component.literal("Das Badge-Feature ist auf diesem Server deaktiviert.")); return; }
+            ModConfig cfg = StatusMod.getConfig();
+            ModConfig.StaffBadge b = cfg.staffBadges == null ? null : cfg.staffBadges.get(target.getUUID().toString());
+            String who = target.getScoreboardName();
+            if (b != null) {
+                String rendered = b.brackets ? "[" + b.text + "]" : b.text;
+                CommandUtil.sendSuccess(src, Component.literal("Staff-Badge von " + who + ": " + rendered + " (" + b.color + ", brackets=" + b.brackets + ")"), false);
+            } else {
+                String fallback = (cfg.staffBadgeText == null || cfg.staffBadgeText.isEmpty()) ? "[STAFF]" : cfg.staffBadgeText;
+                if (cfg.staffBadgeBrackets && !fallback.startsWith("[")) fallback = "[" + fallback + "]";
+                CommandUtil.sendSuccess(src, Component.literal("Staff-Badge von " + who + ": (global) " + fallback + " (" + cfg.staffBadgeColor + ")"), false);
+            }
+        } catch (Exception e) {
+            try { src.sendFailure(Component.literal("Fehler beim Anzeigen des Staff-Badges.")); } catch(Exception ignore){} e.printStackTrace();
+        }
+    }
+
+    private static void refreshBadgeDisplay(CommandSourceStack src, ServerPlayer target) {
+        try {
+            if (target == null || src.getServer() == null) return;
+            PlayerSettings settings = StatusMod.getStorage().forPlayer(target.getUUID().toString());
+            StatusTeamUtil.applyStatus(src.getServer().getScoreboard(), target, settings,
+                StatusTextUtil.resolveStatusForPlayer(settings, target),
+                StatusTextUtil.resolveColorForPlayer(settings, target),
+                PermissionUtil.hasAdminPermission(target));
+        } catch (Exception ignored) {}
     }
 
     private static boolean checkBlockedOrMuted(CommandSourceStack src, String uuid) {

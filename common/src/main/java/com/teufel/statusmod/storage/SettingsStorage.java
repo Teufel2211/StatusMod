@@ -2,6 +2,7 @@ package com.teufel.statusmod.storage;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.teufel.statusmod.StatusMod;
 import com.teufel.statusmod.util.FontMapper;
 
 import java.io.File;
@@ -33,9 +34,9 @@ public class SettingsStorage {
         if (s == null) {
             s = new PlayerSettings();
             try {
-                if (com.teufel.statusmod.StatusMod.getConfig() != null &&
-                    com.teufel.statusmod.StatusMod.getConfig().defaultColor != null) {
-                    s.color = com.teufel.statusmod.StatusMod.getConfig().defaultColor;
+                if (StatusMod.getConfig() != null &&
+                    StatusMod.getConfig().defaultColor != null) {
+                    s.color = StatusMod.getConfig().defaultColor;
                 }
             } catch (Exception ignored) {}
             sanitizeSettings(s);
@@ -43,6 +44,10 @@ public class SettingsStorage {
             save();
         }
         return s;
+    }
+
+    public synchronized Map<String, PlayerSettings> getAllSnapshot() {
+        return new HashMap<>(map);
     }
 
     public synchronized void put(String uuid, PlayerSettings s) {
@@ -74,7 +79,7 @@ public class SettingsStorage {
         } catch (Exception e) {
             System.err.println("[StatusMod] Failed to load players.json, keeping in-memory defaults");
             e.printStackTrace();
-            safeBackupCorrupted(file.toPath(), "players.corrupt-" + System.currentTimeMillis() + ".json");
+            StorageFiles.backupCorrupted(file.toPath(), "players.corrupt-" + System.currentTimeMillis() + ".json");
             map = new HashMap<>();
         }
     }
@@ -108,9 +113,9 @@ public class SettingsStorage {
         if (ps.status.length() > MAX_STATUS_LENGTH) { ps.status = ps.status.substring(0, MAX_STATUS_LENGTH); changed = true; }
         if (ps.color == null || ps.color.isEmpty()) {
             try {
-                ps.color = (com.teufel.statusmod.StatusMod.getConfig() != null &&
-                    com.teufel.statusmod.StatusMod.getConfig().defaultColor != null)
-                    ? com.teufel.statusmod.StatusMod.getConfig().defaultColor
+                ps.color = (StatusMod.getConfig() != null &&
+                    StatusMod.getConfig().defaultColor != null)
+                    ? StatusMod.getConfig().defaultColor
                     : "reset";
             } catch (Exception ignored) {
                 ps.color = "reset";
@@ -122,20 +127,12 @@ public class SettingsStorage {
         if (ps.statusHistory == null) { ps.statusHistory = new ArrayList<>(); changed = true; }
         int maxHistory = 5;
         try {
-            if (com.teufel.statusmod.StatusMod.getConfig() != null) maxHistory = com.teufel.statusmod.StatusMod.getConfig().statusHistorySize;
+            if (StatusMod.getConfig() != null) maxHistory = StatusMod.getConfig().statusHistorySize;
         } catch (Exception ignored) {}
         while (ps.statusHistory.size() > maxHistory) { ps.statusHistory.remove(0); changed = true; }
         if (ps.statusByWorld == null) { ps.statusByWorld = new HashMap<>(); changed = true; }
         if (ps.colorByWorld == null) { ps.colorByWorld = new HashMap<>(); changed = true; }
         if (ps.lastActivityAtMs <= 0L) { ps.lastActivityAtMs = System.currentTimeMillis(); changed = true; }
         return changed;
-    }
-
-    private void safeBackupCorrupted(Path source, String backupName) {
-        try {
-            if (!Files.exists(source)) return;
-            Path backup = source.resolveSibling(backupName);
-            Files.copy(source, backup, StandardCopyOption.REPLACE_EXISTING);
-        } catch (Exception ignored) {}
     }
 }

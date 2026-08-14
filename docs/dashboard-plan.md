@@ -46,9 +46,10 @@
 - Service-Role-Key existiert nur als Env-Var im Backend, nie im Code, nie im Repo.
 
 **HTTPS/TLS zwingend:**
-- **Jede** Kommunikation nur über HTTPS: Mod↔API, Dashboard↔API, Bot↔API, Stripe↔API.
+- **Jede** Kommunikation nur über HTTPS: Mod↔API, Dashboard↔API, Bot↔API.
 - Backend erzwingt HTTP→HTTPS-Redirect auf Production-Ebene (nginx/Cloudflare).
 - HSTS-Header: `Strict-Transport-Security: max-age=31536000; includeSubDomains`.
+- Content-Security-Policy: `default-src 'self'` (kein Inline-Script, keine fremden Sources).
 - In Entwicklung ohne HTTPS: `ALLOW_HTTP=true` (default: false).
 - `CORS_ORIGIN` muss **mit `https://` beginnen** — Backend validiert Prefix, nicht nur `includes()`. `http://` wird in Production abgelehnt.
 
@@ -104,20 +105,20 @@
 | `blocked_players` | `uuid TEXT, server_id UUID, blocked_at TIMESTAMPTZ, PRIMARY KEY(uuid, server_id)` | RLS |
 | `muted_players` | `uuid TEXT, server_id UUID, muted_until TIMESTAMPTZ, PRIMARY KEY(uuid, server_id)` | RLS |
 | `custom_presets` | `name TEXT, server_id UUID, status TEXT, color TEXT, creator_uuid TEXT, PRIMARY KEY(name, server_id)` | RLS |
-| `audit_log` | `id SERIAL PK, server_id UUID, who_uuid_hash TEXT, action TEXT, target_uuid_hash TEXT, detail TEXT, created_at TIMESTAMPTZ` | Auto-Purge 90 Tage. Retention: 7–365 Tage. |
+| `audit_log` | `id SERIAL PK, server_id UUID, who_uuid_hash TEXT (SHA-256), action TEXT, target_uuid_hash TEXT (SHA-256), detail TEXT, created_at TIMESTAMPTZ` | Auto-Purge 90 Tage. Retention: 7–365 Tage. UUID-Hashes via SHA-256 (ohne Salt — für Lookup notwendig). DSGVO: Einträge werden bei Purge endgültig gelöscht. `detail` auf 1000 Zeichen begrenzt. |
 | `dashboard_codes` | `code_hash TEXT (argon2id), server_id UUID, expires_at TIMESTAMPTZ, used BOOL, created_at TIMESTAMPTZ` | Nur Hash. Argon2id, kein SHA. |
 | `dashboard_users` | `uuid TEXT PK, username TEXT, role ENUM(owner/admin/viewer), server_id UUID, totp_secret TEXT (pgcrypto encrypt), totp_enabled BOOL DEFAULT false, recovery_code_hashes TEXT[]` | TOTP-Secret mit pgcrypto `pgp_sym_encrypt()` verschlüsselt. Recovery-Code-Hashes (argon2id). |
 | `verify_codes` | `code_hash TEXT (argon2id), uuid TEXT, server_id UUID, expires_at TIMESTAMPTZ, used BOOL, attempt_count INT DEFAULT 0, created_at TIMESTAMPTZ` | `attempt_count > 2` → Code ungültig. |
 | `discord_links` | `discord_id TEXT PK, uuid TEXT, server_id UUID, role TEXT, linked_at TIMESTAMPTZ, recovery_code_hash TEXT (argon2id)` | Recovery-Code beim Linken, gehasht. |
-| `refresh_tokens` | `id SERIAL PK, uuid TEXT, server_id UUID, token_hash TEXT (argon2id), expires_at TIMESTAMPTZ, ip_hash TEXT, user_agent_hash TEXT, revoked BOOL` | Revokable. Rotation: altes revoken. |
-| `shop_products` | `id SERIAL PK, server_id UUID, product_key TEXT, name TEXT, description TEXT, price_cents INT, duration_days INT, active BOOL` | RLS |
-| `shop_statuses` | `id SERIAL PK, server_id UUID, status_text TEXT, color TEXT, price_cents INT, duration_days INT, active BOOL` | RLS. `status_text`: `^[a-zA-Z0-9_ &]+$` |
-| `purchases` | `id SERIAL PK, uuid TEXT, server_id UUID, product_key TEXT, purchased_at TIMESTAMPTZ, expires_at TIMESTAMPTZ, stripe_event_id TEXT UNIQUE, stripe_event_timestamp INT` | Replay-Schutz via UNIQUE + Timestamp. |
-| `player_status_purchases` | `id SERIAL PK, uuid TEXT, server_id UUID, status_text TEXT, color TEXT, purchased_at TIMESTAMPTZ, expires_at TIMESTAMPTZ` | RLS |
-| `api_keys` | `id SERIAL PK, server_id UUID, key_hash TEXT (argon2id), key_prefix TEXT, scopes TEXT[], created_at TIMESTAMPTZ, expires_at TIMESTAMPTZ, revoked BOOL` | Max 2/Server. Scopes: check, check-status, products, purchases, audit, *. Key nur einmalig sichtbar. |
+| `refresh_tokens` | `id SERIAL PK, uuid TEXT, server_id UUID, token_hash TEXT (argon2id), expires_at TIMESTAMPTZ, ip_hash TEXT (SHA-256), user_agent_hash TEXT (SHA-256), revoked BOOL` | Revokable. Rotation: altes revoken. |
+| `shop_products` | ~~`id SERIAL PK, server_id UUID, product_key TEXT, name TEXT, description TEXT, price_cents INT, duration_days INT, active BOOL`~~ | ~~RLS~~ **ENTFERNT 2026-08-01** |
+| `shop_statuses` | ~~`id SERIAL PK, server_id UUID, status_text TEXT, color TEXT, price_cents INT, duration_days INT, active BOOL`~~ | ~~RLS~~ **ENTFERNT 2026-08-01** |
+| `purchases` | ~~`id SERIAL PK, uuid TEXT, server_id UUID, product_key TEXT, purchased_at TIMESTAMPTZ, expires_at TIMESTAMPTZ, stripe_event_id TEXT UNIQUE, stripe_event_timestamp INT`~~ | ~~Replay-Schutz~~ **ENTFERNT 2026-08-01** |
+| `player_status_purchases` | ~~`id SERIAL PK, uuid TEXT, server_id UUID, status_text TEXT, color TEXT, purchased_at TIMESTAMPTZ, expires_at TIMESTAMPTZ`~~ | ~~RLS~~ **ENTFERNT 2026-08-01** |
+| `api_keys` | `id SERIAL PK, server_id UUID, key_hash TEXT (argon2id), key_prefix TEXT, scopes TEXT[], created_at TIMESTAMPTZ, expires_at TIMESTAMPTZ, revoked BOOL` | Max 2/Server. Scopes: check, audit, *. Key nur einmalig sichtbar. |
 | `schema_version` | `id SERIAL PK, version TEXT, applied_at TIMESTAMPTZ, checksum TEXT` | Migrations-Tracking. |
 
-**Zeitzonen:** Alle `TIMESTAMPTZ`-Spalten speichern UTC.
+**RLS (Row-Level Security):** Auch wenn Mod + Bot nie direkt Supabase ansprechen (Service-Role-Key nur im Backend), haben alle Tabellen RLS aktiviert — Defense-in-Depth gegen Datenleck bei direktem DB-Zugriff.
 
 **JSONB-Validierung:**
 - Zod-Schema mit `z.string().max(100000)`. DB-Fallback: `CHECK (pg_column_size(config) < 102400)`.
@@ -135,13 +136,11 @@ DATABASE_URL=postgresql://user:pass@host:5432/postgres
 JWT_SECRET=<32+ Zeichen, randomBytes()>
 JWT_SECRET_PREVIOUS=<vorheriger Secret für Rotation>
 SERVICE_ROLE_KEY=<Supabase Service Role Key>
-STRIPE_SECRET_KEY=<Stripe Secret Key>
-STRIPE_WEBHOOK_SECRET=<Stripe Webhook Secret>
 CORS_ORIGIN=https://statusmod.example.com
 ALLOW_HTTP=false
 ```
 
-### Rate-Limits
+### Rate-Limits (pro Instanz in-memory; bei Skalierung auf Redis-Backend umstellen)
 
 | Limit | Wert | Scope |
 |-------|------|-------|
@@ -149,9 +148,9 @@ ALLOW_HTTP=false
 | RATE_LIMIT_MAX_LOGIN | 3 | Pro IP / Window |
 | RATE_LIMIT_MAX_API | 30 | Pro API-Key / Window |
 | RATE_LIMIT_MAX_CODE_VERIFY | 5 | Pro UUID / Window |
-| RATE_LIMIT_MAX_CODE_GENERATION | 3 | Pro IP / Window (schützt vor Argon2id-Spam) |
-| RATE_LIMIT_WINDOW_SHOP_MS | 60_000 | Pro IP / Window |
-| RATE_LIMIT_MAX_SHOP | 10 | Stripe Sessions / Window |
+| RATE_LIMIT_MAX_CODE_GENERATION | 3 | Pro IP / Window |
+| RATE_LIMIT_MAX_TOTP_VERIFY | 5 | Pro UUID / Window |
+| RATE_LIMIT_MAX_KEY_REVOKE | 3 | Pro Session / Window |
 
 ### API Endpunkte — Auth
 
@@ -172,7 +171,7 @@ ALLOW_HTTP=false
 | `/api/health` | GET | Öffentlich | – | Healthcheck |
 | `/api/keys` | GET | Session | – | API-Keys auflisten |
 | `/api/keys` | POST | Session | – | API-Key generieren |
-| `/api/keys/:id` | DELETE | Session | – | Key revoken |
+| `/api/keys/:id` | DELETE | Session | – | Key revoken (Route VOR `/api/keys/leak` registrieren, sonst wird `leak` als `:id` interpretiert) |
 | `/api/keys/leak` | POST | Session + Re-Auth | – | Alle Keys revoken (vorher Code-Eingabe zur Bestätigung) |
 | `/api/players/:server_id` | GET | API-Key | check | Alle Spieler |
 | `/api/players/:server_id/:uuid` | GET | API-Key | check | Spielerstatus |
@@ -187,43 +186,9 @@ ALLOW_HTTP=false
 | `/api/server/:server_id/config` | GET | API-Key | check | Config lesen |
 | `/api/server/:server_id/config` | PUT | Session | – | Config schreiben |
 
-### API Endpunkte — Shop
+### ~~API Endpunkte — Shop~~ (ENTFERNT 2026-08-01)
 
-| Endpunkt | Methode | Auth | Scope | Zweck |
-|----------|---------|------|-------|-------|
-| `/api/shop/products/:server_id` | GET | API-Key | products | Aktive Produkte |
-| `/api/shop/statuses/:server_id` | GET | API-Key | products | Kaufbare Premium-Status |
-| `/api/shop/purchases/:server_id/:uuid` | GET | API-Key | purchases | Käufe eines Spielers |
-| `/api/shop/check/:server_id/:uuid/:product_key` | GET | API-Key | check | Hat Spieler Produkt? |
-| `/api/shop/check-status/:server_id/:uuid/:status_text` | GET | API-Key | check-status | Hat Spieler Premium-Status? |
-| `/api/shop/products/:server_id` | POST | Session (Owner) | – | Produkt anlegen |
-| `/api/shop/products/:server_id/:key` | DELETE | Session (Owner) | – | Produkt deaktivieren |
-| `/api/shop/statuses/:server_id` | POST | Session (Owner) | – | Premium-Status anlegen |
-| `/api/shop/statuses/:server_id/:id` | DELETE | Session (Owner) | – | Premium-Status deaktivieren |
-| `/api/webhook/stripe` | POST | Stripe-Signatur | – | Kauf bestätigen |
-
-### Stripe-Webhook Sicherheit
-
-- **Signatur:** `stripe.Webhook.constructEvent()` — zwingend. Ohne gültige Signatur: 401.
-- **Timestamp:** `event.created` ±5 Minuten. Ältere Events ablehnen (Replay-Protection).
-- **Idempotency:** `stripe_event_id` UNIQUE. `stripe_event_timestamp` für Debug.
-- **Rate-Limit:** Webhook ausgenommen.
-- **Retry:** Bereits verarbeitete Events → **200 OK** (Stripe stoppt Retry).
-- **Checkout-Session (Server-Side):** Feste Metadaten — Client nicht beeinflussbar:
-
-  ```json
-  {
-    "server_id": "{{server.id}}",
-    "uuid": "{{user.uuid}}",
-    "product_key": "premium_colors",
-    "product_type": "product",
-    "status_text": ""
-  }
-  ```
-
-  Webhook validiert: `server_id` existiert, `uuid` zu Server, `product_key` in `shop_products` (bzw. `status_text` in `shop_statuses`). Bei Diskrepanz: ablehnen + Alert.
-
-- **success_url Tampering:** Nach Zahlung ruft Success-Seite server-seitig `stripe.checkout.sessions.retrieve(session_id)` auf. Prüft `metadata.uuid` = eingeloggter User, `payment_status === "paid"`, `metadata.server_id` = User-Server.
+Shop-Features (Produkte, Premium-Status, Käufe, Stripe) wurden vollständig entfernt: Dashboard-Routen + Shop-Seite, Discord-Bot-Shop-Cog, Supabase-Tabellen (`shop_products`, `shop_statuses`, `purchases`, `player_status_purchases`). API-Key-System bleibt (Mod nutzt Scope `check` für `/code`).
 
 ### Mod-Kommunikation
 
@@ -236,11 +201,13 @@ ALLOW_HTTP=false
 
 Dashboard-API ändert nie direkt lokale Config. Änderungen = "pending" → nächster Poll.
 
-**Pfad-Parameter-Validierung:** Alle `:server_id` und `:uuid` Parameter werden als UUID-v4 via Regex validiert (`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`). Bei ungültigem Format: 400 Bad Request. `:product_key` und `:status_text` werden auf `^[a-zA-Z0-9_ &-]{1,64}$` geprüft. Alle Query-Parameter werden auf Länge (max 256) + Zeichensatz validiert.
+**Pfad-Parameter-Validierung:** Alle `:server_id` und `:uuid` Parameter werden als UUID-v4 via Regex validiert (`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`). Bei ungültigem Format: 400 Bad Request. Alle Query-Parameter werden auf Länge (max 256) + Zeichensatz validiert.
+
+**Generische Fehlerantworten:** Alle API-Endpunkte geben bei Fehlern generische Meldungen zurück (z.B. "Ungültige Anfrage" statt "Code existiert nicht" vs "Server nicht gefunden" — verhindert Enumeration). 404/403/401 unterscheiden sich äußerlich nicht. Details nur in Server-Logs.
 
 ### Verify-Flow
 
-1. Spieler `/code` → Mod zeigt Code im Chat.
+1. Spieler `/code` → Mod sendet Code via **private system message** (nur für den Spieler sichtbar, nicht im öffentlichen Chat).
 2. Dashboard `/verify` → Code eingeben.
 3. Backend prüft `verify_codes` → gültig → JWT + Refresh.
 4. Code `used=true`. Neuer Code beim nächsten `/code`.
@@ -283,8 +250,6 @@ Dashboard-API ändert nie direkt lokale Config. Änderungen = "pending" → näc
 | `/server config set <key> <value>` | Session (DM) | – | Config schreiben (Owner) |
 | `/mute <player> <duration>` | Session (DM) | – | Muten (Admin) |
 | `/unmute <player>` | Session (DM) | – | Entmuten (Admin) |
-| `/shop` | DM | – | Link zum Dashboard-Shop |
-| `/shop check <player>` | Channel | check | Aktive Premium-Käufe? |
 | `/keys` | DM | – | API-Keys anzeigen (Owner) |
 | `/keys new <scope>` | DM | – | API-Key generieren (Owner) |
 | `/keys revoke <id>` | DM | – | Key widerrufen (Owner) |
@@ -319,9 +284,8 @@ Bot: nur Slash-Commands (kein Message Content Intent). Privacy Policy öffentlic
 
 ### Monitoring & Alerting
 
-- **Healthcheck:** `GET /api/health` (öffentlich) — DB + Stripe + Latenz.
+- **Healthcheck:** `GET /api/health` (öffentlich) — DB + Latenz.
 - **Rate-Limit:** >80% → Warn, >100% → Alert.
-- **Webhook-Failures:** Stripe `webhook_endpoint.delivery_failed` → Alert.
 - **DB-Connections:** Max 15 (Pro). PgBouncer (Transaction Mode). >12 → Warn.
 - **Uptime:** Externer Ping (UptimeRobot, 5 Min).
 - **Crash-Reporting:** Sentry (optional, DSGVO-konform).
@@ -382,13 +346,17 @@ Bot: nur Slash-Commands (kein Message Content Intent). Privacy Policy öffentlic
 | Token | TTL | Storage | Rotation |
 |-------|-----|---------|----------|
 | Access Token (JWT) | 15 Min | In-Memory | Neu bei Login + Refresh |
-| Refresh Token | 7 Tage | DB + HttpOnly Cookie | Bei Refresh: alt revoken |
-| API Key (Mod) | Unbegrenzt | DB + Mod-Config | Manuell via Dashboard |
+| Refresh Token | 7 Tage | DB + HttpOnly Cookie (SameSite=Strict) | Bei Refresh: alt revoken |
+| API Key (Mod) | 365 Tage (configurierbar, max 730) | DB + Mod-Config | Manuell via Dashboard |
 | Recovery Codes | Einmalig | DB (argon2id) | Neue bei 2FA-Reset |
 
-**JWT Claims:** `sub` (UUID), `server_id`, `role`, `iat`, `exp`.
+**JWT Claims:** `sub` (UUID), `server_id`, `role`, `iat`, `exp`. Algorithmus: **HS256** (`HMAC-SHA256`). Kein `alg: none` erlaubt — Bibliothek muss strikt signierte Token erzwingen.
 
 **JWT Secret Rotation:**
 - `JWT_SECRET` aktualisiert, `JWT_SECRET_PREVIOUS` für 1h Überlapp.
 - Cron: wöchentliche Prüfung `if (JWT_SECRET age > 90 days) → notify`.
 - Ablauf: Neues Secret → beide aktiv (alt nur Verify) → alt entfernen.
+
+**Rotation weiterer Secrets:**
+- `SERVICE_ROLE_KEY` alle 365 Tage rotieren. Grace-Period: 7 Tage Überlapp mit altem Key.
+- `DATABASE_URL` bei Passwort-Reset (keine Rotation nötig, Supabase managed).

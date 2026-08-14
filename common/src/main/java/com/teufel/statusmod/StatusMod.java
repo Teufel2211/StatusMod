@@ -6,10 +6,10 @@ import com.teufel.statusmod.storage.CustomPresets;
 import com.teufel.statusmod.storage.ModConfig;
 import com.teufel.statusmod.storage.MutedPlayers;
 import com.teufel.statusmod.storage.SettingsStorage;
-import com.teufel.statusmod.registry.ModRegistries;
-import com.teufel.statusmod.network.ModNetworking;
 import com.teufel.statusmod.platform.Platform;
 import com.teufel.statusmod.platform.PlatformServices;
+import com.teufel.statusmod.setup.SetupManager;
+import com.teufel.statusmod.sync.SyncManager;
 
 public final class StatusMod {
     public static final String MOD_ID = "statusmod";
@@ -40,12 +40,12 @@ public final class StatusMod {
         }
         AuditLogger.init();
 
-        ModRegistries.init();
-        ModNetworking.init();
-
         System.out.println("[StatusMod] Initializing on " + platform.getName());
-        platform.registerItem("status_token");
-        platform.registerBlock("status_block");
+
+        if (platform.isDedicatedServer()) {
+            SetupManager.runIfNeeded();
+            SyncManager.start();
+        }
     }
 
     public static ModConfig getConfig() {

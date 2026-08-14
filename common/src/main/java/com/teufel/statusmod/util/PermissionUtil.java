@@ -11,7 +11,6 @@ import net.minecraft.server.level.ServerPlayer;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -133,10 +132,6 @@ public class PermissionUtil {
         return false;
     }
 
-    public static boolean isLuckyPermsAvailable() {
-        return luckypermsAvailable && luckypermsApi != null;
-    }
-
     private static boolean isOpByOpsFileFallback(ServerPlayer player) {
         return isOpByOpsFileFallback(player, 0);
     }
@@ -213,7 +208,7 @@ public class PermissionUtil {
             Object r = m.invoke(src, level);
             return (r instanceof Boolean b) && b;
         } catch (Exception ignored) {}
-        return false;
+        return checkNewPermissionApi(src, level);
     }
 
     private static boolean hasPlayerPermissionLevel(ServerPlayer player, int level) {
@@ -225,6 +220,96 @@ public class PermissionUtil {
                 Object r = m.invoke(player, level);
                 if (r instanceof Boolean b && b) return true;
             } catch (Exception ignored) {}
+        }
+        return checkNewPermissionApi(player, level);
+    }
+
+    private static volatile boolean newPermApiResolved = false;
+    private static volatile boolean newPermApiAvailable = false;
+    private static volatile java.lang.reflect.Field cachedNoPermissions;
+    private static volatile java.lang.reflect.Field cachedAllPermissions;
+    private static volatile java.lang.reflect.Method cachedSetHasPermission;
+    private static volatile java.lang.reflect.Field[] cachedCommandPermissionFields;
+    private static volatile java.lang.reflect.Method cachedLevelMethod;
+    private static volatile java.lang.reflect.Method cachedByIdMethod;
+    private static volatile java.lang.reflect.Method cachedIsEqOrHigher;
+    private static volatile Class<?> permissionLevelClass;
+
+    /**
+     * MC 26.x replaced hasPermission(int) with a PermissionSet-based model
+     * (net.minecraft.server.permissions.*). Reflection is used because the
+     * mod is compiled against 1.21.11 mappings. Methods are resolved on the
+     * public interfaces (not the concrete, package-private implementations)
+     * so invoke() does not throw IllegalAccessException.
+     */
+    private static synchronized void resolveNewPermissionApi() {
+        if (newPermApiResolved) return;
+        newPermApiResolved = true;
+        try {
+            Class<?> permissionSetClass = Class.forName("net.minecraft.server.permissions.PermissionSet");
+            cachedNoPermissions = permissionSetClass.getField("NO_PERMISSIONS");
+            cachedAllPermissions = permissionSetClass.getField("ALL_PERMISSIONS");
+            Class<?> permissionInterface = Class.forName("net.minecraft.server.permissions.Permission");
+            Class<?> permissionsClass = Class.forName("net.minecraft.server.permissions.Permissions");
+            cachedSetHasPermission = permissionSetClass.getMethod("hasPermission", permissionInterface);
+            cachedCommandPermissionFields = new java.lang.reflect.Field[]{
+                permissionsClass.getField("COMMANDS_OWNER"),
+                permissionsClass.getField("COMMANDS_ADMIN"),
+                permissionsClass.getField("COMMANDS_GAMEMASTER"),
+                permissionsClass.getField("COMMANDS_MODERATOR")
+            };
+            try {
+                Class<?> lbsClass = Class.forName("net.minecraft.server.permissions.LevelBasedPermissionSet");
+                cachedLevelMethod = lbsClass.getMethod("level");
+                try {
+                    cachedLevelMethod.setAccessible(true);
+                } catch (Throwable ignored) {}
+                permissionLevelClass = Class.forName("net.minecraft.server.permissions.PermissionLevel");
+                cachedByIdMethod = permissionLevelClass.getMethod("byId", int.class);
+                cachedIsEqOrHigher = permissionLevelClass.getMethod("isEqualOrHigherThan", permissionLevelClass);
+            } catch (Throwable ignored) {}
+            newPermApiAvailable = true;
+        } catch (Throwable ignored) {}
+    }
+
+    private static boolean checkNewPermissionApi(Object target, int requiredLevel) {
+        if (!newPermApiResolved) resolveNewPermissionApi();
+        if (!newPermApiAvailable) return false;
+        try {
+            java.lang.reflect.Method permissionsMethod = target.getClass().getMethod("permissions");
+            Object ps = permissionsMethod.invoke(target);
+            if (ps != null && hasPermissionInSet(ps, requiredLevel)) return true;
+        } catch (Throwable ignored) {}
+        if (target instanceof ServerPlayer player) {
+            try {
+                Object ps = player.getClass().getMethod("permissions").invoke(player);
+                if (ps != null && hasPermissionInSet(ps, requiredLevel)) return true;
+            } catch (Throwable ignored) {}
+        }
+        return false;
+    }
+
+    private static boolean hasPermissionInSet(Object ps, int requiredLevel) {
+        try {
+            if (cachedNoPermissions != null && ps == cachedNoPermissions.get(null)) return false;
+            if (cachedAllPermissions != null && ps == cachedAllPermissions.get(null)) return true;
+        } catch (Throwable ignored) {}
+        if (cachedLevelMethod != null && permissionLevelClass != null) {
+            try {
+                Object playerLevel = cachedLevelMethod.invoke(ps);
+                if (playerLevel != null) {
+                    Object required = cachedByIdMethod.invoke(null, requiredLevel);
+                    return (boolean) cachedIsEqOrHigher.invoke(playerLevel, required);
+                }
+            } catch (Throwable ignored) {}
+        }
+        if (cachedSetHasPermission != null && cachedCommandPermissionFields != null) {
+            try {
+                for (java.lang.reflect.Field f : cachedCommandPermissionFields) {
+                    Object perm = f.get(null);
+                    if ((boolean) cachedSetHasPermission.invoke(ps, perm)) return true;
+                }
+            } catch (Throwable ignored) {}
         }
         return false;
     }

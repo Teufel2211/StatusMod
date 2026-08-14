@@ -77,7 +77,7 @@ public class CustomPresets {
         } catch (Exception e) {
             System.err.println("[StatusMod] Error loading custom presets:");
             e.printStackTrace();
-            safeBackupCorrupted(file.toPath(), "custom_presets.corrupt-" + System.currentTimeMillis() + ".json");
+            StorageFiles.backupCorrupted(file.toPath(), "custom_presets.corrupt-" + System.currentTimeMillis() + ".json");
             presets = new LinkedHashMap<>();
         }
     }
@@ -101,14 +101,6 @@ public class CustomPresets {
             System.err.println("[StatusMod] Error saving custom presets:");
             e.printStackTrace();
         }
-    }
-
-    private void safeBackupCorrupted(Path source, String backupName) {
-        try {
-            if (!Files.exists(source)) return;
-            Path backup = source.resolveSibling(backupName);
-            Files.copy(source, backup, StandardCopyOption.REPLACE_EXISTING);
-        } catch (Exception ignored) {}
     }
 
     public static class CustomPreset {

@@ -24,6 +24,11 @@ public final class CommandUtil {
         try {
             Method m = src.getClass().getMethod("sendSystemMessage", Component.class);
             m.invoke(src, msg);
+            return;
         } catch (Throwable ignored) {}
+        // Remapped runtimes (Fabric Intermediary, Forge/NeoForge renames) do not
+        // expose Mojang method names via reflection, so every attempt above fails.
+        // Fall back to the console so server operators still see command output.
+        System.out.println("[StatusMod] " + msg.getString());
     }
 }

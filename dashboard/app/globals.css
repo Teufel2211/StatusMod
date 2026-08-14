@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@layer base {
+  :root {
+    --bg-primary: #0f1117;
+    --text-primary: #e8e6e0;
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0f1117] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-[#d4c892] text-[#1a1d26] hover:bg-[#bfab5f] focus:ring-[#d4c892];
+  }
+  .btn-secondary {
+    @apply btn border border-[#2d3242] text-[#e8e6e0] hover:bg-[#23273a] focus:ring-[#2d3242];
+  }
+  .card {
+    @apply rounded-xl border border-[#2d3242] bg-[#1a1d26] p-6;
+  }
+  .input {
+    @apply w-full rounded-lg border border-[#2d3242] bg-[#23273a] px-4 py-2.5 text-sm text-[#e8e6e0] placeholder:text-[#636980] focus:border-[#d4c892] focus:outline-none focus:ring-1 focus:ring-[#d4c892] transition-colors;
+  }
+  .label {
+    @apply block text-sm font-medium text-[#9ea3b3] mb-1.5;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .badge-green {
+    @apply badge bg-emerald-900/40 text-emerald-400 border border-emerald-700/50;
+  }
+  .badge-red {
+    @apply badge bg-red-900/40 text-red-400 border border-red-700/50;
+  }
+  .badge-yellow {
+    @apply badge bg-yellow-900/40 text-yellow-400 border border-yellow-700/50;
+  }
+}
+
+@layer utilities {
+  .bg-grid {
+    background-image:
+      linear-gradient(rgba(212, 200, 146, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(212, 200, 146, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#d4c892] to-[#bfab5f];
+  }
+}

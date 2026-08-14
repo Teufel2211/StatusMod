@@ -2,6 +2,7 @@ package com.teufel.statusmod.lifecycle;
 
 import com.teufel.statusmod.StatusMod;
 import com.teufel.statusmod.storage.PlayerSettings;
+import com.teufel.statusmod.sync.SyncManager;
 import com.teufel.statusmod.util.ColorMapper;
 import com.teufel.statusmod.util.PermissionUtil;
 import com.teufel.statusmod.util.StatusTeamUtil;
@@ -48,64 +49,11 @@ public final class StatusLifecycle {
         }
     }
 
-    public static void onPlayerMove(ServerPlayer player) {
-        markActive(player);
-    }
-
-    public static void onPlayerChat(ServerPlayer player) {
-        markActive(player);
-    }
-
-    public static void onPlayerCommand(ServerPlayer player) {
-        markActive(player);
-    }
-
-    private static MinecraftServer getPlayerServer(ServerPlayer player) {
-        if (player == null) return null;
-        try {
-            java.lang.reflect.Method m = player.getClass().getMethod("getServer");
-            return (MinecraftServer) m.invoke(player);
-        } catch (Exception ignored) {}
-        try {
-            Object level = player.getClass().getMethod("level").invoke(player);
-            if (level != null) {
-                java.lang.reflect.Method m = level.getClass().getMethod("getServer");
-                return (MinecraftServer) m.invoke(level);
-            }
-        } catch (Exception ignored) {}
-        try {
-            Object level = player.getClass().getMethod("getLevel").invoke(player);
-            if (level != null) {
-                java.lang.reflect.Method m = level.getClass().getMethod("getServer");
-                return (MinecraftServer) m.invoke(level);
-            }
-        } catch (Exception ignored) {}
-        return null;
-    }
-
-    private static void markActive(ServerPlayer player) {
-        if (player == null || StatusMod.storage == null) return;
-        try {
-            PlayerSettings ps = StatusMod.storage.forPlayer(player.getUUID().toString());
-            if (ps == null) return;
-            ps.lastActivityAtMs = System.currentTimeMillis();
-            if (ps.autoAfk) {
-                ps.autoAfk = false;
-                ps.status = "";
-                ps.color = "reset";
-                StatusMod.storage.put(player.getUUID().toString(), ps);
-                MinecraftServer server = getPlayerServer(player);
-                if (server != null) {
-                    reapplyStatus(server, player, player.getUUID().toString(), ps);
-                }
-                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§aDu bist nicht mehr AFK."));
-            }
-        } catch (Exception ignored) {}
-    }
-
     public static void onServerTick(MinecraftServer server) {
         if (server == null || StatusMod.storage == null) return;
         tickCounter++;
+
+        SyncManager.updateOnlineNames(server);
 
         long now = System.currentTimeMillis();
         if ((now - lastConfigRefreshMs) > CONFIG_REFRESH_INTERVAL_MS) {
@@ -132,7 +80,7 @@ public final class StatusLifecycle {
         if (tickCounter < effectiveInterval) return;
         tickCounter = 0;
 
-        boolean afkEnabled = StatusMod.config != null && StatusMod.config.enableAutoAfk;
+        boolean afkEnabled = StatusMod.config != null && StatusMod.config.enableAutoAfk && StatusMod.config.isEnabled("afk");
         int afkTimeoutMs = (StatusMod.config != null ? StatusMod.config.afkTimeoutSeconds : 300) * 1000;
 
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {

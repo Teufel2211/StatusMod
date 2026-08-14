@@ -4,21 +4,14 @@ import com.teufel.statusmod.platform.Platform;
 
 public final class ForgePlatform implements Platform {
     @Override
-    public void registerItem(String id) {
-    }
-
-    @Override
-    public void registerBlock(String id) {
-    }
-
-    @Override
-    public boolean isDevelopmentEnvironment() {
+    public boolean isDedicatedServer() {
         try {
-            Class<?> loaderClass = Class.forName("net.minecraftforge.fml.loading.FMLLoader");
-            java.lang.reflect.Method m = loaderClass.getMethod("isProduction");
-            return !(boolean) m.invoke(null);
+            Class<?> envClass = Class.forName("net.minecraftforge.fml.loading.FMLEnvironment");
+            java.lang.reflect.Field distField = envClass.getField("dist");
+            Object dist = distField.get(null);
+            return dist != null && dist.toString().equals("DEDICATED_SERVER");
         } catch (Exception ignored) {}
-        return true;
+        return false;
     }
 
     @Override
