@@ -48,7 +48,7 @@ public class ModConfig {
     public int afkTimeoutSeconds = 300;
 
     public String dashboardUrl = "https://statusmod-dashboard.vercel.app";
-    public String setupSecret = "AHYt4c7+4YixNHpCAT4jAQhgw8Q5Gfv9PzWxtWOr+80=";
+    public String setupSecret = "";
     public String serverId = "";
     public String apiKey = "";
     public long lastSyncAtMs = 0L;
@@ -162,9 +162,9 @@ public class ModConfig {
         }
         if (afkTimeoutSeconds < 30) afkTimeoutSeconds = 30;
         if (afkTimeoutSeconds > 3600) afkTimeoutSeconds = 3600;
-        if (dashboardUrl == null || dashboardUrl.trim().isEmpty()) dashboardUrl = "https://statusmod-dashboard.vercel.app";
+        if (dashboardUrl == null || dashboardUrl.trim().isEmpty()) dashboardUrl = "";
         else dashboardUrl = dashboardUrl.trim();
-        if (setupSecret == null || setupSecret.trim().isEmpty()) setupSecret = "AHYt4c7+4YixNHpCAT4jAQhgw8Q5Gfv9PzWxtWOr+80=";
+        if (setupSecret == null) setupSecret = "";
         else setupSecret = setupSecret.trim();
         if (serverId == null) serverId = "";
         else serverId = serverId.trim();

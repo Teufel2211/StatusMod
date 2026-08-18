@@ -94,7 +94,9 @@ export async function DELETE(
     .eq("id", params.server_id)
     .maybeSingle()
 
-  const serverSecret = server?.server_secret ?? "default-secret"
+  if (!server?.server_secret) return serverError()
+
+  const serverSecret = server.server_secret as string
   const anonymizedUuid = hmacUuid(params.uuid, serverSecret)
 
   const { error: playerError } = await (sb as any)

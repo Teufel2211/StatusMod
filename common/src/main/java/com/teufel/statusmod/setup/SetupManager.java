@@ -26,6 +26,11 @@ public final class SetupManager {
         if (config == null) return;
         if (config.dashboardUrl == null || config.dashboardUrl.trim().isEmpty()) return;
         if (config.setupSecret == null || config.setupSecret.trim().isEmpty()) return;
+        String dashboardUrl = config.dashboardUrl.trim();
+        if (!isSecureUrl(dashboardUrl)) {
+            System.out.println("[StatusMod] Setup skipped: dashboardUrl must use HTTPS (or http://localhost for dev)");
+            return;
+        }
 
         boolean needsKey = config.apiKey == null || config.apiKey.isEmpty();
 
@@ -36,13 +41,13 @@ public final class SetupManager {
             return;
         }
 
-        String dashboardUrl = CodeGenerator.trimTrailingSlash(config.dashboardUrl);
+        String baseUrl = CodeGenerator.trimTrailingSlash(dashboardUrl);
         String serverId = UUID.randomUUID().toString();
         String code = CodeGenerator.generate(CODE_LENGTH);
 
         Thread thread = new Thread(() -> {
             try {
-                if (register(serverId, code, dashboardUrl, config.setupSecret)) {
+                if (register(serverId, code, baseUrl, config.setupSecret)) {
                     config.serverId = serverId;
                     config.save();
                     System.out.println("==============================================");
@@ -123,6 +128,14 @@ public final class SetupManager {
             System.out.println("[StatusMod] API-Key fetch exception: " + e);
             return null;
         }
+    }
+
+    private static boolean isSecureUrl(String url) {
+        if (url == null || url.isEmpty()) return false;
+        String lower = url.toLowerCase();
+        if (lower.startsWith("https://")) return true;
+        if (lower.startsWith("http://localhost") || lower.startsWith("http://127.")) return true;
+        return false;
     }
 
     private static boolean register(String serverId, String code, String dashboardUrl, String setupSecret) {
