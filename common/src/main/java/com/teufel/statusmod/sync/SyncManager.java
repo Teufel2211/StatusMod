@@ -56,6 +56,11 @@ public final class SyncManager {
         System.out.println("[StatusMod] Sync enabled. Push interval: " + (SYNC_INTERVAL_MS / 1000) + "s");
     }
 
+    public static void retryStart() {
+        if (started) return;
+        start();
+    }
+
     private static void loop() {
         while (true) {
             try {

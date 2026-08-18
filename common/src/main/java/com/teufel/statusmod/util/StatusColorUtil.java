@@ -8,7 +8,7 @@ import net.minecraft.network.chat.TextColor;
 import java.util.List;
 
 public final class StatusColorUtil {
-    private static final long RAINBOW_STEP_MILLIS = 180L;
+    private static final long RAINBOW_STEP_MILLIS = 100L;
 
     private StatusColorUtil() {}
 

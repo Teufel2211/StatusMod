@@ -11,6 +11,10 @@ import net.minecraft.commands.SharedSuggestionProvider;
 import java.util.concurrent.CompletableFuture;
 
 public final class CommandSuggestions {
+    private static final String[] COLOR_NAMES = new String[]{
+        "red","blue","green","yellow","aqua","light_purple","gold","white",
+        "gray","dark_gray","dark_blue","dark_green","dark_aqua","dark_red","dark_purple","black","reset"
+    };
     private static final String[] STATUS_SAMPLES = new String[]{"AFK","Busy","Building","Trading",":)",":D",";)","<3","^_^","😊","😎","🔥"};
     private static final String[] PRESET_SAMPLES = new String[]{"afk","busy","stream","shop"};
 
@@ -18,8 +22,7 @@ public final class CommandSuggestions {
 
     public static final SuggestionProvider<CommandSourceStack> COLOR_SUGGESTIONS = (CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) -> {
         try {
-            if (StatusMod.getConfig() != null && StatusMod.getConfig().defaultColor != null) builder.suggest(StatusMod.getConfig().defaultColor);
-            builder.suggest("reset");
+            SharedSuggestionProvider.suggest(COLOR_NAMES, builder);
             builder.suggest("#RRGGBB");
             builder.suggest("rainbow");
         } catch (Exception ignored) {}

@@ -13,9 +13,19 @@ pluginManagement {
 	}
 }
 
-include 'common'
-include 'fabric'
-include 'forge'
-include 'neoforge'
-include 'quilt'
-// include 'neoforge'    // Ausgeschlossen - wird über build-multiversion.ps1 gebaut
+// target_loader: when set (e.g. "neoforge"), only include that loader + common.
+// This prevents Quilt Loom from configuring (and failing) when building NeoForge,
+// and vice-versa. Empty/unset = include all (for sanity builds from root).
+def targetLoader = settings.providers.gradleProperty('target_loader').orNull
+def allLoaders = ['common', 'fabric', 'forge', 'neoforge', 'quilt']
+
+if (targetLoader && targetLoader in ['fabric', 'forge', 'neoforge', 'quilt']) {
+	include 'common'
+	include targetLoader
+} else {
+	include 'common'
+	include 'fabric'
+	include 'forge'
+	include 'neoforge'
+	include 'quilt'
+}

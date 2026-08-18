@@ -70,7 +70,15 @@ public final class ColorMapper {
     }
 
     public static List<TextColor> rainbowPalette() {
-        return List.of(TextColor.fromRgb(0xFF0000), TextColor.fromRgb(0x00FF00), TextColor.fromRgb(0x0000FF));
+        return List.of(
+            TextColor.fromRgb(0xFF0000),
+            TextColor.fromRgb(0xFF8000),
+            TextColor.fromRgb(0xFFFF00),
+            TextColor.fromRgb(0x00FF00),
+            TextColor.fromRgb(0x00FFFF),
+            TextColor.fromRgb(0x0080FF),
+            TextColor.fromRgb(0x8000FF)
+        );
     }
 
     public static String toHex(TextColor color) {

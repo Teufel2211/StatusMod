@@ -25,7 +25,7 @@ export const ApiKeyCreateSchema = z.object({
 
 export const PlayerStatusFieldSchema = z.object({
   status: z.string().max(64).optional(),
-  color: z.string().max(7).regex(/^#[0-9a-fA-F]{0,6}$/).optional(),
+  color: z.string().max(32).optional(),
 })
 
 export const MutePlayerSchema = z.object({
