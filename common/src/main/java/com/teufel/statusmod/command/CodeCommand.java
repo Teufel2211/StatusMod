@@ -59,8 +59,11 @@ public final class CodeCommand {
             src.sendFailure(Component.literal("[StatusMod] dashboardUrl ist in der Konfiguration nicht gesetzt."));
             return;
         }
-
         String dashboardUrl = config.dashboardUrl.trim();
+        if (!isSecureUrl(dashboardUrl)) {
+            src.sendFailure(Component.literal("[StatusMod] dashboardUrl muss HTTPS verwenden (oder http://localhost für Entwicklung)."));
+            return;
+        }
         final String baseUrl = CodeGenerator.trimTrailingSlash(dashboardUrl);
         String apiKey = config.apiKey;
         String code = CodeGenerator.generate(CODE_LENGTH);
@@ -100,6 +103,14 @@ public final class CodeCommand {
         }, "statusmod-code");
         thread.setDaemon(true);
         thread.start();
+    }
+
+    private static boolean isSecureUrl(String url) {
+        if (url == null || url.isEmpty()) return false;
+        String lower = url.toLowerCase();
+        if (lower.startsWith("https://")) return true;
+        if (lower.startsWith("http://localhost") || lower.startsWith("http://127.")) return true;
+        return false;
     }
 
     private static int requestCode(String dashboardUrl, String apiKey, String code) throws Exception {

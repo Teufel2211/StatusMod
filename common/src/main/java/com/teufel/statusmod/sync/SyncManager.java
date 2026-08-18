@@ -23,6 +23,11 @@ import java.util.Set;
 public final class SyncManager {
     private static final long SYNC_INTERVAL_MS = 30_000L;
     private static final int MAX_PLAYERS_PER_PUSH = 200;
+    private static final int MAX_STATUS_LENGTH = 64;
+    private static final int MAX_COLOR_LENGTH = 32;
+    private static final int MAX_USERNAME_LENGTH = 16;
+    private static final java.util.regex.Pattern UUID_PATTERN =
+            java.util.regex.Pattern.compile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
     private static final Gson GSON = new Gson();
     private static volatile boolean started = false;
     private static volatile Map<String, String> onlineNames = new HashMap<>();
@@ -85,6 +90,7 @@ public final class SyncManager {
         ModConfig config = StatusMod.getConfig();
         if (config == null || StatusMod.storage == null) return;
         String dashboardUrl = trimTrailingSlash(config.dashboardUrl);
+        if (!isSecureUrl(dashboardUrl)) return;
         String endpoint = dashboardUrl + "/api/players/" + config.serverId + "/sync";
         String apiKey = config.apiKey;
 
@@ -174,6 +180,10 @@ public final class SyncManager {
         ModConfig config = StatusMod.getConfig();
         if (config == null || StatusMod.mutedPlayers == null || StatusMod.blockedPlayers == null) return;
         String dashboardUrl = trimTrailingSlash(config.dashboardUrl);
+        if (!isSecureUrl(dashboardUrl)) {
+            System.out.println("[StatusMod] Sync pull skipped: dashboardUrl must use HTTPS (or localhost for dev)");
+            return;
+        }
         String since = config.lastSyncAtMs > 0L ? "?since=" + java.time.Instant.ofEpochMilli(config.lastSyncAtMs) : "";
         String endpoint = dashboardUrl + "/api/players/" + config.serverId + "/sync" + since;
 
@@ -196,40 +206,75 @@ public final class SyncManager {
         }
         if (response.statusCode() < 200 || response.statusCode() >= 300) return;
 
-        JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
+        JsonObject json;
+        try {
+            json = JsonParser.parseString(response.body()).getAsJsonObject();
+        } catch (Exception e) {
+            System.out.println("[StatusMod] Sync pull: invalid JSON response");
+            return;
+        }
         if (!json.has("muted") || !json.has("blocked") || !json.has("server_time")) return;
 
         for (JsonElement el : json.getAsJsonArray("muted")) {
-            JsonObject m = el.getAsJsonObject();
-            String uuid = m.get("uuid").getAsString();
-            long until = java.time.Instant.parse(m.get("muted_until").getAsString()).toEpochMilli();
-            StatusMod.mutedPlayers.muteUntil(uuid, until);
+            try {
+                JsonObject m = el.getAsJsonObject();
+                String uuid = m.get("uuid").getAsString();
+                if (!isValidUuid(uuid)) continue;
+                long until = java.time.Instant.parse(m.get("muted_until").getAsString()).toEpochMilli();
+                StatusMod.mutedPlayers.muteUntil(uuid, until);
+            } catch (Exception ignored) {}
         }
 
         for (JsonElement el : json.getAsJsonArray("blocked")) {
-            JsonObject b = el.getAsJsonObject();
-            StatusMod.blockedPlayers.block(b.get("uuid").getAsString());
+            try {
+                JsonObject b = el.getAsJsonObject();
+                String uuid = b.get("uuid").getAsString();
+                if (!isValidUuid(uuid)) continue;
+                StatusMod.blockedPlayers.block(uuid);
+            } catch (Exception ignored) {}
         }
 
         for (JsonElement el : json.getAsJsonArray("players")) {
-            JsonObject p = el.getAsJsonObject();
-            String uuid = p.get("uuid").getAsString();
-            String status = p.has("status") && !p.get("status").isJsonNull() ? p.get("status").getAsString() : "";
-            String color = p.has("color") && !p.get("color").isJsonNull() ? p.get("color").getAsString() : "reset";
-            if (StatusMod.storage == null) continue;
-            PlayerSettings ps = StatusMod.storage.forPlayer(uuid);
-            if (status != null && !status.isEmpty() && !status.equals(ps.status)) {
-                ps.status = status;
-                ps.color = color;
-                ps.lastStatusChangeAtMs = System.currentTimeMillis();
-                StatusMod.storage.put(uuid, ps);
-            }
+            try {
+                JsonObject p = el.getAsJsonObject();
+                String uuid = p.has("uuid") ? p.get("uuid").getAsString() : "";
+                if (!isValidUuid(uuid)) continue;
+                String status = p.has("status") && !p.get("status").isJsonNull()
+                        ? truncate(p.get("status").getAsString(), MAX_STATUS_LENGTH) : "";
+                String color = p.has("color") && !p.get("color").isJsonNull()
+                        ? truncate(p.get("color").getAsString(), MAX_COLOR_LENGTH) : "reset";
+                if (StatusMod.storage == null) continue;
+                PlayerSettings ps = StatusMod.storage.forPlayer(uuid);
+                if (status != null && !status.isEmpty() && !status.equals(ps.status)) {
+                    ps.status = status;
+                    ps.color = color;
+                    ps.lastStatusChangeAtMs = System.currentTimeMillis();
+                    StatusMod.storage.put(uuid, ps);
+                }
+            } catch (Exception ignored) {}
         }
 
         try {
             config.lastSyncAtMs = java.time.Instant.parse(json.get("server_time").getAsString()).toEpochMilli();
             config.save();
         } catch (Exception ignored) {}
+    }
+
+    private static boolean isSecureUrl(String url) {
+        if (url == null || url.isEmpty()) return false;
+        String lower = url.toLowerCase();
+        if (lower.startsWith("https://")) return true;
+        if (lower.startsWith("http://localhost") || lower.startsWith("http://127.")) return true;
+        return false;
+    }
+
+    private static boolean isValidUuid(String s) {
+        return s != null && UUID_PATTERN.matcher(s).matches();
+    }
+
+    private static String truncate(String s, int max) {
+        if (s == null) return "";
+        return s.length() <= max ? s : s.substring(0, max);
     }
 
     private static String trimTrailingSlash(String url) {

@@ -11,18 +11,26 @@ import net.minecraft.server.level.ServerPlayer;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class PermissionUtil {
     private static boolean luckypermsAvailable = false;
     private static Object luckypermsApi = null;
     private static final long OPS_FILE_CACHE_MS = 10_000L;
     private static volatile long lastOpsFileReadAt = 0L;
-    private static volatile Set<String> cachedOpsNames = new HashSet<>();
-    private static volatile Map<String, Integer> cachedOpsLevels = new ConcurrentHashMap<>();
+    private static volatile OpsCache cachedOps = new OpsCache(Set.of(), Map.of());
+
+    private static final class OpsCache {
+        final Set<String> names;
+        final Map<String, Integer> levels;
+        OpsCache(Set<String> names, Map<String, Integer> levels) {
+            this.names = names;
+            this.levels = levels;
+        }
+    }
 
     static {
         try {
@@ -120,13 +128,11 @@ public class PermissionUtil {
         } catch (Exception ignored) {}
         if (isConsoleSource(src)) return true;
         if (hasSourcePermissionLevel(src, requiredLevel)) return true;
-        if (requiredLevel > 2 && hasSourcePermissionLevel(src, 2)) return true;
         ServerPlayer directPlayer = null;
         try { directPlayer = src.getPlayer(); } catch (Exception ignored) {}
         if (directPlayer != null) {
             if (hasPlayerPermissionLevel(directPlayer, requiredLevel)) return true;
-            if (requiredLevel > 2 && hasPlayerPermissionLevel(directPlayer, 2)) return true;
-            if (isOpByOpsFileFallback(directPlayer)) return true;
+            if (isOpByOpsFileFallback(directPlayer, requiredLevel)) return true;
         }
         return false;
     }
@@ -151,10 +157,11 @@ public class PermissionUtil {
                     }
                 } catch (Exception ignored) {}
             }
+            OpsCache ops = cachedOps;
             String key = currentName.toLowerCase();
-            if (!cachedOpsNames.contains(key)) return false;
+            if (!ops.names.contains(key)) return false;
             if (minLevel <= 0) return true;
-            Integer level = cachedOpsLevels.get(key);
+            Integer level = ops.levels.get(key);
             return level != null && level >= minLevel;
         } catch (Exception ignored) {
             return false;
@@ -163,19 +170,17 @@ public class PermissionUtil {
 
     private static void reloadOpsFileCache(MinecraftServer server) {
         Set<String> names = new HashSet<>();
-        Map<String, Integer> levels = new ConcurrentHashMap<>();
+        Map<String, Integer> levels = new HashMap<>();
         try {
             Path opsPath = server.getServerDirectory().resolve("ops.json");
             if (!Files.exists(opsPath)) {
-                cachedOpsNames = names;
-                cachedOpsLevels = levels;
+                cachedOps = new OpsCache(Set.of(), Map.of());
                 return;
             }
             String json = Files.readString(opsPath);
             JsonElement root = JsonParser.parseString(json);
             if (!(root instanceof JsonArray arr)) {
-                cachedOpsNames = names;
-                cachedOpsLevels = levels;
+                cachedOps = new OpsCache(Set.of(), Map.of());
                 return;
             }
             for (JsonElement e : arr) {
@@ -191,8 +196,7 @@ public class PermissionUtil {
                 levels.put(key, level);
             }
         } catch (Exception ignored) {}
-        cachedOpsNames = names;
-        cachedOpsLevels = levels;
+        cachedOps = new OpsCache(Set.copyOf(names), Map.copyOf(levels));
     }
 
     private static boolean hasSourcePermissionLevel(CommandSourceStack src, int level) {
