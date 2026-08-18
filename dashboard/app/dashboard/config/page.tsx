@@ -46,8 +46,8 @@ export default function ConfigPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-display text-[#e8e6e0] mb-1">Server Config</h1>
-        <p className="text-sm text-[#636980]">Edit your server configuration (JSON)</p>
+        <h1 className="text-2xl font-display mb-1" style={{ color: "var(--text-primary)" }}>Server Config</h1>
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>Edit your server configuration (JSON)</p>
       </div>
 
       <div className="card">

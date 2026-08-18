@@ -63,37 +63,37 @@ export default function SetupPage() {
 
   if (result) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4">
+      <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ backgroundColor: "var(--bg-primary)" }}>
         <div className="w-full max-w-lg">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-display text-[#e8e6e0] mb-2">
+            <h1 className="text-3xl font-display mb-2" style={{ color: "var(--text-primary)" }}>
               Server <span className="text-gradient">Claimed</span>
             </h1>
-            <p className="text-sm text-[#636980]">Your server is registered. The API key is delivered automatically.</p>
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>Your server is registered. The API key is delivered automatically.</p>
           </div>
 
           {result.api_key && (
-            <div className="card border-[#d4c892]/30 bg-[#d4c892]/5 mb-4">
-              <div className="text-sm font-medium text-[#d4c892] mb-2">Mod API Key — auto-delivered to your server</div>
-              <code className="block text-xs bg-[#0f1117] rounded-lg px-4 py-3 font-mono text-[#e8e6e0] break-all border border-[#2d3242]">
+            <div className="card mb-4" style={{ borderColor: "var(--accent)", backgroundColor: "var(--accent-dim)" }}>
+              <div className="text-sm font-medium mb-2" style={{ color: "var(--accent)" }}>Mod API Key — auto-delivered to your server</div>
+              <code className="block text-xs rounded-lg px-4 py-3 font-mono break-all" style={{ backgroundColor: "var(--bg-primary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
                 {result.api_key}
               </code>
               <div className="mt-3 flex items-center gap-2">
                 <button className="btn-primary text-xs px-4 py-2" onClick={copyKey}>
                   {copied ? "Copied!" : "Copy Key"}
                 </button>
-                <span className="text-xs text-[#636980]">Fallback only — the mod picks it up automatically within 30s</span>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>Fallback only — the mod picks it up automatically within 30s</span>
               </div>
             </div>
           )}
 
-          <div className="card text-xs text-[#636980] space-y-1.5 mb-6">
+          <div className="card text-xs space-y-1.5 mb-6" style={{ color: "var(--text-muted)" }}>
             <div>1. The server fetches the API key automatically (≤ 30s). No config.json edit needed.</div>
             <div>
-              2. If that fails, use the key above in <code className="font-mono text-[#9ea3b3]">config/statusmod/config.json</code>.
+              2. If that fails, use the key above in <code className="font-mono" style={{ color: "var(--text-secondary)" }}>config/statusmod/config.json</code>.
             </div>
             <div>
-              3. <code className="font-mono text-[#9ea3b3]">/code</code> then works in-game — no restart required.
+              3. <code className="font-mono" style={{ color: "var(--text-secondary)" }}>/code</code> then works in-game — no restart required.
             </div>
           </div>
 
@@ -108,13 +108,13 @@ export default function SetupPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ backgroundColor: "var(--bg-primary)" }}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-display text-[#e8e6e0] mb-2">
+          <h1 className="text-3xl font-display mb-2" style={{ color: "var(--text-primary)" }}>
             Server <span className="text-gradient">Setup</span>
           </h1>
-          <p className="text-sm text-[#636980]">
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
             Enter the 16-character setup code from your server console
           </p>
         </div>
@@ -133,7 +133,7 @@ export default function SetupPage() {
           </div>
 
           {error && (
-            <div className="text-sm text-red-400 bg-red-900/20 rounded-lg px-3 py-2 border border-red-800/30">
+            <div className="text-sm text-red-400 rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}>
               {error}
             </div>
           )}
@@ -143,10 +143,10 @@ export default function SetupPage() {
           </button>
         </form>
 
-        <p className="text-center mt-6 text-xs text-[#636980]">
+        <p className="text-center mt-6 text-xs" style={{ color: "var(--text-muted)" }}>
           Code appears only in the server console log.
           <br />
-          <span className="text-[#d4c892]/50">Expires in 24 hours</span>
+          <span style={{ color: "var(--accent)", opacity: 0.5 }}>Expires in 24 hours</span>
         </p>
       </div>
 

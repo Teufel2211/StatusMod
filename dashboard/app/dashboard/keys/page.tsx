@@ -52,23 +52,23 @@ export default function KeysPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-display text-[#e8e6e0] mb-1">API Keys</h1>
-        <p className="text-sm text-[#636980]">Manage API access for your mod</p>
+        <h1 className="text-2xl font-display mb-1" style={{ color: "var(--text-primary)" }}>API Keys</h1>
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>Manage API access for your mod</p>
       </div>
 
       {newKey && (
-        <div className="card border-[#d4c892]/30 bg-[#d4c892]/5 mb-6">
-          <div className="text-sm font-medium text-[#d4c892] mb-2">Key created — copy it now!</div>
-          <code className="block text-xs bg-[#0f1117] rounded-lg px-4 py-3 font-mono text-[#e8e6e0] break-all border border-[#2d3242]">
+        <div className="card mb-6" style={{ borderColor: "var(--accent)", backgroundColor: "var(--accent-dim)" }}>
+          <div className="text-sm font-medium mb-2" style={{ color: "var(--accent)" }}>Key created — copy it now!</div>
+          <code className="block text-xs rounded-lg px-4 py-3 font-mono break-all" style={{ backgroundColor: "var(--bg-primary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
             {newKey}
           </code>
-          <p className="text-xs text-[#636980] mt-2">This key will not be shown again</p>
+          <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>This key will not be shown again</p>
         </div>
       )}
 
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-[#636980]">{keys.length}/2 keys</span>
+          <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>{keys.length}/2 keys</span>
         </div>
         <button
           className="btn-primary text-xs px-4 py-2"
@@ -83,41 +83,44 @@ export default function KeysPage() {
       </div>
 
       {loading ? (
-        <div className="text-sm text-[#636980] font-mono">Loading...</div>
+        <div className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>Loading...</div>
       ) : keys.length === 0 ? (
         <div className="card text-center py-12">
           <div className="text-3xl mb-3 opacity-30">⌨</div>
-          <p className="text-sm text-[#636980]">No API keys yet</p>
-          <p className="text-xs text-[#636980] mt-1">Generate a key for your mod to connect</p>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No API keys yet</p>
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Generate a key for your mod to connect</p>
         </div>
       ) : (
         <div className="card p-0 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#2d3242]">
-                <th className="text-left px-5 py-3 text-[#636980] font-medium text-xs uppercase tracking-wider">Key</th>
-                <th className="text-left px-5 py-3 text-[#636980] font-medium text-xs uppercase tracking-wider">Scopes</th>
-                <th className="text-left px-5 py-3 text-[#636980] font-medium text-xs uppercase tracking-wider">Created</th>
-                <th className="text-left px-5 py-3 text-[#636980] font-medium text-xs uppercase tracking-wider">Status</th>
+              <tr className="border-b" style={{ borderColor: "var(--border)" }}>
+                <th className="text-left px-5 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Key</th>
+                <th className="text-left px-5 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Scopes</th>
+                <th className="text-left px-5 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Created</th>
+                <th className="text-left px-5 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Status</th>
                 <th className="text-right px-5 py-3" />
               </tr>
             </thead>
             <tbody>
               {keys.map((k) => (
-                <tr key={k.id} className="border-b border-[#2d3242]/50 last:border-0 hover:bg-[#23273a]/50 transition-colors">
+                <tr key={k.id} className="border-b last:border-0 transition-colors" style={{ borderColor: "var(--border)", opacity: 0.5 }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bg-hover)"; e.currentTarget.style.opacity = "1" }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = ""; e.currentTarget.style.opacity = "" }}
+                >
                   <td className="px-5 py-3.5">
-                    <code className="text-xs font-mono text-[#9ea3b3]">{k.key_prefix}...</code>
+                    <code className="text-xs font-mono" style={{ color: "var(--text-secondary)" }}>{k.key_prefix}...</code>
                   </td>
                   <td className="px-5 py-3.5">
                     <div className="flex gap-1 flex-wrap">
                       {k.scopes.map((s) => (
-                        <span key={s} className="badge bg-[#23273a] text-[#9ea3b3] border border-[#2d3242] text-[10px]">
+                        <span key={s} className="badge text-[10px]" style={{ backgroundColor: "var(--bg-hover)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
                           {s}
                         </span>
                       ))}
                     </div>
                   </td>
-                  <td className="px-5 py-3.5 text-xs text-[#636980]">
+                  <td className="px-5 py-3.5 text-xs" style={{ color: "var(--text-muted)" }}>
                     {new Date(k.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-5 py-3.5">

@@ -29,10 +29,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0f1117]">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "var(--bg-primary)" }}>
         <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-[#d4c892] animate-pulse" />
-          <span className="text-sm text-[#636980] font-mono">Loading...</span>
+          <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "var(--accent)" }} />
+          <span className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>Loading...</span>
         </div>
       </div>
     )
@@ -41,7 +41,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!authed) return null
 
   return (
-    <div className="flex min-h-screen bg-[#0f1117]">
+    <div className="flex min-h-screen" style={{ backgroundColor: "var(--bg-primary)" }}>
       <Sidebar />
       <main className="flex-1 overflow-auto flex flex-col">
         <div className="max-w-5xl mx-auto px-8 py-8 flex-1 w-full">

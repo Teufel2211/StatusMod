@@ -3,21 +3,21 @@ import Footer from "@/components/footer"
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 pb-16">
-      <div className="absolute inset-0 bg-gradient-to-b from-[#d4c892]/5 via-transparent to-transparent pointer-events-none" />
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 pb-16" style={{ backgroundColor: "var(--bg-primary)" }}>
+      <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(to bottom, var(--accent), transparent 40%)", opacity: 0.05 }} />
 
       <div className="relative text-center max-w-lg">
         <div className="inline-flex items-center gap-3 mb-6">
-          <div className="w-3 h-3 rounded-full bg-[#d4c892] animate-pulse" />
-          <span className="text-xs font-mono text-[#636980] tracking-widest uppercase">StatusMod v2</span>
+          <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: "var(--accent)" }} />
+          <span className="text-xs font-mono tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>StatusMod v2</span>
         </div>
 
-        <h1 className="text-5xl font-display text-[#e8e6e0] mb-4 leading-tight">
+        <h1 className="text-5xl font-display mb-4 leading-tight" style={{ color: "var(--text-primary)" }}>
           Server{" "}
           <span className="text-gradient">Dashboard</span>
         </h1>
 
-        <p className="text-[#9ea3b3] text-lg mb-10 leading-relaxed">
+        <p className="text-lg mb-10 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
           Manage player statuses, customize presets, and run your Minecraft server
           — all from one place.
         </p>
