@@ -6,8 +6,35 @@
 
 @layer base {
   :root {
+    --bg-primary: #f8f9fa;
+    --bg-card: #ffffff;
+    --bg-hover: #f1f3f5;
+    --bg-input: #f1f3f5;
+    --border: #dee2e6;
+    --text-primary: #212529;
+    --text-secondary: #495057;
+    --text-muted: #868e96;
+    --accent: #8b7d3c;
+    --accent-dim: #a8994030;
+    --accent-hover: #6b5f2e;
+    --accent-border: #8b7d3c40;
+    --grid-opacity: 0.06;
+  }
+
+  .dark {
     --bg-primary: #0f1117;
+    --bg-card: #1a1d26;
+    --bg-hover: #23273a;
+    --bg-input: #23273a;
+    --border: #2d3242;
     --text-primary: #e8e6e0;
+    --text-secondary: #9ea3b3;
+    --text-muted: #636980;
+    --accent: #d4c892;
+    --accent-dim: #d4c89210;
+    --accent-hover: #bfab5f;
+    --accent-border: #d4c89220;
+    --grid-opacity: 0.03;
   }
 
   body {
@@ -15,50 +42,105 @@
     color: var(--text-primary);
     font-family: 'DM Sans', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    transition: background-color 0.2s, color 0.2s;
   }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0f1117] disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+    focus-ring-offset-color: var(--bg-primary);
   }
   .btn-primary {
-    @apply btn bg-[#d4c892] text-[#1a1d26] hover:bg-[#bfab5f] focus:ring-[#d4c892];
+    @apply btn font-semibold;
+    background-color: var(--accent);
+    color: var(--bg-card);
+  }
+  .btn-primary:hover {
+    background-color: var(--accent-hover);
+  }
+  .btn-primary:focus {
+    ring-color: var(--accent);
   }
   .btn-secondary {
-    @apply btn border border-[#2d3242] text-[#e8e6e0] hover:bg-[#23273a] focus:ring-[#2d3242];
+    @apply btn border;
+    border-color: var(--border);
+    color: var(--text-primary);
+  }
+  .btn-secondary:hover {
+    background-color: var(--bg-hover);
+  }
+  .btn-secondary:focus {
+    ring-color: var(--border);
   }
   .card {
-    @apply rounded-xl border border-[#2d3242] bg-[#1a1d26] p-6;
+    @apply rounded-xl p-6;
+    border: 1px solid var(--border);
+    background-color: var(--bg-card);
   }
   .input {
-    @apply w-full rounded-lg border border-[#2d3242] bg-[#23273a] px-4 py-2.5 text-sm text-[#e8e6e0] placeholder:text-[#636980] focus:border-[#d4c892] focus:outline-none focus:ring-1 focus:ring-[#d4c892] transition-colors;
+    @apply w-full rounded-lg px-4 py-2.5 text-sm transition-colors;
+    border: 1px solid var(--border);
+    background-color: var(--bg-input);
+    color: var(--text-primary);
+  }
+  .input::placeholder {
+    color: var(--text-muted);
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
   }
   .label {
-    @apply block text-sm font-medium text-[#9ea3b3] mb-1.5;
+    @apply block text-sm font-medium mb-1.5;
+    color: var(--text-secondary);
   }
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
   .badge-green {
-    @apply badge bg-emerald-900/40 text-emerald-400 border border-emerald-700/50;
+    @apply badge;
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+  .dark .badge-green {
+    background-color: rgba(16, 185, 129, 0.25);
+    border-color: rgba(16, 185, 129, 0.4);
   }
   .badge-red {
-    @apply badge bg-red-900/40 text-red-400 border border-red-700/50;
+    @apply badge;
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+  .dark .badge-red {
+    background-color: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.4);
   }
   .badge-yellow {
-    @apply badge bg-yellow-900/40 text-yellow-400 border border-yellow-700/50;
+    @apply badge;
+    background-color: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+  }
+  .dark .badge-yellow {
+    background-color: rgba(245, 158, 11, 0.25);
+    border-color: rgba(245, 158, 11, 0.4);
   }
 }
 
 @layer utilities {
   .bg-grid {
     background-image:
-      linear-gradient(rgba(212, 200, 146, 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(212, 200, 146, 0.03) 1px, transparent 1px);
+      linear-gradient(rgba(212, 200, 146, var(--grid-opacity)) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(212, 200, 146, var(--grid-opacity)) 1px, transparent 1px);
     background-size: 40px 40px;
   }
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#d4c892] to-[#bfab5f];
+    @apply bg-clip-text text-transparent bg-gradient-to-r;
+    from: var(--accent);
+    to: var(--accent-hover);
   }
 }

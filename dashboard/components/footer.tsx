@@ -9,12 +9,12 @@ const links = [
 
 export default function Footer({ className = "" }: { className?: string }) {
   return (
-    <footer className={`text-xs text-[#636980] font-mono ${className}`}>
+    <footer className={`text-xs font-mono ${className}`} style={{ color: "var(--text-muted)" }}>
       <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-        <span className="text-[#d4c892]/50">▲</span>
+        <span style={{ color: "var(--accent)", opacity: 0.5 }}>▲</span>
         <span>statusmod-dashboard.vercel.app</span>
         {links.map((link) => (
-          <Link key={link.href} href={link.href} className="hover:text-[#9ea3b3] transition-colors">
+          <Link key={link.href} href={link.href} className="hover:opacity-80 transition-opacity">
             {link.label}
           </Link>
         ))}

@@ -1,12 +1,22 @@
 import { unauthorized } from "@/lib/response"
 import { getServiceClient } from "@/lib/supabase"
 import { requireSession } from "@/lib/auth"
+import { verifyJwt } from "@/lib/jwt"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
 
 export async function GET(request: Request) {
-  const session = requireSession(request)
+  let session = requireSession(request)
+
+  if (!session) {
+    const url = new URL(request.url)
+    const token = url.searchParams.get("token")
+    if (token) {
+      session = verifyJwt(token)
+    }
+  }
+
   if (!session) return unauthorized()
 
   const sb = getServiceClient()
@@ -23,7 +33,7 @@ export async function GET(request: Request) {
         } catch { /* ignore */ }
       }
 
-      send("connected", { server_id: session.server_id })
+      send("connected", { server_id: session!.server_id })
 
       const interval = setInterval(async () => {
         if (closed) { clearInterval(interval); return }
@@ -31,9 +41,9 @@ export async function GET(request: Request) {
           const { data } = await (sb as any)
             .from("players")
             .select("uuid, username, status, color, updated_at")
-            .eq("server_id", session.server_id)
+            .eq("server_id", session!.server_id)
             .order("updated_at", { ascending: false })
-            .limit(10)
+            .limit(100)
 
           if (data && !closed) {
             send("players", data ?? [])

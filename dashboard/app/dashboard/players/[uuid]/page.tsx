@@ -84,13 +84,13 @@ export default function PlayerDetailPage() {
     setSaving(false)
   }
 
-  if (loading) return <div className="text-sm text-[#636980] font-mono">Loading...</div>
+  if (loading) return <div className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>Loading...</div>
 
   if (!player) {
     return (
       <div className="card text-center py-12">
         <div className="text-3xl mb-3 opacity-30">◎</div>
-        <p className="text-sm text-[#636980]">Player not found</p>
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>Player not found</p>
       </div>
     )
   }
@@ -108,57 +108,60 @@ export default function PlayerDetailPage() {
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
           />
           <div>
-            <h1 className="text-2xl font-display text-[#e8e6e0]">
+            <h1 className="text-2xl font-display" style={{ color: "var(--text-primary)" }}>
               {player.username ?? "Unknown Player"}
             </h1>
-            <p className="text-sm text-[#636980] font-mono">{player.uuid}</p>
+            <p className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>{player.uuid}</p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
         <div className="card">
-          <div className="text-xs text-[#636980] font-medium mb-2">Status</div>
+          <div className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>Status</div>
           <div className="flex items-center gap-2">
             {player.color && player.color !== "reset" && (
               <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: COLOR_HEX[player.color] ?? player.color }} />
             )}
-            <span className="text-[#e8e6e0]">{player.status ?? "—"}</span>
+            <span style={{ color: "var(--text-primary)" }}>{player.status ?? "—"}</span>
           </div>
         </div>
         <div className="card">
-          <div className="text-xs text-[#636980] font-medium mb-2">Joined</div>
-          <div className="text-[#e8e6e0]">{new Date(player.created_at).toLocaleDateString()}</div>
+          <div className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>Joined</div>
+          <div style={{ color: "var(--text-primary)" }}>{new Date(player.created_at).toLocaleDateString()}</div>
         </div>
       </div>
 
       <div className="card">
-        <div className="text-xs text-[#636980] font-medium mb-4">Edit Status</div>
+        <div className="text-xs font-medium mb-4" style={{ color: "var(--text-muted)" }}>Edit Status</div>
 
         <div className="space-y-4">
           <div>
-            <label className="text-xs text-[#636980] block mb-1">Status Text</label>
+            <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Status Text</label>
             <input
               type="text"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               maxLength={64}
               placeholder="AFK, Busy, Building..."
-              className="w-full bg-[#1a1a2e] border border-[#2a2a3e] rounded px-3 py-2 text-sm text-[#e8e6e0] placeholder-[#4a4a5e] focus:outline-none focus:border-[#4a6fa5]"
+              className="input font-mono"
             />
           </div>
 
           <div>
-            <label className="text-xs text-[#636980] block mb-1">Color</label>
+            <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Color</label>
             <div className="flex flex-wrap gap-2">
               {COLORS.map((c) => (
                 <button
                   key={c}
                   onClick={() => setColor(c)}
                   className={`w-7 h-7 rounded border-2 transition-all ${
-                    color === c ? "border-[#4a6fa5] scale-110" : "border-[#2a2a3e]"
+                    color === c ? "scale-110" : ""
                   }`}
-                  style={{ backgroundColor: COLOR_HEX[c] ?? c }}
+                  style={{
+                    backgroundColor: COLOR_HEX[c] ?? c,
+                    borderColor: color === c ? "var(--accent)" : "var(--border)",
+                  }}
                   title={c}
                 />
               ))}
@@ -167,7 +170,12 @@ export default function PlayerDetailPage() {
                 value={color.startsWith("#") ? color : ""}
                 onChange={(e) => { const v = e.target.value; if (v.startsWith("#")) setColor(v) }}
                 placeholder="#RRGGBB"
-                className="w-24 bg-[#1a1a2e] border border-[#2a2a3e] rounded px-2 py-1 text-xs text-[#e8e6e0] placeholder-[#4a4a5e] focus:outline-none focus:border-[#4a6fa5]"
+                className="w-24 rounded px-2 py-1 text-xs font-mono"
+                style={{
+                  backgroundColor: "var(--bg-input)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text-primary)",
+                }}
               />
             </div>
           </div>
@@ -176,7 +184,8 @@ export default function PlayerDetailPage() {
             <button
               onClick={save}
               disabled={saving}
-              className="px-4 py-2 bg-[#4a6fa5] hover:bg-[#3a5f95] disabled:opacity-50 text-white text-sm rounded transition-colors"
+              className="btn-primary text-sm px-4 py-2"
+              style={{ backgroundColor: "#4a6fa5", color: "#fff" }}
             >
               {saving ? "Saving..." : "Save"}
             </button>

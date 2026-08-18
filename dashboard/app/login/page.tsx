@@ -39,17 +39,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ backgroundColor: "var(--bg-primary)" }}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-4">
-            <div className="w-2 h-2 rounded-full bg-[#d4c892]" />
-            <span className="text-xs font-mono text-[#636980] tracking-widest uppercase">StatusMod</span>
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--accent)" }} />
+            <span className="text-xs font-mono tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>StatusMod</span>
           </div>
-          <h1 className="text-3xl font-display text-[#e8e6e0] mb-2">
+          <h1 className="text-3xl font-display mb-2" style={{ color: "var(--text-primary)" }}>
             Sign <span className="text-gradient">In</span>
           </h1>
-          <p className="text-sm text-[#636980]">
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
             Use /code in-game to get your 8-character login code
           </p>
         </div>
@@ -68,7 +68,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="text-sm text-red-400 bg-red-900/20 rounded-lg px-3 py-2 border border-red-800/30">
+            <div className="text-sm text-red-400 rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}>
               {error}
             </div>
           )}
@@ -78,7 +78,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center mt-6 text-xs text-[#636980]">
+        <p className="text-center mt-6 text-xs" style={{ color: "var(--text-muted)" }}>
           Code expires in 10 minutes &mdash; use /code again if needed
         </p>
       </div>
