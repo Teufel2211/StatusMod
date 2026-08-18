@@ -47,6 +47,10 @@ public class ModConfig {
     public boolean enableAutoAfk = true;
     public int afkTimeoutSeconds = 300;
 
+    public boolean restoreStatusOnJoin = true;
+    public boolean restoreAfkOnJoin = false;
+    public boolean restoreTimedOnJoin = true;
+
     public String dashboardUrl = "https://statusmod-dashboard.vercel.app";
     public String setupSecret = "";
     public String serverId = "";

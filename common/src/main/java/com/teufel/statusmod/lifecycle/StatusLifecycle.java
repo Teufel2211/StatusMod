@@ -1,6 +1,7 @@
 package com.teufel.statusmod.lifecycle;
 
 import com.teufel.statusmod.StatusMod;
+import com.teufel.statusmod.storage.ModConfig;
 import com.teufel.statusmod.storage.PlayerSettings;
 import com.teufel.statusmod.sync.SyncManager;
 import com.teufel.statusmod.util.ColorMapper;
@@ -32,10 +33,25 @@ public final class StatusLifecycle {
         try {
             PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
             settings.lastActivityAtMs = System.currentTimeMillis();
-            settings.autoAfk = false;
             String name = player.getScoreboardName();
             if (name != null && !name.isEmpty()) {
                 settings.lastKnownName = name;
+            }
+            ModConfig cfg = StatusMod.getConfig();
+            if (!cfg.restoreStatusOnJoin) {
+                settings.status = "";
+                settings.color = "reset";
+                settings.statusByWorld.clear();
+                settings.colorByWorld.clear();
+            }
+            if (!cfg.restoreAfkOnJoin) {
+                settings.autoAfk = false;
+            }
+            if (!cfg.restoreTimedOnJoin) {
+                settings.statusExpiresAtMs = 0L;
+            }
+            if (settings.status.isEmpty()) {
+                settings.autoAfk = false;
             }
             String status = StatusTextUtil.resolveStatusForPlayer(settings, player);
             if (status != null && !status.isEmpty()) {
@@ -50,6 +66,21 @@ public final class StatusLifecycle {
     public static void onPlayerDisconnect(ServerPlayer player) {
         if (player != null) {
             lastPlayerPositions.remove(player.getUUID().toString());
+        }
+    }
+
+    public static void markActive(ServerPlayer player) {
+        if (player == null || StatusMod.storage == null) return;
+        String uuid = player.getUUID().toString();
+        PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
+        long now = System.currentTimeMillis();
+        settings.lastActivityAtMs = now;
+        if (settings.autoAfk) {
+            settings.autoAfk = false;
+            settings.status = "";
+            settings.color = "reset";
+            StatusMod.storage.put(uuid, settings);
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("\u00a7aDu bist nicht mehr AFK."));
         }
     }
 

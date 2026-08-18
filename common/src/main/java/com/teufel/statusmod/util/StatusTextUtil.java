@@ -49,11 +49,46 @@ public final class StatusTextUtil {
         if (status == null || status.isEmpty() || player == null) return status;
         String out = status;
         try {
+            out = out.replace("{player}", player.getScoreboardName());
+        } catch (Exception ignored) {}
+        try {
+            out = out.replace("{health}", String.valueOf(Math.round(player.getHealth())));
+        } catch (Exception ignored) {}
+        try {
+            out = out.replace("{x}", String.valueOf((int) player.getX()));
+        } catch (Exception ignored) {}
+        try {
+            out = out.replace("{y}", String.valueOf((int) player.getY()));
+        } catch (Exception ignored) {}
+        try {
+            out = out.replace("{z}", String.valueOf((int) player.getZ()));
+        } catch (Exception ignored) {}
+        try {
             String worldKey = CompatUtil.getWorldKey(player);
             out = out.replace("{world}", worldKey == null ? "" : worldKey);
         } catch (Exception ignored) {}
         try {
             out = out.replace("{ping}", String.valueOf(getPing(player)));
+        } catch (Exception ignored) {}
+        try {
+            long ticks = player.getStats().getValue(net.minecraft.stats.Stats.CUSTOM.get(net.minecraft.stats.Stats.PLAY_TIME));
+            int hours = (int) (ticks / 20 / 3600);
+            int minutes = (int) ((ticks / 20) % 3600 / 60);
+            out = out.replace("{playtime}", hours + "h " + minutes + "m");
+        } catch (Exception ignored) {}
+        try {
+            long dayTime = 0L;
+            java.lang.reflect.Method getDayTimeMethod = null;
+            try {
+                getDayTimeMethod = player.level().getClass().getMethod("getDayTime");
+            } catch (NoSuchMethodException ignored) {}
+            if (getDayTimeMethod != null) {
+                Object result = getDayTimeMethod.invoke(player.level());
+                if (result instanceof Long l) dayTime = l % 24000L;
+            }
+            int hours = (int) ((dayTime / 1000 + 6) % 24);
+            int minutes = (int) ((dayTime % 1000) * 60 / 1000);
+            out = out.replace("{time}", String.format("%02d:%02d", hours, minutes));
         } catch (Exception ignored) {}
         return out;
     }
