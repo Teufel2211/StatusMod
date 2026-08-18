@@ -533,6 +533,19 @@ try {
             continue
         }
 
+        # Clean Loom cache between loaders to prevent cross-contamination.
+        # Each Loom variant (Fabric, Forge, NeoForge, Quilt) creates different artifacts
+        # in the shared caches/fabric-loom/ directory. When Forge builds first, it leaves
+        # SRG-merged JARs that Quilt Loom picks up during MC setup, causing "Failed to
+        # remap minecraft". A fresh cache per loader avoids this entirely.
+        if ($UseIsolatedGradleHome) {
+            $loomCache = Join-Path $isolatedGradleHome "caches\fabric-loom"
+            if (Test-Path $loomCache) {
+                Remove-Item -LiteralPath $loomCache -Recurse -Force -ErrorAction SilentlyContinue
+                Write-Host "  Cleaned Loom cache for loader '$loader'"
+            }
+        }
+
         if ($loader -eq "datapack") {
             $loaderOut = Join-Path $outputRoot $loader
             New-Item -ItemType Directory -Force -Path $loaderOut | Out-Null
@@ -776,13 +789,66 @@ try {
                     }
                     Set-GradlePropertyValue -FilePath $gradleProps -Key "quilt_loom_version" -Value ([string]$cfg.quilt_loom_version)
                 }
+                # Tell settings.gradle to only include this loader's subproject,
+                # preventing cross-loader Loom config failures (e.g. Quilt blocking NeoForge).
+                Write-Host "==> [$loader] Minecraft $mc"
+
+                # Quilt: repackage the Fabric JAR (Quilt Loom 1.15.1 has TinyRemapper
+                # "Unfixable conflicts" bug with Mojang layered mappings).
+                # Quilt Loader natively supports Fabric mods, so we take the Fabric JAR,
+                # remove fabric.mod.json, inject quilt.mod.json, and repackage.
+                if ($loader -eq "quilt") {
+                    $fabricJarDir = Join-Path $outputRoot "fabric"
+                    $fabricJar = Get-ChildItem -Path $fabricJarDir -Filter "Statusmod-*-fabric-$mc.jar" -File -ErrorAction SilentlyContinue |
+                        Where-Object { $_.Name -notlike "*-sources.jar" } |
+                        Select-Object -First 1
+                    if (-not $fabricJar) {
+                        $results.Add([pscustomobject]@{
+                            loader = $loader
+                            minecraft = $mc
+                            status = "failed"
+                            note = "no Fabric JAR found at $fabricJarDir for mc $mc"
+                            artifact = ""
+                        }) | Out-Null
+                        continue
+                    }
+                    $quiltJsonSrc = Join-Path $root "quilt\src\main\resources\quilt.mod.json"
+                    $quiltJsonContent = (Get-Content $quiltJsonSrc -Raw) `
+                        -replace '\$\{version\}', $modVersion `
+                        -replace '\$\{quilt_loader_version\}', ([string]$cfg.quilt_loader_version)
+                    $tempDir = Join-Path $env:TEMP "quilt-repack-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+                    try {
+                        New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+                        Push-Location $tempDir
+                        & jar xf $fabricJar.FullName 2>$null
+                        if (Test-Path (Join-Path $tempDir "fabric.mod.json")) {
+                            Remove-Item (Join-Path $tempDir "fabric.mod.json") -Force
+                        }
+                        [System.IO.File]::WriteAllText((Join-Path $tempDir "quilt.mod.json"), $quiltJsonContent)
+                        $artifactName = "Statusmod-$modVersion-$loader-$mc.jar"
+                        $artifactPath = Join-Path $loaderOut $artifactName
+                        & jar cf $artifactPath -C $tempDir . 2>$null
+                        $results.Add([pscustomobject]@{
+                            loader = $loader
+                            minecraft = $mc
+                            status = "ok"
+                            note = "repackaged from $($fabricJar.Name)"
+                            artifact = $artifactPath
+                        }) | Out-Null
+                    } finally {
+                        Pop-Location -ErrorAction SilentlyContinue
+                        if (Test-Path $tempDir) { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue }
+                    }
+                    continue
+                }
+
+                Set-GradlePropertyValue -FilePath $gradleProps -Key "target_loader" -Value $loader
 
                 $javaToUse = $resolvedFabricJavaHome
                 $mcParts = Get-McVersionParts -Mc $mc
                 if ($null -ne $mcParts -and $mcParts[0] -ge 26) {
                     $javaToUse = $resolvedFabricJava25Home
                 }
-                Write-Host "==> [$loader] Minecraft $mc"
                 $logFile = Join-Path $logRoot "$loader-$mc.log"
                 $expandedToml = @()
                 if ($loader -eq "forge" -or $loader -eq "neoforge") {
@@ -920,6 +986,10 @@ try {
                 Set-GradlePropertyValue -FilePath $gradleProps -Key "mappings_mode" -Value "mojang"
                 Set-GradlePropertyValue -FilePath $gradleProps -Key "yarn_mappings" -Value ""
                 Set-GradlePropertyValue -FilePath $gradleProps -Key "fabric_api_version" -Value ([string]$apiVersion)
+                # Only include fabric + common in settings.gradle to avoid Quilt Loom cascade.
+                if (-not $isFabricExtra) {
+                    Set-GradlePropertyValue -FilePath $gradleProps -Key "target_loader" -Value "fabric"
+                }
 
                 Write-Host "   trying fabric_api_version=$apiVersion"
                 $safeApi = ([string]$apiVersion).Replace("+", "_").Replace(":", "_").Replace("/", "_")

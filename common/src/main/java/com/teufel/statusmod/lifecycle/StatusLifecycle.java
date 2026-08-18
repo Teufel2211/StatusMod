@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class StatusLifecycle {
     private static final int DEFAULT_REAPPLY_INTERVAL_TICKS = 100;
-    private static final int MIN_REAPPLY_INTERVAL_TICKS = 20;
+    private static final int MIN_REAPPLY_INTERVAL_TICKS = 5;
     private static final long AFK_CHECK_INTERVAL_MS = 5_000L;
     private static int tickCounter = 0;
     private static long lastAfkCheckMs = 0L;
@@ -33,6 +33,10 @@ public final class StatusLifecycle {
             PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
             settings.lastActivityAtMs = System.currentTimeMillis();
             settings.autoAfk = false;
+            String name = player.getScoreboardName();
+            if (name != null && !name.isEmpty()) {
+                settings.lastKnownName = name;
+            }
             String status = StatusTextUtil.resolveStatusForPlayer(settings, player);
             if (status != null && !status.isEmpty()) {
                 reapplyStatus(server, player, uuid, settings);

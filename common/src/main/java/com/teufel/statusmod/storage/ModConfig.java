@@ -22,9 +22,9 @@ public class ModConfig {
     public int statusCooldownSeconds = 2;
     public int statusHistorySize = 5;
     public boolean enableStaffBadge = false;
-    public String staffBadgeText = "[STAFF]";
+    public String staffBadgeText = "STAFF";
     public String staffBadgeColor = "red";
-    public boolean staffBadgeBrackets = true;
+    public int staffBadgeBrackets = 1;
     public Map<String, StaffBadge> staffBadges = new HashMap<>();
 
     public Map<String, Boolean> features = new HashMap<>();
@@ -47,8 +47,8 @@ public class ModConfig {
     public boolean enableAutoAfk = true;
     public int afkTimeoutSeconds = 300;
 
-    public String dashboardUrl = "";
-    public String setupSecret = "";
+    public String dashboardUrl = "https://statusmod-dashboard.vercel.app";
+    public String setupSecret = "AHYt4c7+4YixNHpCAT4jAQhgw8Q5Gfv9PzWxtWOr+80=";
     public String serverId = "";
     public String apiKey = "";
     public long lastSyncAtMs = 0L;
@@ -61,7 +61,7 @@ public class ModConfig {
     public static class StaffBadge {
         public String text = "STAFF";
         public String color = "red";
-        public boolean brackets = true;
+        public int brackets = 1;
 
         public StaffBadge() {}
     }
@@ -130,8 +130,11 @@ public class ModConfig {
         if (statusCooldownSeconds > 300) statusCooldownSeconds = 300;
         if (statusHistorySize < 0) statusHistorySize = 0;
         if (statusHistorySize > MAX_HISTORY) statusHistorySize = MAX_HISTORY;
-        if (staffBadgeText == null || staffBadgeText.trim().isEmpty()) staffBadgeText = "[STAFF]";
+        if (staffBadgeText == null || staffBadgeText.trim().isEmpty()) staffBadgeText = "STAFF";
         else staffBadgeText = staffBadgeText.trim();
+        if (staffBadgeBrackets > 0 && staffBadgeText.startsWith("[") && staffBadgeText.endsWith("]")) {
+            staffBadgeText = staffBadgeText.substring(1, staffBadgeText.length() - 1);
+        }
         if (staffBadgeColor == null || staffBadgeColor.trim().isEmpty()) staffBadgeColor = "red";
         else staffBadgeColor = staffBadgeColor.trim();
         if (features == null) features = new HashMap<>();
@@ -150,15 +153,18 @@ public class ModConfig {
             if (b.text == null) b.text = "STAFF";
             else b.text = b.text.trim();
             if (b.text.length() > 32) b.text = b.text.substring(0, 32);
+            if (b.brackets > 0 && b.text.startsWith("[") && b.text.endsWith("]")) {
+                b.text = b.text.substring(1, b.text.length() - 1);
+            }
             if (b.color == null || b.color.trim().isEmpty()) b.color = "red";
             else b.color = b.color.trim();
             if (b.text.isEmpty()) { it.remove(); }
         }
         if (afkTimeoutSeconds < 30) afkTimeoutSeconds = 30;
         if (afkTimeoutSeconds > 3600) afkTimeoutSeconds = 3600;
-        if (dashboardUrl == null) dashboardUrl = "";
+        if (dashboardUrl == null || dashboardUrl.trim().isEmpty()) dashboardUrl = "https://statusmod-dashboard.vercel.app";
         else dashboardUrl = dashboardUrl.trim();
-        if (setupSecret == null) setupSecret = "";
+        if (setupSecret == null || setupSecret.trim().isEmpty()) setupSecret = "AHYt4c7+4YixNHpCAT4jAQhgw8Q5Gfv9PzWxtWOr+80=";
         else setupSecret = setupSecret.trim();
         if (serverId == null) serverId = "";
         else serverId = serverId.trim();

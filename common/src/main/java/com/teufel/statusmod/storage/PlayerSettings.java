@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 public class PlayerSettings {
-    public boolean brackets = false;
+    public int brackets = 0;
     public boolean beforeName = false;
     public String status = "";
     public String color = "reset";
@@ -18,6 +18,7 @@ public class PlayerSettings {
 
     public long lastActivityAtMs = System.currentTimeMillis();
     public boolean autoAfk = false;
+    public String lastKnownName = "";
 
     public List<String> statusHistory = new ArrayList<>();
     public Map<String, String> statusByWorld = new HashMap<>();

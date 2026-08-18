@@ -69,6 +69,7 @@ public class StatusCommand {
         statusTree = statusTree.then(Commands.literal("config").then(Commands.literal("reload").executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte, um diese Aktion auszuführen.")); return 0; } StatusMod.config = ModConfig.load(); CommandUtil.sendSuccess(ctx.getSource(), Component.literal("StatusMod configuration reloaded."), false); return 1; }))            .then(Commands.literal("show").executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte, um diese Aktion auszuführen.")); return 0; } ModConfig c = StatusMod.getConfig(); CommandUtil.sendSuccess(ctx.getSource(), Component.literal("StatusMod configuration:"), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" adminOpLevel = " + c.adminOpLevel), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusPermissionNode = " + c.statusPermissionNode), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" adminPermissionNode = " + c.adminPermissionNode), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" enableAdminOverrides = " + c.enableAdminOverrides), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" defaultColor = " + c.defaultColor), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusReapplyTicks = " + c.statusReapplyTicks), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusCooldownSeconds = " + c.statusCooldownSeconds), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusHistorySize = " + c.statusHistorySize), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" enableStaffBadge = " + c.enableStaffBadge), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadgeText = " + c.staffBadgeText), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadgeColor = " + c.staffBadgeColor), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadgeBrackets = " + c.staffBadgeBrackets), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadges (Overrides) = " + (c.staffBadges == null ? 0 : c.staffBadges.size())), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" enableAutoAfk = " + c.enableAutoAfk), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" afkTimeoutSeconds = " + c.afkTimeoutSeconds), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" Features:"), false); for (Map.Entry<String, Boolean> fe : c.features.entrySet()) { CommandUtil.sendSuccess(ctx.getSource(), Component.literal("   " + fe.getKey() + " = " + fe.getValue()), false); } return 1; })));
         statusTree = statusTree.then(Commands.literal("feature").then(Commands.literal("list").executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte.")); return 0; } ModConfig c = StatusMod.getConfig(); CommandUtil.sendSuccess(ctx.getSource(), Component.literal("Features:"), false); for (Map.Entry<String, Boolean> fe : c.features.entrySet()) { CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" " + fe.getKey() + " = " + fe.getValue()), false); } return 1; }))
             .then(Commands.argument("key", StringArgumentType.word()).then(Commands.argument("value", StringArgumentType.word()).suggests((ctx, builder) -> net.minecraft.commands.SharedSuggestionProvider.suggest(new String[]{"on","off","true","false","an","aus"}, builder)).executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte.")); return 0; } return setFeature(ctx.getSource(), StringArgumentType.getString(ctx, "key"), StringArgumentType.getString(ctx, "value")); }))));
+        StatusGuiCommand.register(dispatcher);
         dispatcher.register(statusTree);
     }
 
@@ -254,18 +255,28 @@ public class StatusCommand {
             if (!StatusMod.getConfig().isEnabled("badge")) { src.sendFailure(Component.literal("Das Badge-Feature ist auf diesem Server deaktiviert.")); return; }
             String[] tokens = input == null ? new String[0] : input.trim().split("\\s+");
             if (tokens.length == 0) {
-                src.sendFailure(Component.literal("Verwendung: /status badge <Spieler> <Text> [Farbe] [brackets:true|false]"));
+                src.sendFailure(Component.literal("Verwendung: /status badge <Spieler> <Text> [Farbe] [brackets:off|square|angle]"));
                 return;
             }
             String text = tokens[0];
             String color = null;
-            boolean brackets = true;
+            int brackets = 1;
             boolean bracketsSet = false;
 
             for (String t : tokens) {
                 String lower = t.toLowerCase();
-                if (lower.equals("brackets:true") || lower.equals("brackets:false") || lower.equals("true") || lower.equals("false")) {
-                    brackets = lower.contains("true");
+                if (lower.startsWith("brackets:")) {
+                    String val = lower.substring(9);
+                    brackets = switch (val) {
+                        case "square", "on", "true" -> 1;
+                        case "angle", "<>", "<" -> 2;
+                        default -> 0;
+                    };
+                    bracketsSet = true;
+                    break;
+                }
+                if (lower.equals("true") || lower.equals("false")) {
+                    brackets = lower.equals("true") ? 1 : 0;
                     bracketsSet = true;
                     break;
                 }
@@ -295,7 +306,7 @@ public class StatusCommand {
             cfg.staffBadges.put(target.getUUID().toString(), existing);
             cfg.save();
 
-            String rendered = existing.brackets ? "[" + existing.text + "]" : existing.text;
+            String rendered = StatusTextUtil.wrapBrackets(existing.text, existing.brackets);
             CommandUtil.sendSuccess(src, Component.literal("Staff-Badge für " + target.getScoreboardName() + " gesetzt: " + rendered + " (" + existing.color + ")"), true);
             target.sendSystemMessage(Component.literal("Dein Staff-Badge wurde geändert: " + rendered));
 
@@ -329,11 +340,12 @@ public class StatusCommand {
             ModConfig.StaffBadge b = cfg.staffBadges == null ? null : cfg.staffBadges.get(target.getUUID().toString());
             String who = target.getScoreboardName();
             if (b != null) {
-                String rendered = b.brackets ? "[" + b.text + "]" : b.text;
-                CommandUtil.sendSuccess(src, Component.literal("Staff-Badge von " + who + ": " + rendered + " (" + b.color + ", brackets=" + b.brackets + ")"), false);
+                String rendered = StatusTextUtil.wrapBrackets(b.text, b.brackets);
+                String styleName = switch (b.brackets) { case 1 -> "[]"; case 2 -> "<>"; default -> "off"; };
+                CommandUtil.sendSuccess(src, Component.literal("Staff-Badge von " + who + ": " + rendered + " (" + b.color + ", brackets=" + styleName + ")"), false);
             } else {
-                String fallback = (cfg.staffBadgeText == null || cfg.staffBadgeText.isEmpty()) ? "[STAFF]" : cfg.staffBadgeText;
-                if (cfg.staffBadgeBrackets && !fallback.startsWith("[")) fallback = "[" + fallback + "]";
+                String fallback = (cfg.staffBadgeText == null || cfg.staffBadgeText.isEmpty()) ? "STAFF" : cfg.staffBadgeText;
+                fallback = StatusTextUtil.wrapBrackets(fallback, cfg.staffBadgeBrackets);
                 CommandUtil.sendSuccess(src, Component.literal("Staff-Badge von " + who + ": (global) " + fallback + " (" + cfg.staffBadgeColor + ")"), false);
             }
         } catch (Exception e) {

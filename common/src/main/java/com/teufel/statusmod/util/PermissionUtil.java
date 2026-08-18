@@ -43,11 +43,10 @@ public class PermissionUtil {
     public static boolean hasStatusPermission(CommandSourceStack src) {
         ServerPlayer player = null;
         try { player = src.getPlayer(); } catch (Exception ignored) {}
-        boolean op = hasOperatorPermission(src);
         if (player != null && luckypermsAvailable && luckypermsApi != null) {
-            return checkLuckyPermsPermission(player, StatusMod.getConfig().statusPermissionNode) || op;
+            return checkLuckyPermsPermission(player, StatusMod.getConfig().statusPermissionNode);
         }
-        return op;
+        return true;
     }
 
     public static boolean hasAdminPermission(CommandSourceStack src) {

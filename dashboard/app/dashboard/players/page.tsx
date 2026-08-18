@@ -62,7 +62,16 @@ export default function PlayersPage() {
                   onClick={() => window.location.href = `/dashboard/players/${p.uuid}`}
                 >
                   <td className="px-5 py-3.5">
-                    <span className="text-[#e8e6e0] font-medium">{p.username ?? "—"}</span>
+                    <div className="flex items-center gap-2.5">
+                      <img
+                        src={`https://mc-heads.net/avatar/${p.uuid}/24`}
+                        alt=""
+                        className="w-6 h-6 rounded-sm"
+                        loading="lazy"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+                      />
+                      <span className="text-[#e8e6e0] font-medium">{p.username ?? "—"}</span>
+                    </div>
                   </td>
                   <td className="px-5 py-3.5">
                     {p.status ? (

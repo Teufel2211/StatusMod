@@ -8,9 +8,17 @@ public final class StatusTextUtil {
 
     public static String renderStatusText(String rawStatus, PlayerSettings settings, ServerPlayer player) {
         String status = rawStatus == null ? "" : rawStatus;
-        boolean brackets = settings != null && settings.brackets;
+        int bracketStyle = settings != null ? settings.brackets : 0;
         status = applyPlaceholders(status, player);
-        return (brackets ? "[" : "") + status + (brackets ? "]" : "");
+        return wrapBrackets(status, bracketStyle);
+    }
+
+    public static String wrapBrackets(String text, int style) {
+        return switch (style) {
+            case 1 -> "[" + text + "]";
+            case 2 -> "<" + text + ">";
+            default -> text;
+        };
     }
 
     public static String resolveStatusForPlayer(PlayerSettings settings, ServerPlayer player) {

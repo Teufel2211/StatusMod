@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.teufel.statusmod.StatusMod;
 import com.teufel.statusmod.storage.ModConfig;
+import com.teufel.statusmod.sync.SyncManager;
 import com.teufel.statusmod.util.CodeGenerator;
 
 import java.net.URI;
@@ -85,6 +86,7 @@ public final class SetupManager {
                     config.apiKey = apiKey;
                     config.save();
                     System.out.println("[StatusMod] API-Key automatically fetched. Server setup complete.");
+                    SyncManager.retryStart();
                     return;
                 }
             } catch (Exception e) {
