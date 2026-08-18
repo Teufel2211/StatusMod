@@ -799,7 +799,7 @@ try {
                 # remove fabric.mod.json, inject quilt.mod.json, and repackage.
                 if ($loader -eq "quilt") {
                     $fabricJarDir = Join-Path $outputRoot "fabric"
-                    $fabricJar = Get-ChildItem -Path $fabricJarDir -Filter "Statusmod-*-fabric-$mc.jar" -File -ErrorAction SilentlyContinue |
+                    $fabricJar = Get-ChildItem -Path $fabricJarDir -Filter "Statusmod-*-fabric-$mc.jar" -File -Recurse -ErrorAction SilentlyContinue |
                         Where-Object { $_.Name -notlike "*-sources.jar" } |
                         Select-Object -First 1
                     if (-not $fabricJar) {

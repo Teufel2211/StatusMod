@@ -1,6 +1,8 @@
 package com.teufel.statusmod.command;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.teufel.statusmod.StatusMod;
 import com.teufel.statusmod.gui.PlayerHeadMenu;
 import com.teufel.statusmod.storage.PlayerSettings;
@@ -37,77 +39,99 @@ import java.util.Map;
 import java.util.UUID;
 
 public class StatusGuiCommand {
-    private static final int MAX_HEADS = 54;
+    private static final int HEADS_PER_PAGE = 54;
     private static Boolean hasDataComponents = null;
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("status")
-            .then(Commands.literal("gui").executes(ctx -> {
-                if (!PermissionUtil.hasAdminPermission(ctx.getSource())) {
-                    ctx.getSource().sendFailure(Component.literal("Du hast nicht genugend Rechte."));
-                    return 0;
-                }
-                ServerPlayer player = ctx.getSource().getPlayer();
-                if (player == null) {
-                    ctx.getSource().sendFailure(Component.literal("Nur Spieler können diesen Befehl nutzen."));
-                    return 0;
-                }
-                openStatusGui(ctx.getSource(), player);
-                return 1;
-            }))
+            .then(Commands.literal("gui")
+                .executes(ctx -> {
+                    if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genugend Rechte.")); return 0; }
+                    ServerPlayer player = ctx.getSource().getPlayer();
+                    if (player == null) { ctx.getSource().sendFailure(Component.literal("Nur Spieler können diesen Befehl nutzen.")); return 0; }
+                    openStatusGui(ctx.getSource(), player, 1, null);
+                    return 1;
+                })
+                .then(Commands.argument("page", IntegerArgumentType.integer(1)).suggests((ctx, builder) -> net.minecraft.commands.SharedSuggestionProvider.suggest(new String[]{"1","2","3"}, builder))
+                    .executes(ctx -> {
+                        if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genugend Rechte.")); return 0; }
+                        ServerPlayer player = ctx.getSource().getPlayer();
+                        if (player == null) { ctx.getSource().sendFailure(Component.literal("Nur Spieler können diesen Befehl nutzen.")); return 0; }
+                        int page = IntegerArgumentType.getInteger(ctx, "page");
+                        openStatusGui(ctx.getSource(), player, page, null);
+                        return 1;
+                    })
+                    .then(Commands.argument("search", StringArgumentType.word())
+                        .executes(ctx -> {
+                            if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genugend Rechte.")); return 0; }
+                            ServerPlayer player = ctx.getSource().getPlayer();
+                            if (player == null) { ctx.getSource().sendFailure(Component.literal("Nur Spieler können diesen Befehl nutzen.")); return 0; }
+                            int page = IntegerArgumentType.getInteger(ctx, "page");
+                            String query = StringArgumentType.getString(ctx, "search");
+                            openStatusGui(ctx.getSource(), player, page, query);
+                            return 1;
+                        })
+                    )
+                )
+            )
         );
     }
 
-    private static void openStatusGui(CommandSourceStack source, ServerPlayer player) {
+    private static void openStatusGui(CommandSourceStack source, ServerPlayer player, int page, String searchQuery) {
         MinecraftServer server = getServer(source);
-        if (server == null) {
-            source.sendFailure(Component.literal("Server nicht gefunden."));
-            return;
-        }
+        if (server == null) { source.sendFailure(Component.literal("Server nicht gefunden.")); return; }
 
-        Container container = PlayerHeadMenu.createContainer(MAX_HEADS);
+        Container container = PlayerHeadMenu.createContainer(HEADS_PER_PAGE);
 
         Map<String, ServerPlayer> onlineMap = new HashMap<>();
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             onlineMap.put(p.getUUID().toString(), p);
         }
 
-        int slot = 0;
-        Map<String, PlayerSettings> snapshot = StatusMod.getStorage().getAllSnapshot();
+        List<Map.Entry<String, PlayerSettings>> allEntries = new ArrayList<>(StatusMod.getStorage().getAllSnapshot().entrySet());
 
-        for (Map.Entry<String, PlayerSettings> entry : snapshot.entrySet()) {
-            if (slot >= MAX_HEADS) break;
+        for (Map.Entry<String, ServerPlayer> entry : onlineMap.entrySet()) {
+            boolean alreadyIn = allEntries.stream().anyMatch(e -> e.getKey().equals(entry.getKey()));
+            if (!alreadyIn) {
+                PlayerSettings ps = StatusMod.getStorage().forPlayer(entry.getKey());
+                allEntries.add(new java.util.AbstractMap.SimpleEntry<>(entry.getKey(), ps));
+            }
+        }
+
+        if (searchQuery != null && !searchQuery.isEmpty()) {
+            String lowerQuery = searchQuery.toLowerCase();
+            allEntries.removeIf(e -> {
+                String name = resolveName(e.getKey(), e.getValue(), onlineMap);
+                return !name.toLowerCase().contains(lowerQuery);
+            });
+        }
+
+        int totalPages = Math.max(1, (int) Math.ceil((double) allEntries.size() / HEADS_PER_PAGE));
+        if (page > totalPages) page = totalPages;
+        int startIdx = (page - 1) * HEADS_PER_PAGE;
+        int endIdx = Math.min(startIdx + HEADS_PER_PAGE, allEntries.size());
+
+        int slot = 0;
+        for (int i = startIdx; i < endIdx; i++) {
+            Map.Entry<String, PlayerSettings> entry = allEntries.get(i);
             String uuid = entry.getKey();
             PlayerSettings ps = entry.getValue();
             ServerPlayer online = onlineMap.get(uuid);
-            String name;
-            if (online != null) {
-                name = online.getScoreboardName();
-            } else if (ps.lastKnownName != null && !ps.lastKnownName.isEmpty()) {
-                name = ps.lastKnownName;
-            } else {
-                name = uuid.substring(0, 8);
-            }
+            String name = resolveName(uuid, ps, onlineMap);
             container.setItem(slot, createPlayerHead(name, ps, online, uuid));
             slot++;
         }
 
-        for (Map.Entry<String, ServerPlayer> entry : onlineMap.entrySet()) {
-            if (slot >= MAX_HEADS) break;
-            String uuid = entry.getKey();
-            if (snapshot.containsKey(uuid)) continue;
-            ServerPlayer online = entry.getValue();
-            PlayerSettings ps = StatusMod.getStorage().forPlayer(uuid);
-            container.setItem(slot, createPlayerHead(online.getScoreboardName(), ps, online, uuid));
-            slot++;
-        }
-
+        final int fPage = page;
+        final int fTotal = totalPages;
+        final int fCount = allEntries.size();
         MenuProvider provider = new MenuProvider() {
             @Override
             public Component getDisplayName() {
-                return Component.literal("Status Players");
+                String label = "Status Players (Seite " + fPage + "/" + fTotal + ")";
+                if (searchQuery != null && !searchQuery.isEmpty()) label += " [" + searchQuery + "]";
+                return Component.literal(label);
             }
-
             @Override
             public AbstractContainerMenu createMenu(int syncId, Inventory playerInv, Player p) {
                 return new PlayerHeadMenu(syncId, playerInv, container);
@@ -115,6 +139,13 @@ public class StatusGuiCommand {
         };
 
         player.openMenu(provider);
+    }
+
+    private static String resolveName(String uuid, PlayerSettings ps, Map<String, ServerPlayer> onlineMap) {
+        ServerPlayer online = onlineMap.get(uuid);
+        if (online != null) return online.getScoreboardName();
+        if (ps != null && ps.lastKnownName != null && !ps.lastKnownName.isEmpty()) return ps.lastKnownName;
+        return uuid.substring(0, 8);
     }
 
     private static ItemStack createPlayerHead(String name, PlayerSettings settings, ServerPlayer onlinePlayer, String uuidStr) {
