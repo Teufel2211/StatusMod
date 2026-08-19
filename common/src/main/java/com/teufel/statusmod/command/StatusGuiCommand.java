@@ -188,27 +188,45 @@ public class StatusGuiCommand {
     @SuppressWarnings("unchecked")
     private static ItemStack createPlayerHeadModern(String name, PlayerSettings settings, boolean online, GameProfile profile) throws Throwable {
         ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
-        Class<?> dcClass = Class.forName("net.minecraft.core.component.DataComponents");
-        Class<? extends Enum<?>> keyEnum = (Class<? extends Enum<?>>) dcClass.getField("CUSTOM_NAME").get(null).getClass();
-        Method setMethod = findMethod(stack.getClass(), "set", keyEnum, Object.class);
 
-        // Set skull profile for real player skin
+        // Try DataComponents API for profile (MC 1.21+)
         if (profile != null) {
-            Object profileKey = dcClass.getField("PROFILE").get(null);
-            Enum<?> profileConstant = Enum.valueOf((Class) keyEnum, "PROFILE");
-            setMethod.invoke(stack, profileConstant, profile);
+            try {
+                Class<?> dcClass = Class.forName("net.minecraft.core.component.DataComponents");
+                Class<? extends Enum<?>> keyEnum = (Class<? extends Enum<?>>) dcClass.getField("CUSTOM_NAME").get(null).getClass();
+                Method setMethod = findMethod(stack.getClass(), "set", keyEnum, Object.class);
+                Enum<?> profileConstant = Enum.valueOf((Class) keyEnum, "PROFILE");
+                setMethod.invoke(stack, profileConstant, profile);
+            } catch (Throwable ignored) {}
         }
 
+        // Always set via NBT as reliable fallback (ensures skin loads on all MC versions)
+        setSkullOwnerNbt(stack, profile);
+
+        // Set display name via DataComponents
         String statusText = settings != null ? settings.status : "";
         String colorKey = settings != null ? settings.color : "reset";
+        try {
+            Class<?> dcClass = Class.forName("net.minecraft.core.component.DataComponents");
+            Class<? extends Enum<?>> keyEnum = (Class<? extends Enum<?>>) dcClass.getField("CUSTOM_NAME").get(null).getClass();
+            Method setMethod = findMethod(stack.getClass(), "set", keyEnum, Object.class);
+            Enum<?> keyConstant = Enum.valueOf((Class) keyEnum, "CUSTOM_NAME");
+            MutableComponent displayName = Component.literal(name).withStyle(ChatFormatting.WHITE);
+            setMethod.invoke(stack, keyConstant, displayName);
+        } catch (Throwable e) {
+            // Fallback: NBT display name
+            MutableComponent displayName = Component.literal(name).withStyle(ChatFormatting.WHITE);
+            String nameJson = componentToJson(displayName);
+            if (nameJson != null) {
+                CompoundTag tag = getOrCreateTag(stack);
+                CompoundTag display = getCompoundTag(tag, "display");
+                display.putString("Name", nameJson);
+                tag.put("display", display);
+            }
+        }
 
-        Enum<?> keyConstant = Enum.valueOf((Class) keyEnum, "CUSTOM_NAME");
-        MutableComponent displayName = Component.literal(name).withStyle(ChatFormatting.WHITE);
-        setMethod.invoke(stack, keyConstant, displayName);
-
-        // Lore
+        // Set lore via DataComponents (try ItemLore, fallback to NBT)
         List<Component> loreLines = new ArrayList<>();
-
         if (statusText != null && !statusText.isEmpty()) {
             String bracketed = StatusTextUtil.wrapBrackets(statusText, settings != null ? settings.brackets : 0);
             TextColor statusColor = resolveColor(colorKey);
@@ -222,14 +240,23 @@ public class StatusGuiCommand {
         } else {
             loreLines.add(Component.literal("- Kein Status -").withStyle(ChatFormatting.GRAY));
         }
-
         loreLines.add(Component.literal(online ? "\u00a7aOnline" : "\u00a77Offline"));
 
-        Class<?> loreClass = Class.forName("net.minecraft.world.item.component.ItemLore");
-        Object lore = loreClass.getConstructor(List.class).newInstance(loreLines);
+        boolean loreSet = false;
+        try {
+            Class<?> dcClass = Class.forName("net.minecraft.core.component.DataComponents");
+            Class<? extends Enum<?>> keyEnum = (Class<? extends Enum<?>>) dcClass.getField("CUSTOM_NAME").get(null).getClass();
+            Method setMethod = findMethod(stack.getClass(), "set", keyEnum, Object.class);
+            Class<?> loreClass = Class.forName("net.minecraft.world.item.component.ItemLore");
+            Object lore = loreClass.getConstructor(List.class).newInstance(loreLines);
+            Enum<?> loreConstant = Enum.valueOf((Class) keyEnum, "LORE");
+            setMethod.invoke(stack, loreConstant, lore);
+            loreSet = true;
+        } catch (Throwable ignored) {}
 
-        Enum<?> loreConstant = Enum.valueOf((Class) keyEnum, "LORE");
-        setMethod.invoke(stack, loreConstant, lore);
+        if (!loreSet) {
+            setLoreNbt(stack, loreLines);
+        }
 
         return stack;
     }
@@ -237,21 +264,7 @@ public class StatusGuiCommand {
     private static ItemStack createPlayerHeadLegacy(String name, PlayerSettings settings, boolean online, GameProfile profile) {
         ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
 
-        // Set skull owner for real player skin
-        if (profile != null) {
-            try {
-                Object id = findMethod(profile.getClass(), "getId").invoke(profile);
-                if (id != null) {
-                    CompoundTag skullOwner = new CompoundTag();
-                    skullOwner.putString("Id", id.toString());
-                    Object profileName = findMethod(profile.getClass(), "getName").invoke(profile);
-                    if (profileName != null) {
-                        skullOwner.putString("Name", profileName.toString());
-                    }
-                    getOrCreateTag(stack).put("SkullOwner", skullOwner);
-                }
-            } catch (Throwable ignored) {}
-        }
+        setSkullOwnerNbt(stack, profile);
 
         String statusText = settings != null ? settings.status : "";
         String colorKey = settings != null ? settings.color : "reset";
@@ -260,14 +273,14 @@ public class StatusGuiCommand {
         MutableComponent displayName = Component.literal(name).withStyle(ChatFormatting.WHITE);
         String nameJson = componentToJson(displayName);
         if (nameJson != null) {
-            CompoundTag display = new CompoundTag();
+            CompoundTag tag = getOrCreateTag(stack);
+            CompoundTag display = getCompoundTag(tag, "display");
             display.putString("Name", nameJson);
-            getOrCreateTag(stack).put("display", display);
+            tag.put("display", display);
         }
 
         // Lore via NBT
-        ListTag lore = new ListTag();
-
+        List<Component> loreLines = new ArrayList<>();
         if (statusText != null && !statusText.isEmpty()) {
             String bracketed = StatusTextUtil.wrapBrackets(statusText, settings != null ? settings.brackets : 0);
             TextColor statusColor = resolveColor(colorKey);
@@ -277,26 +290,45 @@ public class StatusGuiCommand {
             } else {
                 statusLine.withStyle(ChatFormatting.RESET);
             }
-            String json = componentToJson(statusLine);
-            if (json != null) lore.add(StringTag.valueOf(json));
+            loreLines.add(statusLine);
         } else {
-            MutableComponent noStatus = Component.literal("- Kein Status -");
-            noStatus.withStyle(ChatFormatting.GRAY);
-            String json = componentToJson(noStatus);
-            if (json != null) lore.add(StringTag.valueOf(json));
+            loreLines.add(Component.literal("- Kein Status -").withStyle(ChatFormatting.GRAY));
         }
+        loreLines.add(Component.literal(online ? "\u00a7aOnline" : "\u00a77Offline"));
 
-        String stateText = online ? "\u00a7aOnline" : "\u00a77Offline";
-        MutableComponent stateLine = Component.literal(stateText);
-        String stateJson = componentToJson(stateLine);
-        if (stateJson != null) lore.add(StringTag.valueOf(stateJson));
-
-        CompoundTag tag = getOrCreateTag(stack);
-        CompoundTag displayTag = getCompoundTag(tag, "display");
-        displayTag.put("Lore", lore);
-        tag.put("display", displayTag);
-
+        setLoreNbt(stack, loreLines);
         return stack;
+    }
+
+    private static void setSkullOwnerNbt(ItemStack stack, GameProfile profile) {
+        if (profile == null) return;
+        try {
+            CompoundTag tag = getOrCreateTag(stack);
+            CompoundTag skullOwner = new CompoundTag();
+            Object id = findMethod(profile.getClass(), "getId").invoke(profile);
+            if (id != null) {
+                skullOwner.putString("Id", id.toString());
+            }
+            Object profileName = findMethod(profile.getClass(), "getName").invoke(profile);
+            if (profileName != null) {
+                skullOwner.putString("Name", profileName.toString());
+            }
+            tag.put("SkullOwner", skullOwner);
+        } catch (Throwable ignored) {}
+    }
+
+    private static void setLoreNbt(ItemStack stack, List<Component> lines) {
+        try {
+            CompoundTag tag = getOrCreateTag(stack);
+            CompoundTag display = getCompoundTag(tag, "display");
+            ListTag lore = new ListTag();
+            for (Component line : lines) {
+                String json = componentToJson(line);
+                if (json != null) lore.add(StringTag.valueOf(json));
+            }
+            display.put("Lore", lore);
+            tag.put("display", display);
+        } catch (Throwable ignored) {}
     }
 
     private static CompoundTag getOrCreateTag(ItemStack stack) {
