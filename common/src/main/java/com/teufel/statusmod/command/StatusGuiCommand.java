@@ -81,7 +81,7 @@ public class StatusGuiCommand {
         MinecraftServer server = getServer(source);
         if (server == null) { source.sendFailure(Component.literal("Server nicht gefunden.")); return; }
 
-        Container container = PlayerHeadMenu.createContainer(HEADS_PER_PAGE);
+        PlayerHeadMenu.HeadContainer container = PlayerHeadMenu.createContainer(HEADS_PER_PAGE);
 
         Map<String, ServerPlayer> onlineMap = new HashMap<>();
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
@@ -119,6 +119,7 @@ public class StatusGuiCommand {
             ServerPlayer online = onlineMap.get(uuid);
             String name = resolveName(uuid, ps, onlineMap);
             container.setItem(slot, createPlayerHead(name, ps, online, uuid));
+            container.setSlotUuid(slot, uuid);
             slot++;
         }
 
