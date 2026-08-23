@@ -33,6 +33,9 @@ export async function resolveApiKeyServer(request: Request, scope: string): Prom
   const apiKey = request.headers.get("x-api-key")
   if (!apiKey) return null
 
+  // Extract prefix (first 10 chars) to pre-filter — avoids Argon2id on every key
+  const prefix = apiKey.slice(0, 10)
+
   const { getServiceClient } = await import("./supabase")
   const sb = getServiceClient()
 
@@ -40,6 +43,7 @@ export async function resolveApiKeyServer(request: Request, scope: string): Prom
     .from("api_keys")
     .select("key_hash, scopes, server_id, revoked, expires_at")
     .is("revoked", false)
+    .eq("key_prefix", prefix)
 
   if (error || !data || data.length === 0) return null
 

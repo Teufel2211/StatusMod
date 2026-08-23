@@ -3,21 +3,14 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams } from "next/navigation"
 import { apiFetch, getServerId } from "@/lib/client/auth"
+import { cssColor } from "@/lib/color"
+import { PlayerAvatar } from "@/components/player-avatar"
 
 const COLORS = [
   "reset", "black", "dark_blue", "dark_green", "dark_aqua", "dark_red",
   "dark_purple", "gold", "gray", "dark_gray", "blue", "green",
   "aqua", "red", "light_purple", "yellow", "white",
 ]
-
-const COLOR_HEX: Record<string, string> = {
-  reset: "#e8e6e0", black: "#000000", dark_blue: "#0000AA",
-  dark_green: "#00AA00", dark_aqua: "#00AAAA", dark_red: "#AA0000",
-  dark_purple: "#AA00AA", gold: "#FFAA00", gray: "#AAAAAA",
-  dark_gray: "#555555", blue: "#5555FF", green: "#55FF55",
-  aqua: "#55FFFF", red: "#FF5555", light_purple: "#FF55FF",
-  yellow: "#FFFF55", white: "#FFFFFF",
-}
 
 type PlayerDetail = {
   id: number
@@ -26,6 +19,7 @@ type PlayerDetail = {
   username: string | null
   status: string | null
   color: string | null
+  avatar: string | null
   created_at: string
   updated_at: string | null
   anonymized: boolean | null
@@ -95,18 +89,13 @@ export default function PlayerDetailPage() {
     )
   }
 
-  const displayColor = color in COLOR_HEX ? COLOR_HEX[color] : color
+  const displayColor = cssColor(color)
 
   return (
     <div>
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-1">
-          <img
-            src={`https://mc-heads.net/avatar/${player.uuid}/64`}
-            alt=""
-            className="w-16 h-16 rounded-lg"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
-          />
+          <PlayerAvatar uuid={player.uuid} username={player.username} avatar={player.avatar} sizePx={64} />
           <div>
             <h1 className="text-2xl font-display" style={{ color: "var(--text-primary)" }}>
               {player.username ?? "Unknown Player"}
@@ -121,7 +110,7 @@ export default function PlayerDetailPage() {
           <div className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>Status</div>
           <div className="flex items-center gap-2">
             {player.color && player.color !== "reset" && (
-              <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: COLOR_HEX[player.color] ?? player.color }} />
+              <span className="w-3 h-3 rounded-full inline-block" style={{ background: cssColor(player.color) }} />
             )}
             <span style={{ color: "var(--text-primary)" }}>{player.status ?? "—"}</span>
           </div>
@@ -159,7 +148,7 @@ export default function PlayerDetailPage() {
                     color === c ? "scale-110" : ""
                   }`}
                   style={{
-                    backgroundColor: COLOR_HEX[c] ?? c,
+                    backgroundColor: cssColor(c),
                     borderColor: color === c ? "var(--accent)" : "var(--border)",
                   }}
                   title={c}

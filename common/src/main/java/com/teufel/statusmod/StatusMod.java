@@ -11,8 +11,11 @@ import com.teufel.statusmod.platform.PlatformServices;
 import com.teufel.statusmod.setup.SetupManager;
 import com.teufel.statusmod.sync.SyncManager;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public final class StatusMod {
     public static final String MOD_ID = "statusmod";
+    private static final AtomicBoolean initialized = new AtomicBoolean(false);
     public static volatile ModConfig config;
     public static volatile SettingsStorage storage;
     public static volatile BlockedPlayers blockedPlayers;
@@ -22,22 +25,16 @@ public final class StatusMod {
     private StatusMod() {}
 
     public static void init() {
+        if (!initialized.compareAndSet(false, true)) {
+            return;
+        }
+
         Platform platform = PlatformServices.getPlatform();
-        if (config == null) {
-            config = ModConfig.load();
-        }
-        if (storage == null) {
-            storage = new SettingsStorage();
-        }
-        if (blockedPlayers == null) {
-            blockedPlayers = new BlockedPlayers();
-        }
-        if (mutedPlayers == null) {
-            mutedPlayers = new MutedPlayers();
-        }
-        if (customPresets == null) {
-            customPresets = new CustomPresets();
-        }
+        config = ModConfig.load();
+        storage = new SettingsStorage();
+        blockedPlayers = new BlockedPlayers();
+        mutedPlayers = new MutedPlayers();
+        customPresets = new CustomPresets();
         AuditLogger.init();
 
         System.out.println("[StatusMod] Initializing on " + platform.getName());

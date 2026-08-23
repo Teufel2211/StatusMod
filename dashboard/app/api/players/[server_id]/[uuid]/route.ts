@@ -86,7 +86,6 @@ export async function DELETE(
   if (session.sub !== params.uuid) return unauthorized()
 
   const sb = getServiceClient()
-  const now = new Date().toISOString()
 
   const { data: server } = await (sb as any)
     .from("servers")
@@ -115,7 +114,7 @@ export async function DELETE(
 
   await Promise.all([
     (sb as any).from("blocked_players").delete().eq("uuid", params.uuid),
-    (sb as any).from("muted_players").update({ muted_until: now }).eq("uuid", params.uuid),
+    (sb as any).from("muted_players").delete().eq("uuid", params.uuid),
   ])
 
   return ok({ success: true, message: "Data anonymized. Full deletion in 24h." })

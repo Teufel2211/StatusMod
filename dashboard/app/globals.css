@@ -139,8 +139,9 @@
     background-size: 40px 40px;
   }
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r;
-    from: var(--accent);
-    to: var(--accent-hover);
+    background: linear-gradient(to right, var(--accent), var(--accent-hover));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }

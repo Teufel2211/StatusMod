@@ -19,6 +19,7 @@ public class PlayerSettings {
     public long lastActivityAtMs = System.currentTimeMillis();
     public boolean autoAfk = false;
     public String lastKnownName = "";
+    public String avatar = "";
 
     public List<String> statusHistory = new ArrayList<>();
     public Map<String, String> statusByWorld = new HashMap<>();

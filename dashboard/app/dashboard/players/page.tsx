@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import { apiFetch, getServerId } from "@/lib/client/auth"
 import { useRealtimePlayers } from "@/lib/client/use-realtime"
+import { cssColor } from "@/lib/color"
+import { PlayerAvatar } from "@/components/player-avatar"
 
 type PlayerRow = {
   id: number
@@ -11,6 +13,8 @@ type PlayerRow = {
   username: string | null
   status: string | null
   color: string | null
+  avatar: string | null
+  is_online: boolean | null
   created_at: string
 }
 
@@ -40,6 +44,7 @@ export default function PlayersPage() {
       username: live.username ?? p.username,
       status: live.status ?? p.status,
       color: live.color ?? p.color,
+      avatar: live.avatar ?? p.avatar,
     }
   })
 
@@ -48,7 +53,7 @@ export default function PlayersPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-display mb-1" style={{ color: "var(--text-primary)" }}>Players</h1>
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          {players.length} player(s) on your server
+          {players.length} known player(s) · {merged.filter((p) => p.is_online).length} online
           {connection === "connected" && (
             <span className="ml-2 text-xs badge-green">live</span>
           )}
@@ -79,7 +84,7 @@ export default function PlayersPage() {
                 <tr
                   key={p.id}
                   className="border-b last:border-0 transition-colors cursor-pointer"
-                  style={{ borderColor: "var(--border)", opacity: 0.5 }}
+                  style={{ borderColor: "var(--border)", opacity: p.is_online ? 1 : 0.5 }}
                   onClick={() => window.location.href = `/dashboard/players/${p.uuid}`}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = "var(--bg-hover)"
@@ -87,17 +92,16 @@ export default function PlayersPage() {
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = ""
-                    e.currentTarget.style.opacity = ""
+                    e.currentTarget.style.opacity = p.is_online ? "1" : "0.5"
                   }}
                 >
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2.5">
-                      <img
-                        src={`https://mc-heads.net/avatar/${p.uuid}/24`}
-                        alt=""
-                        className="w-6 h-6 rounded-sm"
-                        loading="lazy"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+                      <PlayerAvatar uuid={p.uuid} username={p.username} avatar={p.avatar} sizePx={24} />
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full inline-block ${p.is_online ? "badge-green" : ""}`}
+                        style={p.is_online ? undefined : { backgroundColor: "var(--border)" }}
+                        title={p.is_online ? "online" : "offline"}
                       />
                       <span className="font-medium" style={{ color: "var(--text-primary)" }}>{p.username ?? "—"}</span>
                     </div>
@@ -108,7 +112,7 @@ export default function PlayersPage() {
                         {p.color && (
                           <span
                             className="w-2 h-2 rounded-full inline-block"
-                            style={{ backgroundColor: p.color }}
+                            style={{ background: cssColor(p.color) }}
                           />
                         )}
                         <span style={{ color: "var(--text-secondary)" }}>{p.status}</span>

@@ -5,26 +5,27 @@ export interface RateLimitConfig {
   max: number
 }
 
-export function checkRateLimit(key: string, config: RateLimitConfig): { allowed: boolean; remaining: number; resetAt: number } {
+export function checkRateLimit(key: string, config: RateLimitConfig): { allowed: boolean; remaining: number; resetAt: number; max: number } {
   const now = Date.now()
   const entry = stores.get(key)
 
   if (!entry || now > entry.resetAt) {
     stores.set(key, { count: 1, resetAt: now + config.windowMs })
-    return { allowed: true, remaining: config.max - 1, resetAt: now + config.windowMs }
+    return { allowed: true, remaining: config.max - 1, resetAt: now + config.windowMs, max: config.max }
   }
 
   entry.count++
   if (entry.count > config.max) {
-    return { allowed: false, remaining: 0, resetAt: entry.resetAt }
+    return { allowed: false, remaining: 0, resetAt: entry.resetAt, max: config.max }
   }
 
-  return { allowed: true, remaining: config.max - entry.count, resetAt: entry.resetAt }
+  return { allowed: true, remaining: config.max - entry.count, resetAt: entry.resetAt, max: config.max }
 }
 
-export function getRateLimitHeaders(result: { allowed: boolean; remaining: number; resetAt: number }) {
+export function getRateLimitHeaders(result: { allowed: boolean; remaining: number; resetAt: number; max: number }) {
   return {
-    "X-RateLimit-Limit": String(result.remaining),
+    "X-RateLimit-Limit": String(result.max),
+    "X-RateLimit-Remaining": String(result.remaining),
     "X-RateLimit-Reset": String(Math.ceil(result.resetAt / 1000)),
   }
 }

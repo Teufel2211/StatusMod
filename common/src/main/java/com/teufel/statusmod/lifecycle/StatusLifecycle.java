@@ -38,6 +38,7 @@ public final class StatusLifecycle {
                 settings.lastKnownName = name;
             }
             ModConfig cfg = StatusMod.getConfig();
+            if (cfg == null) return;
             if (!cfg.restoreStatusOnJoin) {
                 settings.status = "";
                 settings.color = "reset";

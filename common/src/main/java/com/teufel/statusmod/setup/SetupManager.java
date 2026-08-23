@@ -18,6 +18,9 @@ public final class SetupManager {
     private static final int CODE_LENGTH = 16;
     private static final long PENDING_POLL_INTERVAL_MS = 30_000;
     private static final long PENDING_POLL_TIMEOUT_MS = 24 * 60 * 60 * 1000;
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
 
     private SetupManager() {}
 
@@ -103,10 +106,6 @@ public final class SetupManager {
 
     private static String fetchPendingKey(String dashboardUrl, String serverId, String setupSecret) {
         try {
-            HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(10))
-                    .build();
-
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(dashboardUrl + "/api/auth/setup/pending-key?server_id=" + serverId))
                     .timeout(Duration.ofSeconds(20))
@@ -114,7 +113,7 @@ public final class SetupManager {
                     .GET()
                     .build();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 return null;
             }
@@ -140,10 +139,6 @@ public final class SetupManager {
 
     private static boolean register(String serverId, String code, String dashboardUrl, String setupSecret) {
         try {
-            HttpClient client = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(10))
-                    .build();
-
             JsonObject payload = new JsonObject();
             payload.addProperty("server_id", serverId);
             payload.addProperty("code", code);
@@ -156,7 +151,7 @@ public final class SetupManager {
                     .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
                     .build();
 
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             return response.statusCode() >= 200 && response.statusCode() < 300;
         } catch (Exception e) {
             System.out.println("[StatusMod] Setup registration exception: " + e);

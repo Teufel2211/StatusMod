@@ -40,8 +40,9 @@ export async function GET(request: Request) {
         try {
           const { data } = await (sb as any)
             .from("players")
-            .select("uuid, username, status, color, updated_at")
+            .select("uuid, username, status, color, avatar, updated_at")
             .eq("server_id", session!.server_id)
+            .eq("is_online", true)
             .order("updated_at", { ascending: false })
             .limit(100)
 

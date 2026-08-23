@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { apiFetch, getServerId } from "@/lib/client/auth"
 import { useRealtimePlayers } from "@/lib/client/use-realtime"
+import { PlayerAvatar } from "@/components/player-avatar"
 
 type HealthData = {
   status: string
@@ -64,13 +65,7 @@ export default function DashboardOverview() {
                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--bg-hover)" }}
                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "" }}
               >
-                <img
-                  src={`https://mc-heads.net/avatar/${p.uuid}/24`}
-                  alt=""
-                  className="w-5 h-5 rounded-sm"
-                  loading="lazy"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
-                />
+                <PlayerAvatar uuid={p.uuid} username={p.username} avatar={p.avatar} sizePx={20} />
                 <span style={{ color: "var(--text-primary)" }}>{p.username ?? "Unknown"}</span>
                 {p.status && (
                   <span className="text-xs" style={{ color: "var(--text-muted)" }}>{p.status}</span>

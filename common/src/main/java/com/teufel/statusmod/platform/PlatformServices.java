@@ -3,16 +3,23 @@ package com.teufel.statusmod.platform;
 import java.util.ServiceLoader;
 
 public final class PlatformServices {
-    private static Platform platform;
+    private static volatile Platform platform;
 
     private PlatformServices() {}
 
     public static Platform getPlatform() {
-        if (platform == null) {
-            platform = ServiceLoader.load(Platform.class)
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No Platform implementation found"));
+        Platform result = platform;
+        if (result == null) {
+            synchronized (PlatformServices.class) {
+                result = platform;
+                if (result == null) {
+                    result = ServiceLoader.load(Platform.class)
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalStateException("No Platform implementation found"));
+                    platform = result;
+                }
+            }
         }
-        return platform;
+        return result;
     }
 }

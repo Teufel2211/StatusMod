@@ -8,6 +8,7 @@ type Player = {
   username: string | null
   status: string | null
   color: string | null
+  avatar: string | null
   updated_at: string | null
 }
 

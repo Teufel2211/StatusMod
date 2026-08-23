@@ -35,6 +35,8 @@ export async function PATCH(
 
   if (findError) return serverError()
 
+  updateData.updated_at = new Date().toISOString()
+
   if (existing) {
     const { error } = await (sb as any)
       .from("players")
@@ -44,7 +46,7 @@ export async function PATCH(
   } else {
     const { error } = await (sb as any)
       .from("players")
-      .insert({ server_id: params.server_id, uuid: params.uuid, ...updateData })
+      .insert({ server_id: params.server_id, uuid: params.uuid, updated_at: new Date().toISOString(), ...updateData })
     if (error) return serverError()
   }
 

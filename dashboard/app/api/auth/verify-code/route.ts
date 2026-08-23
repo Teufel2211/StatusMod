@@ -42,12 +42,12 @@ export async function POST(request: Request) {
     return forbidden("Server wurde noch nicht über den Setup-Code geclaimt")
   }
 
+  // Delete any existing active codes for this server first (prevents code accumulation)
   const { error: deleteError } = await (sb as any)
     .from("verify_codes")
     .delete()
     .eq("server_id", serverId)
     .eq("used", false)
-    .gt("expires_at", new Date().toISOString())
 
   if (deleteError) return serverError()
 
