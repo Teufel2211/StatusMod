@@ -29,12 +29,18 @@ public final class SyncManager {
     private static final java.util.regex.Pattern UUID_PATTERN =
             java.util.regex.Pattern.compile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
     private static final Gson GSON = new Gson();
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
+    private static final String IS_SECURE_URL_PATTERN = "^(https://|http://localhost|http://127\\.).*";
     private static volatile boolean started = false;
     private static volatile Map<String, String> onlineNames = new HashMap<>();
+    private static volatile MinecraftServer serverRef = null;
 
     private SyncManager() {}
 
     public static void updateOnlineNames(MinecraftServer server) {
+        serverRef = server;
         if (server == null) return;
         try {
             Map<String, String> names = new HashMap<>();
@@ -74,14 +80,14 @@ public final class SyncManager {
                 return;
             }
             try {
-                push();
-            } catch (Exception e) {
-                System.out.println("[StatusMod] Sync push failed: " + e.getMessage());
-            }
-            try {
                 pull();
             } catch (Exception e) {
                 System.out.println("[StatusMod] Sync pull failed: " + e.getMessage());
+            }
+            try {
+                push();
+            } catch (Exception e) {
+                System.out.println("[StatusMod] Sync push failed: " + e.getMessage());
             }
         }
     }
@@ -109,12 +115,14 @@ public final class SyncManager {
             if (name != null && !name.isEmpty()) {
                 entry.addProperty("username", name);
             }
+            entry.addProperty("online", onlineNames.containsKey(uuid));
             entry.addProperty("status", ps.status == null ? "" : ps.status);
             entry.addProperty("color", ps.color == null ? "reset" : ps.color);
 
             JsonObject settings = new JsonObject();
             settings.addProperty("brackets", ps.brackets);
             settings.addProperty("beforeName", ps.beforeName);
+            settings.addProperty("avatar", ps.avatar == null ? "" : ps.avatar);
             if (ps.fontStyle != null) settings.addProperty("fontStyle", ps.fontStyle);
             if (ps.statusWords > 0) settings.addProperty("statusWords", ps.statusWords);
             if (ps.statusByWorld != null) settings.add("statusByWorld", GSON.toJsonTree(ps.statusByWorld));
@@ -155,9 +163,6 @@ public final class SyncManager {
         }
         payload.add("blocked", blocked);
 
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(endpoint))
                 .timeout(Duration.ofSeconds(20))
@@ -167,7 +172,7 @@ public final class SyncManager {
                 .build();
 
         try {
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 System.out.println("[StatusMod] Sync push status " + response.statusCode() + ": " + response.body());
             }
@@ -187,9 +192,6 @@ public final class SyncManager {
         String since = config.lastSyncAtMs > 0L ? "?since=" + java.time.Instant.ofEpochMilli(config.lastSyncAtMs) : "";
         String endpoint = dashboardUrl + "/api/players/" + config.serverId + "/sync" + since;
 
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(endpoint))
                 .timeout(Duration.ofSeconds(20))
@@ -199,7 +201,7 @@ public final class SyncManager {
 
         HttpResponse<String> response;
         try {
-            response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (java.io.IOException | InterruptedException e) {
             System.out.println("[StatusMod] Sync pull exception: " + e.getMessage());
             return;
@@ -239,17 +241,23 @@ public final class SyncManager {
                 JsonObject p = el.getAsJsonObject();
                 String uuid = p.has("uuid") ? p.get("uuid").getAsString() : "";
                 if (!isValidUuid(uuid)) continue;
-                String status = p.has("status") && !p.get("status").isJsonNull()
-                        ? truncate(p.get("status").getAsString(), MAX_STATUS_LENGTH) : "";
-                String color = p.has("color") && !p.get("color").isJsonNull()
-                        ? truncate(p.get("color").getAsString(), MAX_COLOR_LENGTH) : "reset";
-                if (StatusMod.storage == null) continue;
+                boolean hasStatus = p.has("status") && !p.get("status").isJsonNull();
+                boolean hasColor = p.has("color") && !p.get("color").isJsonNull();
+                if ((!hasStatus && !hasColor) || StatusMod.storage == null) continue;
                 PlayerSettings ps = StatusMod.storage.forPlayer(uuid);
-                if (status != null && !status.isEmpty() && !status.equals(ps.status)) {
-                    ps.status = status;
-                    ps.color = color;
+                boolean changed = false;
+                if (hasStatus) {
+                    String status = truncate(p.get("status").getAsString(), MAX_STATUS_LENGTH);
+                    if (!status.equals(ps.status)) { ps.status = status; changed = true; }
+                }
+                if (hasColor) {
+                    String color = truncate(p.get("color").getAsString(), MAX_COLOR_LENGTH);
+                    if (!color.equals(ps.color)) { ps.color = color; changed = true; }
+                }
+                if (changed) {
                     ps.lastStatusChangeAtMs = System.currentTimeMillis();
                     StatusMod.storage.put(uuid, ps);
+                    applyOnline(serverRef, uuid, ps);
                 }
             } catch (Exception ignored) {}
         }
@@ -257,6 +265,27 @@ public final class SyncManager {
         try {
             config.lastSyncAtMs = java.time.Instant.parse(json.get("server_time").getAsString()).toEpochMilli();
             config.save();
+        } catch (Exception ignored) {}
+    }
+
+    private static void applyOnline(MinecraftServer server, String uuidStr, PlayerSettings ps) {
+        if (server == null || uuidStr == null) return;
+        try {
+            java.util.UUID id = java.util.UUID.fromString(uuidStr);
+            final PlayerSettings snapshot = ps;
+            server.execute(() -> {
+                try {
+                    ModConfig cfg = StatusMod.getConfig();
+                    if (cfg == null || !cfg.isEnabled("status")) return;
+                    ServerPlayer sp = server.getPlayerList().getPlayer(id);
+                    if (sp != null) {
+                        com.teufel.statusmod.util.StatusTeamUtil.applyStatus(
+                                server.getScoreboard(), sp, snapshot,
+                                snapshot.status == null ? "" : snapshot.status,
+                                snapshot.color == null ? "reset" : snapshot.color, false);
+                    }
+                } catch (Exception ignored) {}
+            });
         } catch (Exception ignored) {}
     }
 

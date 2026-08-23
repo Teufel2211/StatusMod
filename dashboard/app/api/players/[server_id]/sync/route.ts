@@ -10,6 +10,8 @@ const PlayerSyncSchema = z.object({
   status: z.string().max(64).optional().nullable(),
   color: z.string().max(32).optional().nullable(),
   settings: z.record(z.unknown()).optional().nullable(),
+  avatar: z.string().max(160).optional().nullable(),
+  online: z.boolean().optional(),
 })
 
 const MutedSyncSchema = z.object({
@@ -52,15 +54,22 @@ export async function POST(
     .maybeSingle()
   if (!serverExists) return badRequest()
 
-  const rows = parsed.data.players.map((p) => ({
-    server_id: params.server_id,
-    uuid: p.uuid,
-    username: p.username ?? null,
-    status: p.status ?? null,
-    color: p.color ?? null,
-    settings: p.settings ?? {},
-    updated_at: new Date().toISOString(),
-  }))
+  const nowIso = new Date().toISOString()
+  const rows = parsed.data.players.map((p) => {
+    const row: Record<string, unknown> = {
+      server_id: params.server_id,
+      uuid: p.uuid,
+      updated_at: nowIso,
+      is_online: p.online ?? false,
+    }
+    if (p.online) row.last_seen = nowIso
+    if (p.username != null && p.username !== "") row.username = p.username
+    if (p.status != null) row.status = p.status
+    if (p.color != null) row.color = p.color
+    if (p.settings != null) row.settings = p.settings
+    if (p.avatar !== undefined && p.avatar !== null) row.avatar = p.avatar === "" ? null : p.avatar
+    return row
+  })
 
   if (rows.length > 0) {
     const { error } = await (sb as any)

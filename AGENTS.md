@@ -686,4 +686,158 @@ All 15 builds verified passing.
 3. Test SSE reconnection after network interruption
 4. Consider: SSE endpoint auth token refresh (JWT expires → EventSource won't reconnect with stale token)
 
+### 2026-08-19 — Admin GUI (Player Heads) Bug-Iteration + MC 26.x Runtime-Analysis ✅ (nicht committet)
 
+**Feature:** Admin-GUI (`/status gui [page] [search:query]`): virtuelle 6-Reihen-Chest, zeigt Player-Heads (skinned) als klickbare Slots. Admin-Klick = Action.
+
+**UI-Build (5 Iterationen):** HeadBuilder (SkullOwner NBT → skinned heads) → HeadContainer (6-Reihen virtueller Chest) → PlayerHeadMenu (Base-Chest-Menu) → ClickablePlayerHeadMenu (ItemClick-Listener) → StatusGuiCommand (Command + Reflection für cross-version safety).
+
+**Iteration 1 → 2 (Skinned Heads + Search):**
+- `HeadBuilder.createHead(GameProfile, displayName)` baut `ItemStack` mit `SkullOwner`-Tag (Profile-WithSignature-NBT) — skinned heads statt grauer Steine.
+- `StatusGuiCommand` arg `page:int` + `search:String` (greedy), paginiert über `PlayerHeadMenu.getHeadPage(...)`.
+- `CommandSuggestions.COLOR_SUGGESTIONS`: 16 Farben + `#RRGGBB` + `rainbow`.
+
+**Iteration 3 → 5 (Click-Actions + Bug-Fixes):**
+- `ClickablePlayerHeadMenu`: Listener erkennt Klick (Slot wird leer → Item ging auf Cursor → Action → restore + Cursor clear).
+- **Buggy Behavior (aktuell):** `mayPickup()` returned `true` → Items landeten im Cursor/Inventory des Admins. Restore via `setCarried(ItemStack.EMPTY)` funktionierte auf MC 26.x NICHT zuverlässig.
+- **Fix-Versuche:** `menu.setCarried(ItemStack.EMPTY)` in try-catch; `savedHeads[]` + `wasPopulated[]` Tracking; `initialized[]`-Flag für Init-Phase.
+- **User-Report (deployed auf Nitrado):** "rechtsklick legt items ins inventory, links-klickführt 'ungültige Farbe' aus".
+- **Root Cause (analyisiert):** Links-Klickauf Head mit Name `Delle2211` → `/status <text>` matchte `status set Delle2211` → `parseStatusInput` nahm "set" als Status, "Delle2211" als Farbe → `isValidColorInput("Delle2211")` = false → "Ungültige Farbe". Der User wollte ANDERES Verhalten als implementiert.
+- **User-Gewünschtes Verhalten:** Links-Klick = Ziel-Spieler-Status ändern (push), Rechts-Klick = Ziel-Spieler-Farbe ändern (push).
+- **MC 26.x ClickType-Problem:** `AbstractContainerMenu.clicked()` Signatur: 1.21.11 = `(int, int, ClickType, Player)`, 26.x = `(int, int, ContainerInput, Player)`. Override mit `ClickType`-Param feuert auf 26.x NICHT (Loom kann nicht remappen, da `ClickType`≠`ContainerInput` im Intermediate).
+- **Lösungsansatz (offen):** `quickMoveStack()` (Shift-Klick) für eine Action, normaler Klick für die andere — oder einfacher: beide Klicks machen dasselbe (Status+Farbe kopieren). Left/Right-Unterscheidung ist auf 26.x nicht zuverlässig möglich.
+
+**MC 26.x Runtime-Pitfalls (aus Nitrado-Deploy + Multiversion-Build-Analyse):**
+
+| Problem | Ursache | Fix |
+|---------|---------|-----|
+| `class_7157` → `NoClassDefFoundError` | Loom-Cache stale: Standalone `fabric26.1`-Build produzierte Bytecode mit Intermediary-Namen statt Mojang-Namen | Multiversion-Build (`build-multiversion.ps1`) räumt Loom-Cache auf → sauberer Bytecode |
+| `Commands.performCommand` nicht gefunden | MC 26.x benennt um zu `Commands.performPrefixedCommand` | Reflection oder direkte Referenz (Loom remappt) |
+| `ContainerListener` Signatur-Änderung | 1.21.11: `(menu, slot, newStack)`, 26.x: `(menu, slot, newStack)` — Parameteranzahl gleich, aber alte Version hatte `oldStack` als 4. Parameter | Common-Code nutzt 3-Param-Signatur → kompatibel |
+| `ResolvableProfile` nicht instanziierbar | Sealed class, keine public-Konstruktoren | `ResolvableProfile.createResolved(GameProfile)` statische Factory |
+| `ChatFormatting.getColor()` nicht vorhanden | MC 26.x entfernt | `FALLBACK_COLORS`-Map (hardcoded) |
+| `ItemStack.getOrCreateTag()` entfernt | MC 1.21+ nutzt `DataComponents` | DataComponents-API |
+| `setCarried(EMPTY)` wirkt nicht zuverlässig | MC 26.x"sync-Cursor" via `setCarried()` möglicherweise erst nach Broadcast sichtbar | Items flackern kurz im Cursor (minor UX) |
+
+**Deployments:** User deployt manuell auf Nitrado-Server (kein lokaler Test-Server). JARs: `dist/multiversion/{fabric,forge,neoforge,quilt}/`.
+
+**Architektur-Entscheidungen (bleibend):**
+- `StatusTeamUtil.applyStatus()` via Reflection aufrufen (scoreboard via `server.getScoreboard()` reflection) — vermeidet Klassenreferenz-Probleme in Common-Code.
+- `hasStatusPermission()` gibt `true` für ALLE Spieler wenn LuckyPerms NICHT installiert ist.
+- `brackets`-Feld: `int` — 0=none, 1=`[]`, 2=`<>`; backwards-compatible via Gson Coercion.
+
+**Offen (nächste Schritte):**
+1. **ClickablePlayerHeadMenu Refactor:** Links/Rechts-Unterscheidung zuverlässig machen (Shift-Klick als Workaround ODER beide Klicks = Status+Farbe) → ✅ erledigt 2026-08-23 (s. unten)
+2. **Item-Pickup-Problem lösen:** `mayPickup()` = false + Alternative Click-Detection ODER accepts "flashing cursor" als Known Issue → ✅ erledigt 2026-08-23 (s. unten)
+3. Alle 20/20 Multiversion-Builds nochmal frisch laufen lassen nach GC-Änderungen
+4. Deploy + User-Test auf Nitrado
+5. Modrinth-Compliance: Telemetry-Disclosure vor Sync-Release
+
+### 2026-08-23 — Admin GUI: Klick → Chat-Befehl ✅ (nicht committet)
+
+**User-Anforderung:** `/status gui` — Klick auf Head = Befehl zum Status-/Farb-Ändern vorbereiten (Chat-Befüllung via klickbare Chat-Zeile).
+
+**Finale Interaktion (Iteration 2, nach User-Feedback „bei jedem Head ist eine 2 daneben"):**
+- **Linksklick (oder Rechtsklick — identisch) = Status ändern**, **Shift-Klick = Farbe ändern**.
+- Der Count=2-Trick (2er-Stack für Links/Rechts-Erkennung) wurde ENTFERNT — Stack-Anzahl „2" war clientseitig sichtbar und nicht versteckbar. Links vs. Rechts ist serverseitig ohne clicked()-Override nicht unterscheidbar (beide leeren einen 1er-Stack).
+- Shift-Klick-Erkennung: `quickMoveStack(Player, int)` Override — Signatur über alle MC-Versionen stabil; Vanilla QUICK_MOVE bricht die While-Schleife bei EMPTY-Return ab (kein Infinite-Loop); setzt voraus `mayPickup=true` (vorhanden). Return immer `ItemStack.EMPTY` → nichts wandert.
+
+**Architektur (`common/gui/ClickablePlayerHeadMenu.java`):**
+- Heads mit natürlicher Anzahl (count=1) in Slots, `mayPickup=true`, `mayPlace=false`.
+- ContainerListener (`slotChanged`): Slot geleert = Klick → Restore Original-Head + Cursor clear → `handleHeadAction(slot, false)` (Status). Fremdes Item im Slot ("polluted") → Rescue auf Cursor + kein Action.
+- `handleHeadAction(int slotIndex, boolean colorMode)`: 400ms-Debounce (Instance-Field), Permission-Check, Target-Name-Resolution, GUI-Close (Reflection, da `closeContainer()` PROTECTED in 1.21.11 UND 26.x), klickbare SUGGEST_COMMAND-Zeile `/status admin set <Name> ` bzw. `/status admin color <Name> `.
+- ClickEvent/HoverEvent 3-Stufen-Reflection (Records 1.21.5+ / statische Factories alt / Konstruktor-Fallback).
+- Mid-Packet-Close sicher (Bytecode-Analyse handleContainerClick: re-read von player.containerMenu nach clicked(), kein NPE).
+
+**Neuer Command: `/status admin color <player> <color>`** (`StatusCommand.adminSetColor`): Feature-Guard, Online-Check, `ColorMapper.isValidColorInput`, settings.color + Storage + applyStatus + Audit + Messages.
+
+**Forge-Override gelöscht:** `Loader/forge26.1/src/.../ClickablePlayerHeadMenu.java` (alte ContainerInput-Logik) entfernt + exclude aus build.gradle → Common-Version läuft überall.
+
+**Lore:** „Linksklick: Status ändern" / „Shift-Klick: Farbe ändern" (grau, modern + Legacy-Builder).
+
+**Verifiziert & deployed:** `:common:compileJava` EXIT 0; Multiversion-Build 20/20 ok; JAR-Checks (handleHeadAction + Shift-Lore drin, keine Rechtsklick-Lore). Deployed: `C:\Users\Steven\Downloads\Status Test\mods\Statusmod-1.3.0-fabric-26.2.jar`. **In-Game-Test ausstehend.**
+
+**Pitfalls (neu):**
+- ForgeGradle-LSP im Editor meldet falsche Gradle-Version (8.9 vs 9.3+) — ignorieren, CLI nutzt Wrapper.
+- LSP kann Classpath verlieren („Player cannot be resolved" in intakten Dateien) — Gradle-Compile ist Quelle der Wahrheit.
+- Disk-Space: Multiversion-Build braucht >6 GB frei; `~\.gradle\caches\fabric-loom` (9 GB) ist gefahrlos löschbar (regeneriert).
+
+### 2026-08-23 — Dashboard→Ingame-Sync-Fix + Steve-Heads ✅ (nicht committet)
+
+**User-Reports:** (1) „beim dashboard sind steve heads und ein richtiger player head", (2) „wenn ich etwas im dashboard ändere wird es ingame nicht übertragen".
+
+**Root Causes:**
+1. **Steve Heads:** Dashboard nutzte `https://mc-heads.net/avatar/<uuid>` — mc-heads löst nur **Premium-UUIDs** auf; Offline-Mode-Server erzeugen v3-Offline-UUIDs → Mojang-DB-Miss → Steve-Fallback.
+2. **Sync-Lücke (3 Teile):**
+   - `PATCH .../[uuid]/status` schrieb **kein `updated_at`** → Pull-Watermark (`updated_at >= since`) sah Dashboard-Status-Edits nie (bekanntes offenes Item aus 2026-08-01).
+   - Mod-Pull **ignorierte** Empty-Status (Löschen unmöglich) und Color-only-Changes (`!status.equals(ps.status)`-Guard).
+   - Loop-Reihenfolge push→pull: der periodische Push überschrieb Dashboard-Edits mit lokalem Stand (+bumped updated_at), bevor der Pull sie je sehen konnte.
+
+**Fixes:**
+
+| Datei | Änderung |
+|-------|----------|
+| `dashboard/app/api/players/[server_id]/[uuid]/status/route.ts` | `updated_at = now()` in Update- UND Insert-Pfad |
+| `dashboard/app/dashboard/page.tsx`, `players/page.tsx`, `players/[uuid]/page.tsx` | Avatar-URL → `mc-heads.net/avatar/${encodeURIComponent(p.username || p.uuid)}` (Name-basiert: Premium-Namen lösen korrekt auf, egal ob Server offline-mode ist; Non-Premium bleibt Steve) |
+| `common/.../sync/SyncManager.java` | Loop jetzt **pull() VOR push()** (Pull wendet Dashboard-Stand lokal an, Push lädt dann konsistenten Merged-State hoch); Player-Apply null-aware pro Feld (JSON-null = skip, `""` = explizites Clearen, Color-only geht durch); neuer Helper `applyOnline(serverRef, uuid, ps)` |
+
+- `applyOnline`: stashed `volatile MinecraftServer serverRef` (gesetzt in `updateOnlineNames`, läuft im Server-Thread), `server.execute(...)` → Scoreboard-Änderung im Server-Thread, nur wenn Feature `status` enabled + Spieler online → **Live-Anwendung ohne Relog**.
+- Rest-Race (Edit exakt zwischen Pull und Push desselben Zyklus) akzeptiert — nächster Zyklus zieht nach; admin_actions bleiben ungenutzt (target_uuid_hash nicht auflösbar).
+
+**Verifiziert & deployed:** `:common:compileJava` EXIT 0; `npm run build` EXIT 0; Multiversion 20/20 ok; `vercel deploy --prod` EXIT 0 (https://statusmod-dashboard.vercel.app); Testserver-JAR `Statusmod-1.3.0-fabric-26.2.jar` (160831 Bytes, 15:35) deployed, `applyOnline` im Bytecode verifiziert.
+
+**Offen:** In-Game-Test (Dashboard-Status-Edit ≤30s ingame sichtbar? Heads für Premium-Namen real?). Nicht committet.
+
+### 2026-08-23 Runde 2 — Presence/Count/Username/RGB-Fixes ✅ (nicht committet)
+
+**User-Reports:** (1) Players-Anzahl falsch, (2) nur 2/5 haben echten Kopf, (3) eigener Head Steve trotz BastiGHG-Skin, (4) RGB wird nicht richtig angezeigt, (5) Username verschwindet wenn Spieler offline geht.
+
+| Problem | Root Cause | Fix |
+|---------|-----------|-----|
+| Username verschwindet offline | Sync-Route schrieb `username: p.username ?? null` → jeder Push (30s) überschrieb Usernamen offlineer Spieler mit NULL. Mod omitet username schon korrekt, aber Route forcierte null | Rows jetzt konditional: username/status/color/settings nur schreiben wenn non-null (PostgREST-Upsert lässt fehlende Spalten unangetastet) |
+| Players-Anzahl falsch | Overview „Players" zählte SSE-Rows = ALLE bekannten Spieler (Tabelle), nicht Online. Players-Seite „X player(s)" ebenso missverständlich | **Presence-Feature:** Migration `players_add_online_presence` (`is_online boolean default false`, `last_seen timestamptz`); Mod-Push sendet `online` pro Spieler (aus onlineNames); Sync-Route schreibt is_online+last_seen; SSE `/api/events` filtert `.eq("is_online", true)` → Live-Feed/Live-Zähler echt; Players-Header jetzt „X known · Y online" |
+| Zeilen immer halb transparent | `opacity: 0.5` hardcoded auf allen Player-Rows (sollte Offline-Dim sein, nie verdrahtet) | opacity an `is_online` gebunden + grüner/grauer Presence-Dot neben Username |
+| Farben falsch angezeigt | Players-Liste nutzte rohen `p.color` als CSS (`dark_gray`, `light_purple`, `rainbow`, `animated` sind ungültiges CSS → Punkt unsichtbar); Detail-Seite hatte eigene lokale Map ohne rainbow/hex-3-stellig | Neuer Helper `dashboard/lib/color.ts`: `cssColor()` mappt alle MC-Namen → HEX, #hex (3+6 stellig) durchgereicht, rainbow/animated → CSS-Gradient, reset/leer → neutral. Genutzt in players/page.tsx + [uuid]/page.tsx (lokale COLOR_HEX entfernt) |
+
+**Kopf-Problematik (2/5 + BastiGHG-Skin):** mc-heads-by-name löst nur PREMIUM-Namen auf (Name muss in Mojang-DB existieren). Non-Premium-Spieler → Steve. Ein Client-seitig ausgewählter Skin (z. B. BastiGHG-Skin via Skin-Mod/Launcher) ist dem Server UNBEKANNT → prinzipiell nicht per Name/UUID auflösbar. Einzig saubere Lösung: Custom-Avatar-Feature (z. B. `/status avatar <url>` + DB-Spalte + Dashboard rendert Face-Crop aus Skin-PNG) — noch NICHT gebaut, User-Entscheidung offen.
+
+**Verifiziert & deployed:** Migration applied (Supabase ujksgdbfczbgtifiovuw); `npm run build` EXIT 0; `vercel deploy --prod` EXIT 0; Multiversion 20/20 ok; Testserver-JAR neu (160868 Bytes, 16:03). **Nicht committet.**
+
+**Wichtig:** Nach Deploy zeigen Live-Feed/Online-Zähler erst nach dem nächsten Mod-Push (~30s) korrekte Werte; alte Zeilen starten mit is_online=false.
+
+
+
+### 2026-08-23 Runde 3 - Custom-Avatar-Feature (/status avatar) ✅ (nicht committet)
+
+**Feature:** Spieler setzen ihren Dashboard-Kopf selbst: `/status avatar <name|url|off>` (selbst) oder `/status avatar <player> <value>` (2 Args = Admin). Loest das Steve-Head-Problem fuer Non-Premium-Spieler endgueltig.
+
+**Semantik:**
+- Wert startet mit `http://`/`https://` → direkte Skin-PNG-URL, Dashboard cropt das Face per CSS (backgroundSize 8x, pixelated).
+- Sonst: SpielerNAME (Regex `[A-Za-z0-9_]{1,16}`) → Dashboard rendert `mc-heads.net/avatar/<name>` (loest Premium-Namen wie BastiGHG auf).
+- `off`/`clear`/`reset` → zurueck zum Standard (Username-Fallback).
+- Validierung: max. 160 Zeichen, URL ohne Leerzeichen; Fehlermeldungen auf Deutsch.
+
+**Aenderungen:**
+
+| Datei | Aenderung |
+|-------|-----------|
+| `common/.../storage/PlayerSettings.java` | Neues Feld `public String avatar = ""` (Gson persistiert automatisch) |
+| `common/.../command/StatusCommand.java` | `avatar`-Literal mit greedyString-Args (1 Arg = selbst, 2 Args = Admin via getPlayerByName, Online-Check); Methoden `setAvatar` + `applyAvatar`; Suggestion `off`. PITFALL: greedyString frisst alles → Player-Branch-Variante ueber manuelles Splitting statt zweiter Brigadier-Node (EntityArgument wuerde `/status avatar <skinName>` als fehlenden Online-Player fehlschlagen lassen) |
+| `common/.../sync/SyncManager.java` | Push: `settings.addProperty("avatar", ...)` immer vorhanden (Mod bleibt Source of Truth) |
+| Supabase (ujksgdbfczbgtifiovuw) | Migration `players_add_avatar`: `ALTER TABLE players ADD COLUMN avatar text` |
+| `dashboard/app/api/players/[server_id]/sync/route.ts` | Schema += `avatar: z.string().max(160)`; Rows: nur schreiben wenn Mod sendet (`"" → null`) |
+| `dashboard/app/api/events/route.ts` | SSE-Select += `avatar` |
+| `dashboard/components/player-avatar.tsx` (NEU) | Renderer: URL → CSS Face-Crop; Name → mc-heads; leer → Username/UUID-Fallback; onError versteckt img |
+| `dashboard/lib/client/use-realtime.ts` | Player-Type += `avatar` |
+| Overview / Players / Detail Pages | `<PlayerAvatar>` statt roher mc-heads-img (20px Chips, 24px Tabelle, 64px Detail); Players-Merge zieht `live.avatar ?? p.avatar` |
+
+**Verifiziert & deployed:** `:common:compileJava` EXIT 0; `npm run build` EXIT 0; Vercel prod deploy EXIT 0; Multiversion 20/20 ok; Testserver-JAR `Statusmod-1.3.0-fabric-26.2.jar` (161927 Bytes, 16:57), Bytecode enthaelt setAvatar/applyAvatar/avatar verifiziert. **Nicht committet.**
+
+**Test-Anleitung (In-Game):**
+1. `/status avatar Delle2211` → eigener Head im Dashboard (auch non-premium, wenn Name premium ist)
+2. `/status avatar https://dein.host/skin.png` → Face-Crop aus eigener PNG
+3. `/status avatar off` → zurueck zum Standard
+4. Admin: `/status avatar <OnlinePlayer> <value>`
+5. Dashboard aktualisiert sich binnen ~30s (Sync-Zyklus) bzw. sofort bei offenem Live-Feed
+
+**Offen:** In-Game-Test Runde 1+2+3 gemeinsam; nichts committet (development-Branch-Push steht an).

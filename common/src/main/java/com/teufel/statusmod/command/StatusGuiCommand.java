@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.teufel.statusmod.StatusMod;
 import com.teufel.statusmod.gui.PlayerHeadMenu;
+import com.teufel.statusmod.gui.PlayerHeadMenu.HeadContainer;
 import com.teufel.statusmod.storage.PlayerSettings;
 import com.teufel.statusmod.util.PermissionUtil;
 import com.teufel.statusmod.util.StatusTextUtil;
@@ -20,7 +21,6 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.Container;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -126,6 +126,8 @@ public class StatusGuiCommand {
         final int fPage = page;
         final int fTotal = totalPages;
         final int fCount = allEntries.size();
+        final Player fPlayer = player;
+        final CommandSourceStack fSource = source;
         MenuProvider provider = new MenuProvider() {
             @Override
             public Component getDisplayName() {
@@ -135,12 +137,24 @@ public class StatusGuiCommand {
             }
             @Override
             public AbstractContainerMenu createMenu(int syncId, Inventory playerInv, Player p) {
-                return new PlayerHeadMenu(syncId, playerInv, container);
+                return createClickableMenu(syncId, playerInv, container, fPlayer, fSource);
             }
         };
 
         player.openMenu(provider);
     }
+
+    private static AbstractContainerMenu createClickableMenu(int syncId, Inventory playerInv, HeadContainer container, Player viewer, CommandSourceStack cmdSource) {
+        try {
+            Class<?> clazz = Class.forName("com.teufel.statusmod.gui.ClickablePlayerHeadMenu");
+            return (AbstractContainerMenu) clazz.getConstructor(int.class, Inventory.class, HeadContainer.class, Player.class, CommandSourceStack.class)
+                .newInstance(syncId, playerInv, container, viewer, cmdSource);
+        } catch (Throwable e) {
+            PlayerHeadMenu menu = new PlayerHeadMenu(syncId, playerInv, container);
+            return menu;
+        }
+    }
+
 
     private static String resolveName(String uuid, PlayerSettings ps, Map<String, ServerPlayer> onlineMap) {
         ServerPlayer online = onlineMap.get(uuid);
@@ -186,47 +200,27 @@ public class StatusGuiCommand {
         return createPlayerHeadLegacy(name, settings, isOnline, gameProfile);
     }
 
-    @SuppressWarnings("unchecked")
     private static ItemStack createPlayerHeadModern(String name, PlayerSettings settings, boolean online, GameProfile profile) throws Throwable {
         ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
 
-        // Try DataComponents API for profile (MC 1.21+)
+        Class<?> dcClass = Class.forName("net.minecraft.core.component.DataComponents");
+        Class<?> dctClass = Class.forName("net.minecraft.core.component.DataComponentType");
+        Method setMethod = findMethod(stack.getClass(), "set", dctClass, Object.class);
+        if (setMethod == null) throw new NoSuchMethodException("No set(DataComponentType, Object) found");
+
         if (profile != null) {
-            try {
-                Class<?> dcClass = Class.forName("net.minecraft.core.component.DataComponents");
-                Class<? extends Enum<?>> keyEnum = (Class<? extends Enum<?>>) dcClass.getField("CUSTOM_NAME").get(null).getClass();
-                Method setMethod = findMethod(stack.getClass(), "set", keyEnum, Object.class);
-                Enum<?> profileConstant = Enum.valueOf((Class) keyEnum, "PROFILE");
-                setMethod.invoke(stack, profileConstant, profile);
-            } catch (Throwable ignored) {}
+            Object profileKey = dcClass.getField("PROFILE").get(null);
+            Object wrapped = wrapInResolvableProfile(profile);
+            setMethod.invoke(stack, profileKey, wrapped);
         }
 
-        // Always set via NBT as reliable fallback (ensures skin loads on all MC versions)
-        setSkullOwnerNbt(stack, profile);
-
-        // Set display name via DataComponents
         String statusText = settings != null ? settings.status : "";
         String colorKey = settings != null ? settings.color : "reset";
-        try {
-            Class<?> dcClass = Class.forName("net.minecraft.core.component.DataComponents");
-            Class<? extends Enum<?>> keyEnum = (Class<? extends Enum<?>>) dcClass.getField("CUSTOM_NAME").get(null).getClass();
-            Method setMethod = findMethod(stack.getClass(), "set", keyEnum, Object.class);
-            Enum<?> keyConstant = Enum.valueOf((Class) keyEnum, "CUSTOM_NAME");
-            MutableComponent displayName = Component.literal(name).withStyle(ChatFormatting.WHITE);
-            setMethod.invoke(stack, keyConstant, displayName);
-        } catch (Throwable e) {
-            // Fallback: NBT display name
-            MutableComponent displayName = Component.literal(name).withStyle(ChatFormatting.WHITE);
-            String nameJson = componentToJson(displayName);
-            if (nameJson != null) {
-                CompoundTag tag = getOrCreateTag(stack);
-                CompoundTag display = getCompoundTag(tag, "display");
-                display.putString("Name", nameJson);
-                tag.put("display", display);
-            }
-        }
 
-        // Set lore via DataComponents (try ItemLore, fallback to NBT)
+        MutableComponent displayName = Component.literal(name).withStyle(ChatFormatting.WHITE);
+        Object customNameKey = dcClass.getField("CUSTOM_NAME").get(null);
+        setMethod.invoke(stack, customNameKey, displayName);
+
         List<Component> loreLines = new ArrayList<>();
         if (statusText != null && !statusText.isEmpty()) {
             String bracketed = StatusTextUtil.wrapBrackets(statusText, settings != null ? settings.brackets : 0);
@@ -235,29 +229,22 @@ public class StatusGuiCommand {
             if (statusColor != null) {
                 statusLine.withStyle(Style.EMPTY.withColor(statusColor));
             } else {
-                statusLine.withStyle(ChatFormatting.RESET);
+                statusLine.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFFFF)));
             }
             loreLines.add(statusLine);
         } else {
             loreLines.add(Component.literal("- Kein Status -").withStyle(ChatFormatting.GRAY));
         }
-        loreLines.add(Component.literal(online ? "\u00a7aOnline" : "\u00a77Offline"));
+        MutableComponent onlineLine = Component.literal(online ? "Online" : "Offline");
+        onlineLine.withStyle(Style.EMPTY.withColor(online ? TextColor.fromRgb(0x55FF55) : TextColor.fromRgb(0xAAAAAA)));
+        loreLines.add(onlineLine);
+        loreLines.add(Component.literal("Linksklick: Status \u00E4ndern").withStyle(ChatFormatting.GRAY));
+        loreLines.add(Component.literal("Shift-Klick: Farbe \u00E4ndern").withStyle(ChatFormatting.GRAY));
 
-        boolean loreSet = false;
-        try {
-            Class<?> dcClass = Class.forName("net.minecraft.core.component.DataComponents");
-            Class<? extends Enum<?>> keyEnum = (Class<? extends Enum<?>>) dcClass.getField("CUSTOM_NAME").get(null).getClass();
-            Method setMethod = findMethod(stack.getClass(), "set", keyEnum, Object.class);
-            Class<?> loreClass = Class.forName("net.minecraft.world.item.component.ItemLore");
-            Object lore = loreClass.getConstructor(List.class).newInstance(loreLines);
-            Enum<?> loreConstant = Enum.valueOf((Class) keyEnum, "LORE");
-            setMethod.invoke(stack, loreConstant, lore);
-            loreSet = true;
-        } catch (Throwable ignored) {}
-
-        if (!loreSet) {
-            setLoreNbt(stack, loreLines);
-        }
+        Object loreKey = dcClass.getField("LORE").get(null);
+        Class<?> loreClass = Class.forName("net.minecraft.world.item.component.ItemLore");
+        Object lore = loreClass.getConstructor(List.class).newInstance(loreLines);
+        setMethod.invoke(stack, loreKey, lore);
 
         return stack;
     }
@@ -289,13 +276,17 @@ public class StatusGuiCommand {
             if (statusColor != null) {
                 statusLine.withStyle(Style.EMPTY.withColor(statusColor));
             } else {
-                statusLine.withStyle(ChatFormatting.RESET);
+                statusLine.withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFFFF)));
             }
             loreLines.add(statusLine);
         } else {
             loreLines.add(Component.literal("- Kein Status -").withStyle(ChatFormatting.GRAY));
         }
-        loreLines.add(Component.literal(online ? "\u00a7aOnline" : "\u00a77Offline"));
+        MutableComponent onlineLine = Component.literal(online ? "Online" : "Offline");
+        onlineLine.withStyle(Style.EMPTY.withColor(online ? TextColor.fromRgb(0x55FF55) : TextColor.fromRgb(0xAAAAAA)));
+        loreLines.add(onlineLine);
+        loreLines.add(Component.literal("Linksklick: Status \u00E4ndern").withStyle(ChatFormatting.GRAY));
+        loreLines.add(Component.literal("Shift-Klick: Farbe \u00E4ndern").withStyle(ChatFormatting.GRAY));
 
         setLoreNbt(stack, loreLines);
         return stack;
@@ -382,6 +373,37 @@ public class StatusGuiCommand {
         return null;
     }
 
+    private static Object wrapInResolvableProfile(GameProfile profile) throws Throwable {
+        Class<?> rpClass = Class.forName("net.minecraft.world.item.component.ResolvableProfile");
+        try {
+            Method createResolved = rpClass.getMethod("createResolved", GameProfile.class);
+            return createResolved.invoke(null, profile);
+        } catch (NoSuchMethodException e) {
+            return rpClass.getConstructor(GameProfile.class).newInstance(profile);
+        }
+    }
+
+    private static final Map<String, Integer> FALLBACK_COLORS = new HashMap<>();
+    static {
+        FALLBACK_COLORS.put("DARK_RED", 0xAA0000);
+        FALLBACK_COLORS.put("RED", 0xFF5555);
+        FALLBACK_COLORS.put("GOLD", 0xFFAA00);
+        FALLBACK_COLORS.put("YELLOW", 0xFFFF55);
+        FALLBACK_COLORS.put("DARK_GREEN", 0x00AA00);
+        FALLBACK_COLORS.put("GREEN", 0x55FF55);
+        FALLBACK_COLORS.put("AQUA", 0x55FFFF);
+        FALLBACK_COLORS.put("DARK_AQUA", 0x00AAAA);
+        FALLBACK_COLORS.put("DARK_BLUE", 0x0000AA);
+        FALLBACK_COLORS.put("BLUE", 0x5555FF);
+        FALLBACK_COLORS.put("LIGHT_PURPLE", 0xFF55FF);
+        FALLBACK_COLORS.put("DARK_PURPLE", 0xAA00AA);
+        FALLBACK_COLORS.put("WHITE", 0xFFFFFF);
+        FALLBACK_COLORS.put("GRAY", 0xAAAAAA);
+        FALLBACK_COLORS.put("DARK_GRAY", 0x555555);
+        FALLBACK_COLORS.put("BLACK", 0x000000);
+        FALLBACK_COLORS.put("RESET", -1);
+    }
+
     private static TextColor resolveColor(String colorKey) {
         if (colorKey == null || colorKey.isEmpty()) return null;
 
@@ -400,14 +422,21 @@ public class StatusGuiCommand {
             } catch (Exception ignored) {}
         }
 
+        String upper = colorKey.trim().toUpperCase();
         try {
-            ChatFormatting formatting = ChatFormatting.valueOf(colorKey.trim().toUpperCase());
-            java.lang.reflect.Method getColor = findMethod(formatting.getClass(), "getColor");
-            if (getColor != null) {
-                Object result = getColor.invoke(formatting);
-                if (result instanceof Integer color && color >= 0) {
-                    return TextColor.fromRgb(color);
+            ChatFormatting formatting = ChatFormatting.valueOf(upper);
+            try {
+                java.lang.reflect.Method getColor = findMethod(formatting.getClass(), "getColor");
+                if (getColor != null) {
+                    Object result = getColor.invoke(formatting);
+                    if (result instanceof Integer color && color >= 0) {
+                        return TextColor.fromRgb(color);
+                    }
                 }
+            } catch (Throwable ignored) {}
+            Integer fallback = FALLBACK_COLORS.get(upper);
+            if (fallback != null && fallback >= 0) {
+                return TextColor.fromRgb(fallback);
             }
         } catch (Exception ignored) {}
 

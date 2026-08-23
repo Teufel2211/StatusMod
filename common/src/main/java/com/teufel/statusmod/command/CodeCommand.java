@@ -21,6 +21,9 @@ import java.time.Duration;
 
 public final class CodeCommand {
     private static final int CODE_LENGTH = 8;
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
 
     private CodeCommand() {}
 
@@ -114,10 +117,6 @@ public final class CodeCommand {
     }
 
     private static int requestCode(String dashboardUrl, String apiKey, String code) throws Exception {
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
-
         JsonObject payload = new JsonObject();
         payload.addProperty("code", code);
 
@@ -129,7 +128,7 @@ public final class CodeCommand {
                 .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
                 .build();
 
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
         return response.statusCode();
     }
 }

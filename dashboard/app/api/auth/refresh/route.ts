@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
   const ua = request.headers.get("user-agent") ?? "unknown"
 
-  if (tokenData.ip_hash !== hashIp(ip) || tokenData.user_agent_hash !== hashUserAgent(ua)) {
+  if (tokenData.user_agent_hash !== hashUserAgent(ua)) {
     await (sb as any).from("refresh_tokens").update({ revoked: true }).eq("id", tokenData.id)
     return unauthorized()
   }

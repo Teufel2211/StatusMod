@@ -52,7 +52,7 @@ export function refreshSession(): Promise<number> {
       }
       return 401
     })
-    .catch(() => 0)
+    .catch(() => 0) // 0 = network error (transient, don't clear session)
     .finally(() => {
       refreshPromise = null
     })
