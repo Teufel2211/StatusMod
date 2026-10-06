@@ -6,7 +6,7 @@ param(
     [string]$OutputDir = "dist/multiversion",
     [string]$FabricMaxVersion = "1.21.11",
     [string]$FabricMinVersion = "1.21.11",
-    [string[]]$FabricExtraVersions = @("26.2", "26.1", "26.1.1", "26.1.2"),
+    [string[]]$FabricExtraVersions = @("26.3", "26.2", "26.1", "26.1.1", "26.1.2"),
     [string]$FabricJavaHome = "C:\Program Files\Java\jdk-21",
     [string]$FabricJava25Home = "C:\Program Files\Java\jdk-25.0.3",
     [string]$Fabric26ModuleRoot = "Loader/fabric26.1",
@@ -963,10 +963,41 @@ try {
                 continue
             }
 
+            # Fabric 26.x: unobfuscated, no Mojang mappings on piston-meta -> plain
+            # javac build (Mojang names, no remap). The standalone Loom module
+            # (Loader/fabric26.1) no longer exists.
             if ($isFabricExtra) {
-                if (-not (Test-Path $moduleRoot)) {
-                    throw "Fabric 26.1 module not found: $moduleRoot"
+                $plainScript = Join-Path $PSScriptRoot "build-fabric26-plain.ps1"
+                $prevEap = $ErrorActionPreference
+                $ErrorActionPreference = "Continue"
+                try {
+                    & $plainScript -McVersion $mc -ModVersion $modVersion
+                } finally {
+                    $ErrorActionPreference = $prevEap
                 }
+                $exit = if (Test-Path Variable:\LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+                $artifactPath = Join-Path $versionOut "Statusmod-$modVersion-$loader-$mc.jar"
+                if (($exit -eq 0) -and (Test-Path -LiteralPath $artifactPath)) {
+                    $results.Add([pscustomobject]@{
+                        loader = $loader
+                        minecraft = $mc
+                        status = "ok"
+                        note = "plain javac build (Mojang names, no remap)"
+                        artifact = $artifactPath
+                    }) | Out-Null
+                } else {
+                    $results.Add([pscustomobject]@{
+                        loader = $loader
+                        minecraft = $mc
+                        status = "failed"
+                        note = "plain javac build failed (exit $exit)"
+                        artifact = ""
+                    }) | Out-Null
+                    if (-not $ContinueOnError) {
+                        throw "Build failed for loader=$loader mc=$mc (plain javac)"
+                    }
+                }
+                continue
             } else {
                 if (Test-Path $moduleRoot) {
                     Remove-Item -LiteralPath $moduleRoot -Recurse -Force

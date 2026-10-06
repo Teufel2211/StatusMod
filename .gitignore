@@ -40,6 +40,7 @@ replay_*.log
 # Minecraft mod build artifacts
 run/
 dist/
+.plain-libs/
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
 
