@@ -60,10 +60,15 @@ public class SettingsStorage {
     public synchronized void load() {
         try {
             if (!file.exists()) return;
-            Type t = new TypeToken<Map<String, PlayerSettings>>(){}.getType();
-            try (Reader fr = Files.newBufferedReader(file.toPath())) {
-                map = gson.fromJson(fr, t);
+            String raw = Files.readString(file.toPath());
+            // Migrate legacy boolean brackets (pre-2026-08-18) -> int 0/1
+            // Old file had "brackets":false/true, new PlayerSettings expects int 0/1/2
+            if (raw.contains("\"brackets\"")) {
+                raw = raw.replaceAll("\"brackets\"\\s*:\\s*true", "\"brackets\":1");
+                raw = raw.replaceAll("\"brackets\"\\s*:\\s*false", "\"brackets\":0");
             }
+            Type t = new TypeToken<Map<String, PlayerSettings>>(){}.getType();
+            map = gson.fromJson(raw, t);
             if (map == null) map = new HashMap<>();
             boolean migrated = false;
             for (Map.Entry<String, PlayerSettings> e : map.entrySet()) {

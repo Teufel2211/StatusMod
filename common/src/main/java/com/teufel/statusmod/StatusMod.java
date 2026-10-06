@@ -38,6 +38,9 @@ public final class StatusMod {
         AuditLogger.init();
 
         System.out.println("[StatusMod] Initializing on " + platform.getName());
+        if (com.teufel.statusmod.util.BedrockUtil.isFloodgatePresent()) {
+            System.out.println("[StatusMod] Floodgate detected - Bedrock support enabled.");
+        }
 
         if (platform.isDedicatedServer()) {
             SetupManager.runIfNeeded();

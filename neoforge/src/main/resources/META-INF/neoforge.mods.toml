@@ -12,6 +12,6 @@ logo="logo.png"
 [[dependencies.statusmod]]
 modId="minecraft"
 mandatory=true
-versionRange="[1.21.11,26.2]"
+versionRange="[1.21.11,26.4)"
 ordering="NONE"
 side="BOTH"

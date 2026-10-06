@@ -7,6 +7,7 @@ import com.teufel.statusmod.StatusMod;
 import com.teufel.statusmod.gui.PlayerHeadMenu;
 import com.teufel.statusmod.gui.PlayerHeadMenu.HeadContainer;
 import com.teufel.statusmod.storage.PlayerSettings;
+import com.teufel.statusmod.util.BedrockUtil;
 import com.teufel.statusmod.util.PermissionUtil;
 import com.teufel.statusmod.util.StatusTextUtil;
 import net.minecraft.ChatFormatting;
@@ -238,6 +239,9 @@ public class StatusGuiCommand {
         MutableComponent onlineLine = Component.literal(online ? "Online" : "Offline");
         onlineLine.withStyle(Style.EMPTY.withColor(online ? TextColor.fromRgb(0x55FF55) : TextColor.fromRgb(0xAAAAAA)));
         loreLines.add(onlineLine);
+        if (isBedrockProfile(profile)) {
+            loreLines.add(Component.literal("Bedrock-Spieler").withStyle(ChatFormatting.GOLD));
+        }
         loreLines.add(Component.literal("Linksklick: Status \u00E4ndern").withStyle(ChatFormatting.GRAY));
         loreLines.add(Component.literal("Shift-Klick: Farbe \u00E4ndern").withStyle(ChatFormatting.GRAY));
 
@@ -285,6 +289,9 @@ public class StatusGuiCommand {
         MutableComponent onlineLine = Component.literal(online ? "Online" : "Offline");
         onlineLine.withStyle(Style.EMPTY.withColor(online ? TextColor.fromRgb(0x55FF55) : TextColor.fromRgb(0xAAAAAA)));
         loreLines.add(onlineLine);
+        if (isBedrockProfile(profile)) {
+            loreLines.add(Component.literal("Bedrock-Spieler").withStyle(ChatFormatting.GOLD));
+        }
         loreLines.add(Component.literal("Linksklick: Status \u00E4ndern").withStyle(ChatFormatting.GRAY));
         loreLines.add(Component.literal("Shift-Klick: Farbe \u00E4ndern").withStyle(ChatFormatting.GRAY));
 
@@ -441,5 +448,22 @@ public class StatusGuiCommand {
         } catch (Exception ignored) {}
 
         return null;
+    }
+
+    private static boolean isBedrockProfile(GameProfile profile) {
+        // Absichtlich per Reflection (wie der Rest der Datei): versions-tolerant.
+        try {
+            if (profile == null) {
+                return false;
+            }
+            java.lang.reflect.Method getId = profile.getClass().getMethod("getId");
+            Object id = getId.invoke(profile);
+            if (!(id instanceof java.util.UUID uuid)) {
+                return false;
+            }
+            return BedrockUtil.isBedrockPlayer(uuid);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 }

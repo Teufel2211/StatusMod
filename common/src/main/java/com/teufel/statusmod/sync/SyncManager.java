@@ -80,14 +80,14 @@ public final class SyncManager {
                 return;
             }
             try {
-                pull();
-            } catch (Exception e) {
-                System.out.println("[StatusMod] Sync pull failed: " + e.getMessage());
-            }
-            try {
                 push();
             } catch (Exception e) {
                 System.out.println("[StatusMod] Sync push failed: " + e.getMessage());
+            }
+            try {
+                pull();
+            } catch (Exception e) {
+                System.out.println("[StatusMod] Sync pull failed: " + e.getMessage());
             }
         }
     }
@@ -244,7 +244,16 @@ public final class SyncManager {
                 boolean hasStatus = p.has("status") && !p.get("status").isJsonNull();
                 boolean hasColor = p.has("color") && !p.get("color").isJsonNull();
                 if ((!hasStatus && !hasColor) || StatusMod.storage == null) continue;
+                // Avoid overwriting newer local changes with stale DB snapshot (fix instant reset)
+                long dbTime = 0L;
+                if (p.has("updated_at") && !p.get("updated_at").isJsonNull()) {
+                    try { dbTime = java.time.Instant.parse(p.get("updated_at").getAsString()).toEpochMilli(); } catch (Exception ignored) {}
+                }
                 PlayerSettings ps = StatusMod.storage.forPlayer(uuid);
+                if (dbTime > 0L && ps.lastStatusChangeAtMs > 0L && dbTime < ps.lastStatusChangeAtMs) {
+                    // DB is older than local edit -> local not yet pushed, skip to preserve unpushed change
+                    continue;
+                }
                 boolean changed = false;
                 if (hasStatus) {
                     String status = truncate(p.get("status").getAsString(), MAX_STATUS_LENGTH);
