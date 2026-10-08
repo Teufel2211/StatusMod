@@ -272,8 +272,15 @@ public final class SyncManager {
         }
 
         try {
-            config.lastSyncAtMs = java.time.Instant.parse(json.get("server_time").getAsString()).toEpochMilli();
-            config.save();
+            long wm = java.time.Instant.parse(json.get("server_time").getAsString()).toEpochMilli();
+            // Reload-merge: die Platte ist die Wahrheit (manuelle Edits, Feature-
+            // Commands). Blindes Speichern des (ggf. veralteten) Memory-Objekts
+            // wuerde fremde Aenderungen still zuruecksetzen.
+            com.teufel.statusmod.storage.ModConfig fresh =
+                com.teufel.statusmod.storage.ModConfig.load();
+            fresh.lastSyncAtMs = wm;
+            fresh.save();
+            com.teufel.statusmod.StatusMod.config = fresh;
         } catch (Exception ignored) {}
     }
 

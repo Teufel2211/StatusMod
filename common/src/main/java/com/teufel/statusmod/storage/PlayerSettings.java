@@ -18,6 +18,8 @@ public class PlayerSettings {
 
     public long lastActivityAtMs = System.currentTimeMillis();
     public boolean autoAfk = false;
+    public String preAfkStatus = "";
+    public String preAfkColor = "reset";
     public String lastKnownName = "";
     public String avatar = "";
 

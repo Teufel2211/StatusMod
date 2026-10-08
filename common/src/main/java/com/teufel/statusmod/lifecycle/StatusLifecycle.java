@@ -24,6 +24,8 @@ public final class StatusLifecycle {
     private static long lastConfigRefreshMs = 0L;
     private static final long CONFIG_REFRESH_INTERVAL_MS = 60_000L;
     private static final Map<String, String> lastPlayerPositions = new ConcurrentHashMap<>();
+    private static long lastBossbarMs = 0L;
+    private static final long BOSSBAR_INTERVAL_MS = 2500L;
 
     private StatusLifecycle() {}
 
@@ -67,6 +69,9 @@ public final class StatusLifecycle {
     public static void onPlayerDisconnect(ServerPlayer player) {
         if (player != null) {
             lastPlayerPositions.remove(player.getUUID().toString());
+            try {
+                com.teufel.statusmod.display.StatusBossBar.onDisconnect(player);
+            } catch (Throwable ignored) {}
         }
     }
 
@@ -74,14 +79,28 @@ public final class StatusLifecycle {
         if (player == null || StatusMod.storage == null) return;
         String uuid = player.getUUID().toString();
         PlayerSettings settings = StatusMod.storage.forPlayer(uuid);
-        long now = System.currentTimeMillis();
-        settings.lastActivityAtMs = now;
+        settings.lastActivityAtMs = System.currentTimeMillis();
         if (settings.autoAfk) {
-            settings.autoAfk = false;
-            settings.status = "";
-            settings.color = "reset";
+            returnFromAfk(player, settings, uuid);
+        } else {
             StatusMod.storage.put(uuid, settings);
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("\u00a7aDu bist nicht mehr AFK."));
+        }
+    }
+
+    /** Restores the pre-AFK status stashed when auto-AFK triggered. */
+    private static void returnFromAfk(ServerPlayer player, PlayerSettings settings, String uuid) {
+        String restored = settings.preAfkStatus == null ? "" : settings.preAfkStatus;
+        String restoredColor = settings.preAfkColor == null ? "reset" : settings.preAfkColor;
+        settings.autoAfk = false;
+        settings.preAfkStatus = "";
+        settings.preAfkColor = "reset";
+        settings.status = restored;
+        settings.color = restoredColor;
+        StatusMod.storage.put(uuid, settings);
+        if (restored.isEmpty()) {
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§aDu bist nicht mehr AFK."));
+        } else {
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§aDu bist nicht mehr AFK. Status: " + restored));
         }
     }
 
@@ -92,6 +111,17 @@ public final class StatusLifecycle {
         SyncManager.updateOnlineNames(server);
 
         long now = System.currentTimeMillis();
+        // Bossbar/Actionbar ticker runs on its own cadence (actionbar fades
+        // after ~3s, so it needs refreshes faster than the reapply interval).
+        if ((now - lastBossbarMs) >= BOSSBAR_INTERVAL_MS) {
+            lastBossbarMs = now;
+            try {
+                com.teufel.statusmod.display.StatusBossBar.sync(server);
+            } catch (Throwable ignored) {}
+            try {
+                com.teufel.statusmod.display.StatusSidebar.sync(server);
+            } catch (Throwable ignored) {}
+        }
         if ((now - lastConfigRefreshMs) > CONFIG_REFRESH_INTERVAL_MS) {
             cachedConfiguredInterval = DEFAULT_REAPPLY_INTERVAL_TICKS;
             try {
@@ -128,28 +158,33 @@ public final class StatusLifecycle {
                     settings.status = "";
                     settings.color = "reset";
                     settings.statusExpiresAtMs = 0L;
+                    settings.autoAfk = false;
+                    settings.preAfkStatus = "";
+                    settings.preAfkColor = "reset";
                     StatusMod.storage.put(uuid, settings);
                 }
 
-                String posKey = player.getX() + "," + player.getY() + "," + player.getZ();
+                String posKey = player.getX() + "," + player.getY() + "," + player.getZ()
+                    + "," + player.getYRot() + "," + player.getXRot();
                 String lastPos = lastPlayerPositions.get(uuid);
                 if (lastPos == null || !lastPos.equals(posKey)) {
                     settings.lastActivityAtMs = now;
                     lastPlayerPositions.put(uuid, posKey);
                     if (settings.autoAfk) {
-                        settings.autoAfk = false;
-                        settings.status = "";
-                        settings.color = "reset";
+                        returnFromAfk(player, settings, uuid);
+                    } else {
                         StatusMod.storage.put(uuid, settings);
-                        player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§aDu bist nicht mehr AFK."));
                     }
                 }
 
                 if (afkEnabled && !settings.autoAfk && (now - lastAfkCheckMs) >= AFK_CHECK_INTERVAL_MS) {
-                    if (settings.status.isEmpty() && (now - settings.lastActivityAtMs) >= afkTimeoutMs) {
+                    if ((now - settings.lastActivityAtMs) >= afkTimeoutMs) {
+                        settings.preAfkStatus = settings.status == null ? "" : settings.status;
+                        settings.preAfkColor = settings.color == null ? "reset" : settings.color;
                         settings.autoAfk = true;
-                        settings.status = "AFK";
-                        settings.color = "yellow";
+                        ModConfig cfg = StatusMod.getConfig();
+                        settings.status = (cfg == null || cfg.afkStatusText == null) ? "AFK" : cfg.afkStatusText;
+                        settings.color = (cfg == null || cfg.afkColor == null) ? "gray" : cfg.afkColor;
                         settings.lastStatusChangeAtMs = now;
                         StatusMod.storage.put(uuid, settings);
                         player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§eDu bist nun AFK (inaktiv seit " + ((now - settings.lastActivityAtMs) / 1000L) + "s)."));

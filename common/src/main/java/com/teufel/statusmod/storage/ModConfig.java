@@ -1,6 +1,7 @@
 package com.teufel.statusmod.storage;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import java.io.File;
 import java.io.Reader;
@@ -46,6 +47,14 @@ public class ModConfig {
 
     public boolean enableAutoAfk = true;
     public int afkTimeoutSeconds = 300;
+    public String afkStatusText = "AFK";
+    public String afkColor = "gray";
+    public boolean bossbarListEnabled = false;
+    public boolean sidebarListEnabled = false;
+    public String bossbarColor = "WHITE";
+    public String bossbarOverlay = "PROGRESS";
+    public boolean bossbarShowHeader = false;
+    public String bossbarMode = "BAR";
 
     public boolean restoreStatusOnJoin = true;
     public boolean restoreAfkOnJoin = false;
@@ -58,6 +67,9 @@ public class ModConfig {
     public long lastSyncAtMs = 0L;
 
     private static final Gson GSON = new Gson();
+    // Pretty printer for config saves: one setting per line ("key": value).
+    // Loading accepts both formats, so old compact files keep working.
+    private static final Gson PRETTY = new GsonBuilder().setPrettyPrinting().create();
     private static final int MIN_REAPPLY_TICKS = 20;
     private static final int MAX_REAPPLY_TICKS = 20 * 300;
     private static final int MAX_HISTORY = 20;
@@ -106,7 +118,7 @@ public class ModConfig {
             Path target = f.toPath();
             Path tmp = target.resolveSibling(target.getFileName().toString() + ".tmp");
             try (Writer writer = Files.newBufferedWriter(tmp)) {
-                GSON.toJson(this, writer);
+                PRETTY.toJson(this, writer);
             }
             try {
                 Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -166,6 +178,10 @@ public class ModConfig {
         }
         if (afkTimeoutSeconds < 30) afkTimeoutSeconds = 30;
         if (afkTimeoutSeconds > 3600) afkTimeoutSeconds = 3600;
+        if (afkStatusText == null || afkStatusText.trim().isEmpty()) afkStatusText = "AFK";
+        else afkStatusText = afkStatusText.trim();
+        if (afkColor == null || afkColor.trim().isEmpty()) afkColor = "gray";
+        else afkColor = afkColor.trim();
         if (dashboardUrl == null || dashboardUrl.trim().isEmpty()) dashboardUrl = "";
         else dashboardUrl = dashboardUrl.trim();
         if (setupSecret == null) setupSecret = "";

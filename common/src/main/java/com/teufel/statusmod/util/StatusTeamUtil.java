@@ -24,14 +24,12 @@ public final class StatusTeamUtil {
         return result;
     }
 
-    public static void applyStatus(ServerScoreboard scoreboard, ServerPlayer player, PlayerSettings settings, String status, String colorKey, boolean isAdmin) {
-        if (scoreboard == null || player == null || settings == null) return;
-        ModConfig cfg = StatusMod.getConfig();
-        if (cfg != null && !cfg.isEnabled("status") && !cfg.isEnabled("badge")) return;
-        String uuid = player.getUUID().toString();
-        String teamName = "status_" + uuid.substring(0, 8);
-        PlayerTeam team = scoreboard.getPlayerTeam(teamName);
-        if (team == null) team = scoreboard.addPlayerTeam(teamName);
+    /**
+     * Builds the status (+badge) suffix exactly as shown in the Java tab list.
+     * Shared by team rendering and the bossbar ticker so both look identical.
+     */
+    public static Component buildDisplaySuffix(PlayerSettings settings, String status,
+            String colorKey, String uuid, boolean isAdmin, ModConfig cfg) {
         boolean statusEnabled = cfg == null || cfg.isEnabled("status");
         Component colored;
         if (statusEnabled) {
@@ -56,6 +54,18 @@ public final class StatusTeamUtil {
                 finalComponent = colored.copy().append(Component.literal(" ")).append(badge);
             }
         }
+        return finalComponent;
+    }
+
+    public static void applyStatus(ServerScoreboard scoreboard, ServerPlayer player, PlayerSettings settings, String status, String colorKey, boolean isAdmin) {
+        if (scoreboard == null || player == null || settings == null) return;
+        ModConfig cfg = StatusMod.getConfig();
+        if (cfg != null && !cfg.isEnabled("status") && !cfg.isEnabled("badge")) return;
+        String uuid = player.getUUID().toString();
+        String teamName = "status_" + uuid.substring(0, 8);
+        PlayerTeam team = scoreboard.getPlayerTeam(teamName);
+        if (team == null) team = scoreboard.addPlayerTeam(teamName);
+        Component finalComponent = buildDisplaySuffix(settings, status, colorKey, uuid, isAdmin, cfg);
         if (settings.beforeName) {
             team.setPlayerPrefix(finalComponent.copy().append(Component.literal(" ")));
             team.setPlayerSuffix(Component.empty());
@@ -64,7 +74,7 @@ public final class StatusTeamUtil {
             team.setPlayerSuffix(Component.literal(" ").append(finalComponent));
         }
         String playerName = player.getScoreboardName();
-        PlayerTeam existing = scoreboard.getPlayerTeam(playerName);
+        PlayerTeam existing = scoreboard.getPlayersTeam(playerName);
         if (existing != null && existing != team) {
             scoreboard.removePlayerFromTeam(playerName, existing);
         }
