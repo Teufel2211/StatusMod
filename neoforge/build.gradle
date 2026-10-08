@@ -19,6 +19,15 @@ sourceSets {
     }
 }
 
+// Expand ${version} so standalone builds (without build-multiversion.ps1's
+// Expand-MetadataVersion step) also produce loadable jars. Harmless no-op
+// when the placeholder was already replaced.
+processResources {
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand "version": project.version
+    }
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
     mappings loom.officialMojangMappings()
