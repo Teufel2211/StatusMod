@@ -61,6 +61,7 @@ public class StatusCommand {
             .then(Commands.literal("random").then(Commands.argument("status", StringArgumentType.greedyString()).suggests(CommandSuggestions.STATUS_SUGGESTIONS).executes(ctx -> { setRandomStatus(ctx.getSource(), StringArgumentType.getString(ctx, "status")); return 1; })))
             .then(Commands.literal("timed").then(Commands.argument("minutes", IntegerArgumentType.integer(1)).then(Commands.argument("status", StringArgumentType.greedyString()).suggests(CommandSuggestions.STATUS_SUGGESTIONS).executes(ctx -> { setTimedStatus(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "minutes"), StringArgumentType.getString(ctx, "status")); return 1; }))))
             .then(Commands.literal("history").executes(ctx -> { showHistory(ctx.getSource()); return 1; }))
+            .then(Commands.literal("version").executes(ctx -> { showVersion(ctx.getSource()); return 1; }))
             .then(Commands.literal("world").then(Commands.literal("clear").executes(ctx -> { clearWorldStatus(ctx.getSource()); return 1; }))
                 .then(Commands.argument("status", StringArgumentType.greedyString()).suggests(CommandSuggestions.STATUS_SUGGESTIONS).executes(ctx -> { setWorldStatus(ctx.getSource(), StringArgumentType.getString(ctx, "status"), null); return 1; })));
         if (StatusMod.getConfig().enableAdminOverrides) {
@@ -556,6 +557,10 @@ public class StatusCommand {
      * Shows sync wiring + last results (admin only; key only as prefix).
      * Helps diagnosing 401s (wrong key/server) without touching files.
      */
+    private static void showVersion(CommandSourceStack src) {
+        CommandUtil.sendSuccess(src, Component.literal("StatusMod 1.4.0 (build " + StatusMod.BUILD + ")"), false);
+    }
+
     private static void showSyncStatus(CommandSourceStack src) {
         try {
             if (!PermissionUtil.hasAdminPermission(src)) {

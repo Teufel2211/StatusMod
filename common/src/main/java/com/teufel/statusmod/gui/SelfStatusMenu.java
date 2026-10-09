@@ -159,6 +159,7 @@ public class SelfStatusMenu extends AbstractContainerMenu {
                     clearCursor(menu, stack.copy());
                     purgeMenuItems();
                     resync(menu);
+                    logGui("gap-bounce", slotIndex, savedStack);
                     return;
                 }
                 if (matchesDefinition(stack, savedStack)) return;
@@ -169,6 +170,7 @@ public class SelfStatusMenu extends AbstractContainerMenu {
                 clearCursor(menu, polluted ? stack.copy() : ItemStack.EMPTY);
                 purgeMenuItems();
                 resync(menu);
+                logGui(polluted ? "polluted" : "emptied", slotIndex, savedStack);
                 if (polluted) return;
                 handleSlotAction(slotIndex);
             }
@@ -326,6 +328,37 @@ public class SelfStatusMenu extends AbstractContainerMenu {
     private static void resync(AbstractContainerMenu menu) {
         try {
             if (menu != null) menu.sendAllDataToRemote();
+        } catch (Throwable ignored) {}
+    }
+
+    /**
+     * One-line server-truth log per handled menu interaction (goes to
+     * latest.log). Proves what the server restored/cleared, so client display
+     * issues can be distinguished from server state loss.
+     */
+    private void logGui(String event, int slotIndex, ItemStack savedStack) {
+        try {
+            String off = "?";
+            String cur = "?";
+            if (viewer instanceof ServerPlayer sp) {
+                try {
+                    ItemStack o = sp.getOffhandItem();
+                    off = o.isEmpty() ? "empty" : o.getHoverName().getString();
+                } catch (Throwable ignored) {}
+                try {
+                    ItemStack c = getCarried();
+                    cur = c.isEmpty() ? "empty" : c.getHoverName().getString();
+                } catch (Throwable ignored) {}
+            }
+            String res;
+            try {
+                res = savedStack.isEmpty() ? "empty" : savedStack.getHoverName().getString();
+            } catch (Throwable t) {
+                res = "?";
+            }
+            System.out.println("[StatusMod-GUI] build=" + com.teufel.statusmod.StatusMod.BUILD
+                + " slot=" + slotIndex + " event=" + event + " restored=" + res
+                + " offhand=" + off + " carried=" + cur);
         } catch (Throwable ignored) {}
     }
 
