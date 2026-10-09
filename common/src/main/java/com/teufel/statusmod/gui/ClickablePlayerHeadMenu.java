@@ -29,6 +29,7 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
     private final Player viewer;
     private final CommandSourceStack cmdSource;
     private final ItemStack[] savedHeads;
+    private final PlayerHeadMenu.HeadContainer headContainer;
     private final java.util.Set<String> headNames = new java.util.HashSet<>();
     private long lastActionAtMs;
 
@@ -37,6 +38,7 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
         this.slotUuids = container.slotUuids;
         this.viewer = viewer;
         this.cmdSource = cmdSource;
+        this.headContainer = container;
         this.savedHeads = new ItemStack[54];
 
         container.startOpen(playerInventory.player);
@@ -185,6 +187,51 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
         try {
             if (menu != null) menu.sendAllDataToRemote();
         } catch (Throwable ignored) {}
+    }
+
+    @Override
+    public void broadcastChanges() {
+        try {
+            reconcileMenu();
+        } catch (Throwable t) {
+            System.err.println("[StatusMod] GUI reconcile failed: " + t.getMessage());
+        }
+        super.broadcastChanges();
+    }
+
+    /**
+     * Per-tick invariant enforcement, same rationale as SelfStatusMenu:
+     * held-key spam can land slot-EMPTY on two consecutive broadcasts, the
+     * second of which fires no event, leaving heads silently moved.
+     */
+    private void reconcileMenu() {
+        boolean fixed = false;
+        for (int i = 0; i < 54; i++) {
+            ItemStack live;
+            try {
+                live = headContainer.getItem(i);
+            } catch (Throwable t) {
+                continue;
+            }
+            ItemStack def = savedHeads[i];
+            if (def.isEmpty()) {
+                if (live.isEmpty()) continue;
+                headContainer.setItem(i, ItemStack.EMPTY);
+                clearCursor(this, live.copy());
+                fixed = true;
+                continue;
+            }
+            if (matchesDefinition(live, def)) continue;
+            boolean polluted = !live.isEmpty() && live.getItem() != def.getItem();
+            headContainer.setItem(i, def.copy());
+            clearCursor(this, polluted ? live.copy() : ItemStack.EMPTY);
+            fixed = true;
+            if (!polluted) handleHeadAction(i, false);
+        }
+        if (fixed) {
+            purgeHeads();
+            resync(this);
+        }
     }
 
     private void syncOffhand() {

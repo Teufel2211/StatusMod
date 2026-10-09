@@ -325,6 +325,57 @@ public class SelfStatusMenu extends AbstractContainerMenu {
      * slots, stale cursor). One full packet forces convergence. Send-only, so
      * it is safe to call from inside the slot listener.
      */
+    @Override
+    public void broadcastChanges() {
+        try {
+            reconcileMenu();
+        } catch (Throwable t) {
+            System.err.println("[StatusMod] GUI reconcile failed: " + t.getMessage());
+        }
+        super.broadcastChanges();
+    }
+
+    /**
+     * Per-tick invariant enforcement, runs before vanilla change detection.
+     * Held-key spam (e.g. holding F) can land slot-EMPTY on two consecutive
+     * broadcasts: the second sees no change versus its snapshot, fires no
+     * slotChanged event, and the item sits silently in the offhand while the
+     * menu slot stays empty. Reconciling every tick closes that hole: maximum
+     * divergence is one tick, silent states self-heal. Actions fire here (the
+     * slot listener can no longer see a surviving mismatch, so it stays a
+     * dormant backup and never double-fires).
+     */
+    private void reconcileMenu() {
+        boolean fixed = false;
+        for (int i = 0; i < SIZE; i++) {
+            ItemStack live;
+            try {
+                live = container.getItem(i);
+            } catch (Throwable t) {
+                continue;
+            }
+            ItemStack def = saved[i];
+            if (def.isEmpty()) {
+                if (live.isEmpty()) continue;
+                container.setItem(i, ItemStack.EMPTY);
+                clearCursor(this, live.copy());
+                fixed = true;
+                logGui("gap-bounce", i, def);
+                continue;
+            }
+            if (matchesDefinition(live, def)) continue;
+            boolean polluted = !live.isEmpty() && live.getItem() != def.getItem();
+            container.setItem(i, def.copy());
+            clearCursor(this, polluted ? live.copy() : ItemStack.EMPTY);
+            fixed = true;
+            logGui(polluted ? "polluted" : "emptied", i, def);
+            if (!polluted) handleSlotAction(i);
+        }
+        if (fixed) {
+            purgeMenuItems();
+            resync(this);
+        }
+    }
     private static void resync(AbstractContainerMenu menu) {
         try {
             if (menu != null) menu.sendAllDataToRemote();
