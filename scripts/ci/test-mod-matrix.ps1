@@ -4,15 +4,22 @@
     und Versionen als echte Minecraft-Server (Smoke-Test) und berichtet.
 
 .DESCRIPTION
-    Fuer jede Kombination Mod x Loader x MC-Version wird ein isolierter
-    Server installiert (Fabric-/Quilt-/Forge-/NeoForge-Installer), die Mod-JAR
-    (+ Fabric-API bei Fabric/Quilt) in mods/ gelegt und der Server gebootet.
-    Erfolg = Mod-Init-Marker im Log + "Done (". Es werden nur Server
-    gestartet (kein Singleplayer-Client).
+    Standard: NUR Server (keine Spiele-Fenster). Fuer jede Kombination
+    Mod x Loader x MC-Version wird ein isolierter Server installiert
+    (Fabric-/Quilt-/Forge-/NeoForge-Installer), die Mod-JAR (+ Fabric-API
+    bei Fabric/Quilt) in mods/ gelegt und der Server gebootet.
+    Erfolg = Mod-Init-Marker im Log + "Done (".
+
+    Clients werden per Default NICHT gestartet (siehe
+    docs/modrinth-client-test.md fuer manuelle Client-Tests in der
+    Modrinth App). Mit -WithClient zusaetzlich Singleplayer-Client-Tests
+    (Fenster oeffnen sich, brauchen GPU + Zeit).
 
     Aufruf aus StatusMod-Repo:
       .\scripts\ci\test-mod-matrix.ps1 -DryRun
       .\scripts\ci\test-mod-matrix.ps1 -Mods timerwave -Loaders fabric -McVersions 1.21.11
+      .\scripts\ci\test-mod-matrix.ps1 -Parallel 3
+      .\scripts\ci\test-mod-matrix.ps1 -Mods statusmod -Loaders fabric -McVersions 26.2 -WithClient
 #>
 param(
     [string[]]$Mods = @("statusmod", "timerwave", "mapswitch"),
@@ -32,6 +39,7 @@ param(
     [switch]$IsSlice,
     [switch]$BuildMissing,
     [switch]$SkipClient,
+    [switch]$WithClient,
     [switch]$NoCleanup,
     [switch]$NoQuickPlay,
     [switch]$NoC2,
@@ -46,6 +54,15 @@ Set-StrictMode -Version Latest
 $Mods = @($Mods | ForEach-Object { ($_ -split ',') } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" })
 $Loaders = @($Loaders | ForEach-Object { ($_ -split ',') } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" })
 $McVersions = @($McVersions | ForEach-Object { ($_ -split ',') } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" })
+
+# Clients sind per Default AUS (Server-only; Clients laufen manuell ueber die
+# Modrinth App, siehe docs/modrinth-client-test.md). -WithClient schaltet sie
+# ein, explizites -SkipClient / -SkipClient:$false hat Vorrang.
+if ($PSBoundParameters.ContainsKey('WithClient')) {
+    $SkipClient = -not [bool]$WithClient
+} elseif (-not $PSBoundParameters.ContainsKey('SkipClient')) {
+    $SkipClient = $true
+}
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 if ([string]::IsNullOrWhiteSpace($StatusModDir)) { $StatusModDir = $repoRoot.Path }
@@ -959,9 +976,14 @@ foreach ($c in $combos) {
 }
 
 Write-Host ""
-Write-Host "WICHTIG: Minecraft-Fenster waehrend des Laufs bitte nur MINIMIEREN, nie schliessen."
-Write-Host "Ein geschlossenes Fenster beendet den Test mit FAIL (orderly exit, kein Mod-Fehler)."
-Write-Host ""
+if (-not $SkipClient) {
+    Write-Host "WICHTIG: Minecraft-Fenster waehrend des Laufs bitte nur MINIMIEREN, nie schliessen."
+    Write-Host "Ein geschlossenes Fenster beendet den Test mit FAIL (orderly exit, kein Mod-Fehler)."
+    Write-Host ""
+} else {
+    Write-Host "Server-only (keine Client-Fenster). Clients: docs/modrinth-client-test.md"
+    Write-Host ""
+}
 Write-Host "=== Mod x Loader x Version Matrix ($($results.Count) Kombinationen) ==="
 foreach ($r in $results) {
     $jarShort = if ($r.jar) { Split-Path $r.jar -Leaf } else { "-" }
