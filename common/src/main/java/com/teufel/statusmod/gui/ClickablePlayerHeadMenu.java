@@ -1,18 +1,19 @@
 package com.teufel.statusmod.gui;
 
+import com.mojang.datafixers.util.Pair;
 import com.teufel.statusmod.StatusMod;
-import com.teufel.statusmod.storage.PlayerSettings;
-import com.teufel.statusmod.util.PermissionUtil;
+import com.teufel.statusmod.storage.PlayerSettings;import com.teufel.statusmod.util.PermissionUtil;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.entity.EquipmentSlot;import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerListener;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
@@ -168,9 +169,22 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
             try {
                 ItemStack off = sp.getOffhandItem();
                 if (!off.isEmpty() && isHeadItem(off)) {
-                    sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND, ItemStack.EMPTY);
+                    sp.setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
                 }
             } catch (Throwable ignored) {}
+            // Offhand hat keinen Slot in diesem Menue: ohne explizites Paket
+            // bleibt ein per F getauschter (serverseitig geloschter) Kopf
+            // clientseitig als Ghost sichtbar.
+            syncOffhand();
+        } catch (Throwable ignored) {}
+    }
+
+    private void syncOffhand() {
+        try {
+            if (viewer instanceof ServerPlayer sp) {
+                sp.connection.send(new ClientboundSetEquipmentPacket(sp.getId(),
+                    java.util.List.of(Pair.of(EquipmentSlot.OFFHAND, sp.getOffhandItem().copy()))));
+            }
         } catch (Throwable ignored) {}
     }
 

@@ -1,10 +1,12 @@
 package com.teufel.statusmod.gui;
 
 import com.teufel.statusmod.command.StatusCommand;
+import com.mojang.datafixers.util.Pair;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
@@ -12,6 +14,7 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -292,9 +295,13 @@ public class SelfStatusMenu extends AbstractContainerMenu {
             try {
                 ItemStack off = sp.getOffhandItem();
                 if (!off.isEmpty() && isMenuItem(off)) {
-                    sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND, ItemStack.EMPTY);
+                    sp.setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
                 }
             } catch (Throwable ignored) {}
+            // Offhand hat keinen Slot in diesem Menue: broadcastChanges()
+            // synct sie nie. Ohne explizites Paket bleibt ein per F getauschtes
+            // (serverseitig geloschtes) Item clientseitig als Ghost sichtbar.
+            syncOffhand();
             // Gedroppte Menue-Items (Q-Taste) als Entities einsammeln.
             // Einmal sofort, einmal verzoegert: Die Entity spawnt moeglicherweise
             // erst NACH dem Slot-Event (clicked()), der erste Sweep liefe ins Leere.
@@ -303,8 +310,20 @@ public class SelfStatusMenu extends AbstractContainerMenu {
         } catch (Throwable ignored) {}
     }
 
-    private void scheduleEntitySweep() {
+    /**
+     * Pushes the server-side offhand to the client (see purgeMenuItems: the
+     * offhand has no slot in this menu and is never synced otherwise).
+     */
+    private void syncOffhand() {
         try {
+            if (viewer instanceof ServerPlayer sp) {
+                sp.connection.send(new ClientboundSetEquipmentPacket(sp.getId(),
+                    java.util.List.of(Pair.of(EquipmentSlot.OFFHAND, sp.getOffhandItem().copy()))));
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private void scheduleEntitySweep() {        try {
             net.minecraft.server.MinecraftServer server = cmdSource.getServer();
             if (server == null) return;
             server.execute(() -> {

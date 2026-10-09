@@ -80,10 +80,16 @@ foreach ($dir in @(Get-ChildItem -LiteralPath $ProfilesRoot -Directory -ErrorAct
     }
     $modsDir = Join-Path $dir.FullName "mods"
     New-Item -ItemType Directory -Force -Path $modsDir | Out-Null
-    Get-ChildItem -LiteralPath $modsDir -File -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -like "Statusmod-*.jar" -or $_.Name -like "statusmod-*.jar" } |
-        ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
-    Copy-Item -LiteralPath $jar -Destination (Join-Path $modsDir (Split-Path $jar -Leaf)) -Force
+    try {
+        Get-ChildItem -LiteralPath $modsDir -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like "Statusmod-*.jar" -or $_.Name -like "statusmod-*.jar" } |
+            ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force }
+        Copy-Item -LiteralPath $jar -Destination (Join-Path $modsDir (Split-Path $jar -Leaf)) -Force
+    } catch {
+        # Datei gesperrt (Spiel/Launcher läuft) -> Profil überspringen, Rest syncen.
+        $skipped += "$($dir.Name) (gesperrt, Spiel schließen und erneut syncen)"
+        continue
+    }
     Write-Output "OK: $($dir.Name) <- $(Split-Path $jar -Leaf)"
     $done++
     # Fabric/Quilt brauchen die Fabric API in der passenden MC-Version
