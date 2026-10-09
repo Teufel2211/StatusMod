@@ -138,29 +138,29 @@ public class SelfStatusMenu extends AbstractContainerMenu {
             addSlot(new Slot(playerInventory, col, 8 + col * 18, 142));
         }
 
-        final boolean[] wasPopulated = new boolean[SIZE];
-        final boolean[] initialized = {false};
+        // Comparison-based click detection: any menu slot that no longer matches
+        // its definition was touched (click, drag, throw, number keys, creative
+        // set). The previous initialized/wasPopulated gate stayed disarmed with
+        // an empty player inventory (no slotIndex >= SIZE event ever arrives),
+        // leaving the menu unprotected. Init fill transitions EMPTY -> defined,
+        // which matches, so it never triggers an action.
         addSlotListener(new ContainerListener() {
             @Override
             public void slotChanged(AbstractContainerMenu menu, int slotIndex, ItemStack stack) {
-                if (!initialized[0]) {
-                    if (slotIndex >= 0 && slotIndex < SIZE && !stack.isEmpty()) {
-                        wasPopulated[slotIndex] = true;
-                    }
-                    if (slotIndex >= SIZE) {
-                        initialized[0] = true;
-                    }
+                if (slotIndex < 0 || slotIndex >= SIZE) return;
+                ItemStack savedStack = saved[slotIndex];
+                if (savedStack.isEmpty()) {
+                    // Gap slot: must stay empty; foreign items bounce to cursor.
+                    if (stack.isEmpty()) return;
+                    container.setItem(slotIndex, ItemStack.EMPTY);
+                    clearCursor(menu, stack.copy());
+                    purgeMenuItems();
                     return;
                 }
-                if (slotIndex < 0 || slotIndex >= SIZE) return;
-                if (!wasPopulated[slotIndex]) return;
+                if (matchesDefinition(stack, savedStack)) return;
 
-                ItemStack savedStack = saved[slotIndex];
                 boolean emptied = stack.isEmpty();
-                boolean polluted = !emptied && !savedStack.isEmpty() && stack.getItem() != savedStack.getItem();
-                if (!emptied && !polluted) return;
-                wasPopulated[slotIndex] = false;
-
+                boolean polluted = !emptied && stack.getItem() != savedStack.getItem();
                 container.setItem(slotIndex, savedStack.copy());
                 clearCursor(menu, polluted ? stack.copy() : ItemStack.EMPTY);
                 purgeMenuItems();
@@ -351,8 +351,23 @@ public class SelfStatusMenu extends AbstractContainerMenu {
         } catch (Throwable ignored) {}
     }
 
-    private boolean isMenuItem(ItemStack stack) {
-        String n;
+    /**
+     * True when a slot still holds its menu definition (item + count + display
+     * name). Direct calls only, so it works on intermediary runtimes too.
+     */
+    private static boolean matchesDefinition(ItemStack stack, ItemStack def) {
+        if (stack.isEmpty() || def.isEmpty()) return stack.isEmpty() && def.isEmpty();
+        if (stack.getItem() != def.getItem()) return false;
+        if (stack.getCount() != def.getCount()) return false;
+        try {
+            String a = stack.getHoverName().getString();
+            String b = def.getHoverName().getString();
+            if (!a.equals(b)) return false;
+        } catch (Throwable ignored) {}
+        return true;
+    }
+
+    private boolean isMenuItem(ItemStack stack) {        String n;
         try {
             n = stack.getHoverName().getString();
         } catch (Throwable t) {
@@ -412,6 +427,12 @@ public class SelfStatusMenu extends AbstractContainerMenu {
 
     @Override
     public void removed(Player player) {
+        try {
+            // Take-and-close: cursor loot + escaped menu items must not survive
+            // closing the menu (ESC) — otherwise taking items "works".
+            clearCursor(this, ItemStack.EMPTY);
+            purgeMenuItems();
+        } catch (Throwable ignored) {}
         super.removed(player);
     }
 }

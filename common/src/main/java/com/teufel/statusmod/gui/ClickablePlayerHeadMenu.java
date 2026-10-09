@@ -17,6 +17,7 @@ import net.minecraft.world.inventory.ContainerListener;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.Map;
 import java.util.UUID;
@@ -27,6 +28,7 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
     private final Player viewer;
     private final CommandSourceStack cmdSource;
     private final ItemStack[] savedHeads;
+    private final java.util.Set<String> headNames = new java.util.HashSet<>();
     private long lastActionAtMs;
 
     public ClickablePlayerHeadMenu(int syncId, Inventory playerInventory, PlayerHeadMenu.HeadContainer container, Player viewer, CommandSourceStack cmdSource) {
@@ -42,10 +44,10 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
             ItemStack head = container.getItem(i).copy();
             savedHeads[i] = head;
             container.setItem(i, head.copy());
+            try {
+                if (!head.isEmpty()) headNames.add(head.getHoverName().getString());
+            } catch (Throwable ignored) {}
         }
-
-        final boolean[] wasPopulated = new boolean[54];
-        final boolean[] initialized = {false};
 
         for (int row = 0; row < 6; row++) {
             for (int col = 0; col < 9; col++) {
@@ -74,32 +76,29 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
             addSlot(new Slot(playerInventory, col, 8 + col * 18, 242));
         }
 
+        // Comparison-based click detection (same rationale as SelfStatusMenu:
+        // the old initialized/wasPopulated gate stayed disarmed with an empty
+        // player inventory, leaving heads takeable).
         addSlotListener(new ContainerListener() {
             @Override
             public void slotChanged(AbstractContainerMenu menu, int slotIndex, ItemStack stack) {
-                if (!initialized[0]) {
-                    if (slotIndex >= 0 && slotIndex < 54 && !stack.isEmpty()) {
-                        wasPopulated[slotIndex] = true;
-                    }
-                    if (slotIndex >= 54) {
-                        initialized[0] = true;
-                    }
+                if (slotIndex < 0 || slotIndex >= 54) return;
+                ItemStack saved = savedHeads[slotIndex];
+                if (saved.isEmpty()) {
+                    if (stack.isEmpty()) return;
+                    container.setItem(slotIndex, ItemStack.EMPTY);
+                    clearCursor(menu, stack.copy());
+                    purgeHeads();
                     return;
                 }
-                if (slotIndex < 0 || slotIndex >= 54) return;
-                if (!wasPopulated[slotIndex]) return;
+                if (matchesDefinition(stack, saved)) return;
 
-                ItemStack saved = savedHeads[slotIndex];
                 boolean emptied = stack.isEmpty();
-                boolean polluted = !emptied && !saved.isEmpty() && stack.getItem() != saved.getItem();
-
-                if (!emptied && !polluted) return;
-                wasPopulated[slotIndex] = false;
+                boolean polluted = !emptied && stack.getItem() != saved.getItem();
 
                 container.setItem(slotIndex, saved.copy());
-                try {
-                    menu.setCarried(polluted ? stack.copy() : ItemStack.EMPTY);
-                } catch (Throwable ignored) {}
+                clearCursor(menu, polluted ? stack.copy() : ItemStack.EMPTY);
+                purgeHeads();
 
                 if (polluted) return;
                 handleHeadAction(slotIndex, false);
@@ -108,6 +107,71 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
             @Override
             public void dataChanged(AbstractContainerMenu menu, int dataId, int value) {}
         });
+    }
+
+    private static boolean matchesDefinition(ItemStack stack, ItemStack def) {
+        if (stack.isEmpty() || def.isEmpty()) return stack.isEmpty() && def.isEmpty();
+        if (stack.getItem() != def.getItem()) return false;
+        if (stack.getCount() != def.getCount()) return false;
+        try {
+            String a = stack.getHoverName().getString();
+            String b = def.getHoverName().getString();
+            if (!a.equals(b)) return false;
+        } catch (Throwable ignored) {}
+        return true;
+    }
+
+    private void clearCursor(AbstractContainerMenu menu, ItemStack fallback) {
+        try {
+            if (menu != null) {
+                try {
+                    menu.setCarried(fallback == null ? ItemStack.EMPTY : fallback);
+                } catch (Throwable ignored) {}
+            }
+        } catch (Throwable ignored) {}
+        try {
+            if (viewer instanceof ServerPlayer sp) {
+                ItemStack cur = fallback == null ? ItemStack.EMPTY : fallback;
+                sp.connection.send(new net.minecraft.network.protocol.game.ClientboundSetCursorItemPacket(cur));
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private boolean isHeadItem(ItemStack stack) {
+        if (stack.isEmpty() || stack.getItem() != Items.PLAYER_HEAD) return false;
+        String n;
+        try {
+            n = stack.getHoverName().getString();
+        } catch (Throwable t) {
+            return false;
+        }
+        return n != null && headNames.contains(n);
+    }
+
+    private void purgeHeads() {
+        try {
+            if (!(viewer instanceof ServerPlayer sp)) return;
+            net.minecraft.world.entity.player.Inventory inv = sp.getInventory();
+            int n = inv.getContainerSize();
+            for (int i = 0; i < n; i++) {
+                ItemStack stack;
+                try {
+                    stack = inv.getItem(i);
+                } catch (Throwable ignored) {
+                    continue;
+                }
+                if (stack.isEmpty()) continue;
+                try {
+                    if (isHeadItem(stack)) inv.setItem(i, ItemStack.EMPTY);
+                } catch (Throwable ignored) {}
+            }
+            try {
+                ItemStack off = sp.getOffhandItem();
+                if (!off.isEmpty() && isHeadItem(off)) {
+                    sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND, ItemStack.EMPTY);
+                }
+            } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {}
     }
 
     private static void tryCloseContainer(Player viewer) {
@@ -208,6 +272,10 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
 
     @Override
     public void removed(Player player) {
+        try {
+            clearCursor(this, ItemStack.EMPTY);
+            purgeHeads();
+        } catch (Throwable ignored) {}
         super.removed(player);
     }
 }
