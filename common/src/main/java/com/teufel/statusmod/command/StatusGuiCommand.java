@@ -13,6 +13,7 @@ import com.teufel.statusmod.util.StatusTextUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -28,6 +29,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.component.ResolvableProfile;
 
 import com.mojang.authlib.GameProfile;
 
@@ -41,7 +44,6 @@ import java.util.UUID;
 
 public class StatusGuiCommand {
     private static final int HEADS_PER_PAGE = 54;
-    private static Boolean hasDataComponents = null;
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("status")
@@ -165,15 +167,6 @@ public class StatusGuiCommand {
     }
 
     private static ItemStack createPlayerHead(String name, PlayerSettings settings, ServerPlayer onlinePlayer, String uuidStr) {
-        if (hasDataComponents == null) {
-            try {
-                Class.forName("net.minecraft.core.component.DataComponents");
-                hasDataComponents = true;
-            } catch (ClassNotFoundException e) {
-                hasDataComponents = false;
-            }
-        }
-
         boolean isOnline = onlinePlayer != null;
         UUID uuid = null;
         try {
@@ -190,37 +183,30 @@ public class StatusGuiCommand {
             gameProfile = new GameProfile(uuid, name);
         }
 
-        if (hasDataComponents) {
-            try {
-                return createPlayerHeadModern(name, settings, isOnline, gameProfile);
-            } catch (Throwable t) {
-                hasDataComponents = false;
-            }
+        // Direct component path works on all targets (1.21.11 + 26.x, all
+        // loaders): Mojang names compile everywhere, Loom remaps them for
+        // intermediary/SRG runtimes. Legacy NBT is only a safety net.
+        try {
+            return createPlayerHeadModern(name, settings, isOnline, gameProfile);
+        } catch (Throwable t) {
+            // fall through to legacy
         }
 
         return createPlayerHeadLegacy(name, settings, isOnline, gameProfile);
     }
 
-    private static ItemStack createPlayerHeadModern(String name, PlayerSettings settings, boolean online, GameProfile profile) throws Throwable {
+    private static ItemStack createPlayerHeadModern(String name, PlayerSettings settings, boolean online, GameProfile profile) {
         ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
 
-        Class<?> dcClass = Class.forName("net.minecraft.core.component.DataComponents");
-        Class<?> dctClass = Class.forName("net.minecraft.core.component.DataComponentType");
-        Method setMethod = findMethod(stack.getClass(), "set", dctClass, Object.class);
-        if (setMethod == null) throw new NoSuchMethodException("No set(DataComponentType, Object) found");
-
         if (profile != null) {
-            Object profileKey = dcClass.getField("PROFILE").get(null);
-            Object wrapped = wrapInResolvableProfile(profile);
-            setMethod.invoke(stack, profileKey, wrapped);
+            stack.set(DataComponents.PROFILE, ResolvableProfile.createResolved(profile));
         }
 
         String statusText = settings != null ? settings.status : "";
         String colorKey = settings != null ? settings.color : "reset";
 
         MutableComponent displayName = Component.literal(name).withStyle(ChatFormatting.WHITE);
-        Object customNameKey = dcClass.getField("CUSTOM_NAME").get(null);
-        setMethod.invoke(stack, customNameKey, displayName);
+        stack.set(DataComponents.CUSTOM_NAME, displayName);
 
         List<Component> loreLines = new ArrayList<>();
         if (statusText != null && !statusText.isEmpty()) {
@@ -245,10 +231,7 @@ public class StatusGuiCommand {
         loreLines.add(Component.literal("Linksklick: Status \u00E4ndern").withStyle(ChatFormatting.GRAY));
         loreLines.add(Component.literal("Shift-Klick: Farbe \u00E4ndern").withStyle(ChatFormatting.GRAY));
 
-        Object loreKey = dcClass.getField("LORE").get(null);
-        Class<?> loreClass = Class.forName("net.minecraft.world.item.component.ItemLore");
-        Object lore = loreClass.getConstructor(List.class).newInstance(loreLines);
-        setMethod.invoke(stack, loreKey, lore);
+        stack.set(DataComponents.LORE, new ItemLore(loreLines));
 
         return stack;
     }
@@ -378,16 +361,6 @@ public class StatusGuiCommand {
             }
         }
         return null;
-    }
-
-    private static Object wrapInResolvableProfile(GameProfile profile) throws Throwable {
-        Class<?> rpClass = Class.forName("net.minecraft.world.item.component.ResolvableProfile");
-        try {
-            Method createResolved = rpClass.getMethod("createResolved", GameProfile.class);
-            return createResolved.invoke(null, profile);
-        } catch (NoSuchMethodException e) {
-            return rpClass.getConstructor(GameProfile.class).newInstance(profile);
-        }
     }
 
     private static final Map<String, Integer> FALLBACK_COLORS = new HashMap<>();

@@ -111,6 +111,16 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
     }
 
     private static void tryCloseContainer(Player viewer) {
+        // Direct call: ServerPlayer.closeContainer() is public on 1.21.11 and
+        // 26.x (Player.closeContainer is protected on 26.x, so no direct call
+        // on the Player type). Old name reflection failed on intermediary
+        // runtimes (Fabric/Quilt 1.21.11).
+        try {
+            if (viewer instanceof ServerPlayer sp) {
+                sp.closeContainer();
+                return;
+            }
+        } catch (Throwable ignored) {}
         try {
             java.lang.reflect.Method m = Player.class.getDeclaredMethod("closeContainer");
             m.setAccessible(true);
@@ -139,51 +149,15 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
     }
 
     private static MutableComponent clickable(MutableComponent text, String command, String hoverText) {
-        Object clickEvt = null;
+        // Direct record construction (verified identical Mojang signatures on
+        // 1.21.11 and 26.x). Old 3-stage name reflection never reached the
+        // record branch on intermediary runtimes (Fabric/Quilt 1.21.11).
         try {
-            clickEvt = ClickEvent.class.getMethod("runCommand", String.class).invoke(null, command);
+            text = text.withStyle(Style.EMPTY.withClickEvent(new ClickEvent.SuggestCommand(command)));
         } catch (Throwable ignored) {}
-        if (clickEvt == null) {
-            try {
-                Class<?> act = Class.forName("net.minecraft.network.chat.ClickEvent$Action");
-                Object sug = act.getField("SUGGEST_COMMAND").get(null);
-                clickEvt = ClickEvent.class.getConstructor(act, String.class).newInstance(sug, command);
-            } catch (Throwable ignored) {}
-        }
-        if (clickEvt == null) {
-            try {
-                clickEvt = Class.forName("net.minecraft.network.chat.ClickEvent$SuggestCommand")
-                    .getConstructor(String.class).newInstance(command);
-            } catch (Throwable ignored) {}
-        }
-        if (clickEvt != null) {
-            try {
-                text = text.withStyle(Style.EMPTY.withClickEvent((ClickEvent) clickEvt));
-            } catch (Throwable ignored) {}
-        }
-
-        Object hoverEvt = null;
         try {
-            hoverEvt = HoverEvent.class.getMethod("showText", Component.class).invoke(null, Component.literal(hoverText));
+            text = text.withStyle(Style.EMPTY.withHoverEvent(new HoverEvent.ShowText(Component.literal(hoverText))));
         } catch (Throwable ignored) {}
-        if (hoverEvt == null) {
-            try {
-                Class<?> act = Class.forName("net.minecraft.network.chat.HoverEvent$Action");
-                Object showText = act.getField("SHOW_TEXT").get(null);
-                hoverEvt = HoverEvent.class.getConstructor(act, Object.class).newInstance(showText, Component.literal(hoverText));
-            } catch (Throwable ignored) {}
-        }
-        if (hoverEvt == null) {
-            try {
-                hoverEvt = Class.forName("net.minecraft.network.chat.HoverEvent$ShowText")
-                    .getConstructor(Component.class).newInstance(Component.literal(hoverText));
-            } catch (Throwable ignored) {}
-        }
-        if (hoverEvt != null) {
-            try {
-                text = text.withStyle(Style.EMPTY.withHoverEvent((HoverEvent) hoverEvt));
-            } catch (Throwable ignored) {}
-        }
         return text;
     }
 

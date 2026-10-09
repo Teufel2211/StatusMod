@@ -3,6 +3,8 @@ package com.teufel.statusmod.gui;
 import com.teufel.statusmod.command.StatusCommand;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
@@ -19,8 +21,8 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ItemLore;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,52 +53,43 @@ public class SelfStatusMenu extends AbstractContainerMenu {
     }
 
     /**
-     * Maps our color keys to wool variants. 1.21.11 has Items.&lt;X&gt;_WOOL fields,
-     * 26.x consolidated them into Items.WOOL (ColorCollection record with named
-     * accessors). Both resolved reflectively; PAPER fallback.
-     * {colorKey, fieldSuffix (1.21.11), accessor (26.x)}
+     * Maps our color keys to wool registry paths. Resolved via BuiltInRegistries
+     * with direct Mojang references (compiles on 1.21.11 and 26.x, remapped by
+     * Loom for intermediary/SRG runtimes). Old string reflection on Items fields
+     * returned PAPER on Fabric/Quilt 1.21.11 (intermediary names).
      */
     private static final String[][] WOOL_VARIANTS = {
-        {"black", "BLACK", "black"},
-        {"dark_blue", "BLUE", "blue"},
-        {"dark_green", "GREEN", "green"},
-        {"dark_aqua", "CYAN", "cyan"},
-        {"dark_red", "RED", "red"},
-        {"dark_purple", "PURPLE", "purple"},
-        {"gold", "ORANGE", "orange"},
-        {"gray", "LIGHT_GRAY", "lightGray"},
-        {"dark_gray", "GRAY", "gray"},
-        {"blue", "BLUE", "blue"},
-        {"green", "LIME", "lime"},
-        {"aqua", "LIGHT_BLUE", "lightBlue"},
-        {"red", "RED", "red"},
-        {"light_purple", "MAGENTA", "magenta"},
-        {"yellow", "YELLOW", "yellow"},
-        {"white", "WHITE", "white"},
+        {"black", "black_wool"},
+        {"dark_blue", "blue_wool"},
+        {"dark_green", "green_wool"},
+        {"dark_aqua", "cyan_wool"},
+        {"dark_red", "red_wool"},
+        {"dark_purple", "purple_wool"},
+        {"gold", "orange_wool"},
+        {"gray", "light_gray_wool"},
+        {"dark_gray", "gray_wool"},
+        {"blue", "blue_wool"},
+        {"green", "lime_wool"},
+        {"aqua", "light_blue_wool"},
+        {"red", "red_wool"},
+        {"light_purple", "magenta_wool"},
+        {"yellow", "yellow_wool"},
+        {"white", "white_wool"},
     };
 
     private static Item woolFor(String colorKey) {
         String key = colorKey == null ? "white" : colorKey.toLowerCase();
-        String suffix = "WHITE";
-        String accessor = "white";
+        String path = "white_wool";
         for (String[] v : WOOL_VARIANTS) {
             if (v[0].equals(key)) {
-                suffix = v[1];
-                accessor = v[2];
+                path = v[1];
                 break;
             }
         }
         try {
-            Object o = Items.class.getField(suffix + "_WOOL").get(null);
-            if (o instanceof Item item) return item;
-        } catch (Throwable ignored) {}
-        try {
-            Object wool = Items.class.getField("WOOL").get(null);
-            if (wool != null) {
-                Method m = wool.getClass().getMethod(accessor);
-                Object o = m.invoke(wool);
-                if (o instanceof Item item) return item;
-            }
+            Item item = BuiltInRegistries.ITEM.getValue(
+                net.minecraft.resources.Identifier.fromNamespaceAndPath("minecraft", path));
+            if (item != null && item != Items.AIR) return item;
         } catch (Throwable ignored) {}
         return Items.PAPER;
     }
@@ -295,6 +288,46 @@ public class SelfStatusMenu extends AbstractContainerMenu {
                     if (isMenuItem(stack)) inv.setItem(i, ItemStack.EMPTY);
                 } catch (Throwable ignored) {}
             }
+            // Offhand explizit (F-Tausch), falls nicht im Containerbereich.
+            try {
+                ItemStack off = sp.getOffhandItem();
+                if (!off.isEmpty() && isMenuItem(off)) {
+                    sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.OFFHAND, ItemStack.EMPTY);
+                }
+            } catch (Throwable ignored) {}
+            // Gedroppte Menue-Items (Q-Taste) als Entities einsammeln.
+            // Einmal sofort, einmal verzoegert: Die Entity spawnt moeglicherweise
+            // erst NACH dem Slot-Event (clicked()), der erste Sweep liefe ins Leere.
+            purgeEntities(sp);
+            scheduleEntitySweep();
+        } catch (Throwable ignored) {}
+    }
+
+    private void scheduleEntitySweep() {
+        try {
+            net.minecraft.server.MinecraftServer server = cmdSource.getServer();
+            if (server == null) return;
+            server.execute(() -> {
+                try {
+                    if (viewer instanceof ServerPlayer sp2) {
+                        purgeEntities(sp2);
+                    }
+                } catch (Throwable ignored) {}
+            });
+        } catch (Throwable ignored) {}
+    }
+
+    private void purgeEntities(ServerPlayer sp) {
+        try {
+            net.minecraft.world.phys.AABB area = sp.getBoundingBox().inflate(8.0D);
+            for (net.minecraft.world.entity.item.ItemEntity entity
+                    : sp.level().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, area)) {
+                try {
+                    if (!entity.isRemoved() && isMenuItem(entity.getItem())) {
+                        entity.discard();
+                    }
+                } catch (Throwable ignored) {}
+            }
         } catch (Throwable ignored) {}
     }
 
@@ -334,26 +367,14 @@ public class SelfStatusMenu extends AbstractContainerMenu {
 
     private static ItemStack makeItem(Item item, String name, ChatFormatting nameColor, List<Component> lore) {
         ItemStack stack = new ItemStack(item);
+        // Direct Mojang references (no Class.forName: intermediary runtimes like
+        // Fabric/Quilt 1.21.11 have no Mojang class/field names at runtime).
         try {
-            Class<?> dcClass = Class.forName("net.minecraft.core.component.DataComponents");
-            Class<?> dctClass = Class.forName("net.minecraft.core.component.DataComponentType");
-            Method setMethod = null;
-            for (Method m : stack.getClass().getMethods()) {
-                if (!m.getName().equals("set") || m.getParameterCount() != 2) continue;
-                if (m.getParameterTypes()[0].isAssignableFrom(dctClass)
-                    && m.getParameterTypes()[1].isAssignableFrom(Object.class)) {
-                    setMethod = m;
-                    break;
-                }
-            }
-            if (setMethod == null) return stack;
-            Object customNameKey = dcClass.getField("CUSTOM_NAME").get(null);
-            setMethod.invoke(stack, customNameKey, Component.literal(name).withStyle(nameColor));
+            stack.set(DataComponents.CUSTOM_NAME, Component.literal(name).withStyle(nameColor));
+        } catch (Throwable ignored) {}
+        try {
             if (lore != null && !lore.isEmpty()) {
-                Object loreKey = dcClass.getField("LORE").get(null);
-                Class<?> loreClass = Class.forName("net.minecraft.world.item.component.ItemLore");
-                Object loreObj = loreClass.getConstructor(List.class).newInstance(new ArrayList<>(lore));
-                setMethod.invoke(stack, loreKey, loreObj);
+                stack.set(DataComponents.LORE, new ItemLore(new ArrayList<>(lore)));
             }
         } catch (Throwable ignored) {}
         return stack;

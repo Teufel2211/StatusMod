@@ -55,14 +55,10 @@ public final class StatusMod {
         return config;
     }
 
-    /** True on MC 26.3 (via Mojang version, reflection-safe across versions). */
+    /** True on MC 26.3 (direct refs: old name reflection failed on intermediary). */
     private static boolean isMc26_3() {
         try {
-            Class<?> shared = Class.forName("net.minecraft.SharedConstants");
-            Object version = shared.getMethod("getCurrentVersion").invoke(null);
-            if (version == null) return false;
-            Object name = version.getClass().getMethod("name").invoke(version);
-            return name != null && name.toString().trim().startsWith("26.3");
+            return net.minecraft.SharedConstants.getCurrentVersion().name().trim().startsWith("26.3");
         } catch (Throwable ignored) {
             return false;
         }
