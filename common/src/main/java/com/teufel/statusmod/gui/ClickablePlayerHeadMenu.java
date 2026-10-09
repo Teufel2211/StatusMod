@@ -180,6 +180,7 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
             // bleibt ein per F getauschter (serverseitig geloschter) Kopf
             // clientseitig als Ghost sichtbar.
             syncOffhand();
+            purgeEntities(sp);
         } catch (Throwable ignored) {}
     }
 
@@ -239,6 +240,20 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
             if (viewer instanceof ServerPlayer sp) {
                 sp.connection.send(new ClientboundSetEquipmentPacket(sp.getId(),
                     java.util.List.of(Pair.of(EquipmentSlot.OFFHAND, sp.getOffhandItem().copy()))));
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private void purgeEntities(ServerPlayer sp) {
+        try {
+            net.minecraft.world.phys.AABB area = sp.getBoundingBox().inflate(8.0D);
+            for (net.minecraft.world.entity.item.ItemEntity entity
+                    : sp.level().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, area)) {
+                try {
+                    if (!entity.isRemoved() && isHeadItem(entity.getItem())) {
+                        entity.discard();
+                    }
+                } catch (Throwable ignored) {}
             }
         } catch (Throwable ignored) {}
     }
@@ -333,6 +348,8 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
             if (index >= 0 && index < 54 && slotUuids.containsKey(index)) {
                 handleHeadAction(index, true);
             }
+            purgeHeads();
+            resync(this);
         } catch (Throwable e) {
             System.err.println("[StatusMod] GUI shift-click failed: " + e.getMessage());
         }
@@ -344,6 +361,7 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
         try {
             clearCursor(this, ItemStack.EMPTY);
             purgeHeads();
+            if (viewer instanceof ServerPlayer sp) purgeEntities(sp);
         } catch (Throwable ignored) {}
         super.removed(player);
     }

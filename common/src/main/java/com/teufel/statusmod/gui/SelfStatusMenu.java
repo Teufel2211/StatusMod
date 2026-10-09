@@ -536,6 +536,12 @@ public class SelfStatusMenu extends AbstractContainerMenu {
                 }
                 refreshDisplay();
                 purgeMenuItems();
+                resync(this);
+                logGui("shift", index, saved[index]);
+            } else {
+                // Eigene Slots: Shift wird geblockt (Vanilla wuerde bewegen).
+                // Ohne Resync behaelt der Client seine falsche Vorhersage.
+                resync(this);
             }
         } catch (Throwable e) {
             System.err.println("[StatusMod] GUI shift-click failed: " + e.getMessage());
@@ -550,6 +556,9 @@ public class SelfStatusMenu extends AbstractContainerMenu {
             // closing the menu (ESC) — otherwise taking items "works".
             clearCursor(this, ItemStack.EMPTY);
             purgeMenuItems();
+            // Drop-and-close (Q, dann sofort ESC): Entity-Sweep, sonst bleibt
+            // das gedroppte Menue-Item liegen und kann aufgesammelt werden.
+            if (viewer instanceof ServerPlayer sp) purgeEntities(sp);
         } catch (Throwable ignored) {}
         super.removed(player);
     }

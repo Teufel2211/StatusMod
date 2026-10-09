@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class StatusMod {
     public static final String MOD_ID = "statusmod";
     /** Bump on every GUI-fix round so running builds are identifiable via log + /status version. */
-    public static final String BUILD = "diag2-reconcile";
+    public static final String BUILD = "diag3-sweep";
     private static final AtomicBoolean initialized = new AtomicBoolean(false);
     public static volatile ModConfig config;
     public static volatile SettingsStorage storage;
