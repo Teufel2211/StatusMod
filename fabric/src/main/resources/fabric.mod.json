@@ -7,13 +7,10 @@
   "icon": "assets/statusmod/icon.png",
   "authors": ["teufel"],
   "license": "MIT",
-  "environment": "*",
+  "environment": "server",
   "entrypoints": {
     "main": [
       "com.teufel.statusmod.fabric.StatusModFabric"
-    ],
-    "client": [
-      "com.teufel.statusmod.fabric.StatusModClient"
     ]
   },
   "depends": {

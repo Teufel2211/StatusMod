@@ -169,9 +169,16 @@ Optional: copy `scripts/local/.release.env.example` to `scripts/local/.release.e
 
 ## Privacy and Security
 
-- No external telemetry.
-- No remote transmission of player status data by the mod itself.
-- Only minimal local data is stored (UUID + status/settings/block state).
+- By default (no dashboard configured): fully local. No external telemetry
+  and no remote transmission of any data. Only minimal local data is stored
+  (UUID + status/settings/block state).
+- Optional dashboard sync (opt-in via `dashboardUrl` + `serverId` + `apiKey`
+  in `config/statusmod/config.json`): while enabled, the mod pushes player
+  UUIDs, usernames, status text/color/settings, avatar choice, mute and block
+  state to the configured dashboard URL over HTTPS (every ~30s), and pulls
+  admin actions (mutes, blocks, status edits) from there. Disable anytime by
+  clearing these three values (or `/status feature sync off` stops the loop;
+  already-synced rows stay on the dashboard until deleted there).
 
 ## Links
 

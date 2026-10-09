@@ -189,6 +189,16 @@ public class ModConfig {
         if (serverId == null) serverId = "";
         else serverId = serverId.trim();
         if (apiKey == null) apiKey = "";
-        else apiKey = apiKey.trim();
+        else apiKey = stripQuotes(apiKey.trim());
+    }
+
+    /** Removes surrounding quotes that sneak in via copy-paste (breaks key matching). */
+    public static String stripQuotes(String v) {
+        if (v == null) return "";
+        String s = v.trim();
+        while (s.length() >= 2 && ((s.startsWith("\"") && s.endsWith("\"")) || (s.startsWith("'") && s.endsWith("'")))) {
+            s = s.substring(1, s.length() - 1).trim();
+        }
+        return s;
     }
 }

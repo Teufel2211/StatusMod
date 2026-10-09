@@ -2,6 +2,14 @@ plugins {
     id 'dev.architectury.loom'
 }
 
+// MC 1.21.11 runs on Java 21: everything in this module must stay
+// class file 65, otherwise default launchers (Java 21) reject the jar.
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
     mappings loom.officialMojangMappings()

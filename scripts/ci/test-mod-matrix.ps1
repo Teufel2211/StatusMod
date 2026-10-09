@@ -27,6 +27,9 @@ param(
     [int]$SpTimeoutSec = 300,
     [int]$BasePort = 25565,
     [int]$StartIndex = 1,
+    [int]$EndIndex = 0,
+    [int]$Parallel = 1,
+    [switch]$IsSlice,
     [switch]$BuildMissing,
     [switch]$SkipClient,
     [switch]$NoCleanup,
@@ -764,6 +767,87 @@ function Find-ModJar {
 }
 
 # ---------------------------------------------------------------------------
+# Parallel-Support: Mutex + Slice-Orchestrierung + Merge
+# ---------------------------------------------------------------------------
+
+# Serialisiert prozessuebergreifend alles, was geteilte Verzeichnisse
+# anfasst (Client-Basen in shared/, Repo-Builds).Rueckgabe von $Action.
+function Invoke-WithMatrixLock {
+    param([scriptblock]$Action, [string]$Name = "StatusModMatrixShared")
+    $m = New-Object System.Threading.Mutex($false, "Global\$Name")
+    $got = $false
+    try {
+        $got = $m.WaitOne(3600000)
+        if (-not $got) { throw "Matrix-Lock Timeout ($Name)" }
+        return & $Action
+    } finally {
+        if ($got) { try { $m.ReleaseMutex() } catch { } }
+        try { $m.Dispose() } catch { }
+    }
+}
+
+function Write-MatrixReport {
+    param($Results, [string]$ReportJson, [string]$ReportMd)
+    $passCount = @($Results | Where-Object { $_.status -eq "passed" }).Count
+    $failCount = @($Results | Where-Object { $_.status -eq "failed" }).Count
+    $skipCount = @($Results | Where-Object { $_.status -eq "skipped" }).Count
+    $spPass = @($Results | Where-Object { $_.spStatus -eq "passed" }).Count
+    $spFail = @($Results | Where-Object { $_.spStatus -eq "failed" }).Count
+    $mpPass = @($Results | Where-Object { $_.mpStatus -eq "passed" }).Count
+    $summary = [ordered]@{
+        timestamp = (Get-Date).ToString("o")
+        total = $Results.Count
+        passed = $passCount
+        failed = $failCount
+        skipped = $skipCount
+        spPassed = $spPass
+        spFailed = $spFail
+        results = $Results
+    }
+    $summary | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ReportJson -Encoding UTF8
+    $md = @()
+    $md += "# Mod x Loader x Version - Start-Matrix (Server + Client)"
+    $md += ""
+    $md += "Zeitpunkt: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+    $md += ""
+    $md += "Server: **$mpPass/$($Results.Count)** ($failCount Kombis mit Fehlern, $skipCount uebersprungen); Client: **$spPass** passed, $spFail failed"
+    $md += ""
+    $md += "| Mod | Loader | MC | Server | Client | JAR / Fehler |"
+    $md += "|-----|--------|----|--------|--------|--------------|"
+    foreach ($r in $Results) {
+        $detail = if ($r.status -eq "passed") { Split-Path $r.jar -Leaf } else { $r.error }
+        $md += "| $($r.mod) | $($r.loader) | $($r.mc) | $($r.mpStatus) | $($r.spStatus) | $detail |"
+    }
+    $md += ""
+    $md += "Details/Logs: $WorkRoot/<mod>-<loader>-<mc>/server.out.log (Server), sp-client.out.log (Client)"
+    $md += ""
+    $md += "Status: passed = Mod-Init + Done (Server) bzw. Init + Join (Client); missing-jar = JAR fehlt (-BuildMissing baut TimerWave/MapSwitch nach); blocked = bekannt nicht baubar."
+    $md -join "`r`n" | Set-Content -LiteralPath $ReportMd -Encoding UTF8
+    return $failCount
+}
+
+function Merge-MatrixReports {
+    param([string[]]$SliceRoots, [string]$ReportJson, [string]$ReportMd)
+    $merged = @{}
+    foreach ($sr in $SliceRoots) {
+        $jf = Join-Path $sr "matrix-report.json"
+        if (-not (Test-Path -LiteralPath $jf)) {
+            Write-Warning "Slice-Bericht fehlt: $jf"
+            continue
+        }
+        $rep = Get-Content -LiteralPath $jf -Raw | ConvertFrom-Json
+        foreach ($r in $rep.results) {
+            $key = "$($r.mod)|$($r.loader)|$($r.mc)"
+            if (-not $merged.ContainsKey($key)) { $merged[$key] = $r; continue }
+            $cur = $merged[$key]
+            if ($cur.status -eq "skipped" -and $r.status -ne "skipped") { $merged[$key] = $r }
+        }
+    }
+    $results = @($merged.GetEnumerator() | Sort-Object { $_.Value.port } | ForEach-Object { $_.Value })
+    return (Write-MatrixReport -Results $results -ReportJson $ReportJson -ReportMd $ReportMd)
+}
+
+# ---------------------------------------------------------------------------
 # Matrix-Definition
 # ---------------------------------------------------------------------------
 
@@ -895,6 +979,76 @@ if ($DryRun) {
 }
 
 # ---------------------------------------------------------------------------
+# Parallel-Modus: Kombis in Slices aufteilen, je ein Prozess pro Slice.
+# Ports/Dirs sind pro Kombi-Index eindeutig, geteilte Client-Basen und
+# Repo-Builds laufen ueber Mutex. Danach: Reports mergen.
+# ---------------------------------------------------------------------------
+
+if ($Parallel -gt 1 -and -not $IsSlice -and -not $DryRun) {
+    $total = $results.Count
+    $n = [Math]::Min($Parallel, $total)
+    $per = [Math]::Ceiling($total / $n)
+    $procs = @()
+    $sliceRoots = @()
+    $scriptPath = Join-Path $PSScriptRoot "test-mod-matrix.ps1"
+    for ($i = 0; $i -lt $n; $i++) {
+        $s = $i * $per + 1
+        $e = [Math]::Min(($i + 1) * $per, $total)
+        $sliceRoot = "$WorkRoot-p$($i + 1)"
+        $sliceRoots += $sliceRoot
+        New-Item -ItemType Directory -Force -Path $sliceRoot | Out-Null
+        $sliceArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath,
+            "-Mods", ($Mods -join ","), "-Loaders", ($Loaders -join ","), "-McVersions", ($McVersions -join ","),
+            "-WorkRoot", $sliceRoot, "-StartIndex", $s, "-EndIndex", $e, "-IsSlice",
+            "-TimeoutInitSec", $TimeoutInitSec, "-TimeoutDoneSec", $TimeoutDoneSec, "-SpTimeoutSec", $SpTimeoutSec,
+            "-BasePort", $BasePort)
+        if (-not [string]::IsNullOrWhiteSpace($ClientJavaHome)) { $sliceArgs += @("-ClientJavaHome", $ClientJavaHome) }
+        if ($BuildMissing) { $sliceArgs += "-BuildMissing" }
+        if ($SkipClient) { $sliceArgs += "-SkipClient" }
+        if ($NoCleanup) { $sliceArgs += "-NoCleanup" }
+        if ($NoQuickPlay) { $sliceArgs += "-NoQuickPlay" }
+        if ($NoC2) { $sliceArgs += "-NoC2" }
+        if ($StatusModDir -ne $repoRoot.Path) { $sliceArgs += @("-StatusModDir", $StatusModDir) }
+        if ($TimerWaveDir -ne "C:\Users\Steven\Desktop\Mods\TimerWave") { $sliceArgs += @("-TimerWaveDir", $TimerWaveDir) }
+        if ($MapSwitchDir -ne "C:\Users\Steven\Desktop\Mods\MapSwitch") { $sliceArgs += @("-MapSwitchDir", $MapSwitchDir) }
+        Write-Host "Slice $($i + 1)/$n : Kombis $s-$e -> $sliceRoot"
+        $procs += Start-Process -FilePath "powershell.exe" -ArgumentList $sliceArgs `
+            -WorkingDirectory $repoRoot.Path `
+            -RedirectStandardOutput (Join-Path $sliceRoot "slice.console.log") `
+            -RedirectStandardError (Join-Path $sliceRoot "slice.console.err.log") `
+            -PassThru -WindowStyle Minimized
+    }
+    Write-Host "Warte auf $($procs.Count) Slices ..."
+    try {
+        Wait-Process -InputObject $procs -ErrorAction Stop
+    } catch {
+        Write-Warning "Warten abgebrochen: $($_.Exception.Message)"
+    }
+    $exitCodes = @($procs | ForEach-Object {
+        try { $_.ExitCode } catch { 1 }
+    })
+    $mergedFails = Merge-MatrixReports -SliceRoots $sliceRoots -ReportJson $reportJson -ReportMd $reportMd
+    Write-Host ""
+    Write-Host "=== Parallel-Ergebnis (gemergt): $reportMd ==="
+    foreach ($sr in $sliceRoots) {
+        foreach ($fd in @(Get-ChildItem -LiteralPath $sr -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -like "failed-*" })) {
+            $dest = Join-Path $WorkRoot $fd.Name
+            if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Recurse -Force -ErrorAction SilentlyContinue }
+            Move-Item -LiteralPath $fd.FullName -Destination $dest -Force -ErrorAction SilentlyContinue
+        }
+    }
+    if (-not $NoCleanup) {
+        foreach ($sr in $sliceRoots) {
+            Remove-Item -LiteralPath $sr -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        Write-Host "Slice-Verzeichnisse aufgeraeumt (Berichte + failed-Logs bleiben in $WorkRoot)."
+    }
+    if (($mergedFails -gt 0) -or (@($exitCodes | Where-Object { $_ -ne 0 }).Count -gt 0)) { exit 1 }
+    exit 0
+}
+
+# ---------------------------------------------------------------------------
 # Echte Starts
 # ---------------------------------------------------------------------------
 
@@ -912,13 +1066,21 @@ foreach ($r in $results) {
         Write-Host "[$idx/$($results.Count)] SKIP $($r.mod) $($r.loader) $($r.mc) (StartIndex)"
         continue
     }
+    if ($EndIndex -gt 0 -and $idx -gt $EndIndex) {
+        $r.status = "skipped"
+        $r.error = "EndIndex"
+        $skipCount++
+        Write-Host "[$idx/$($results.Count)] SKIP $($r.mod) $($r.loader) $($r.mc) (EndIndex)"
+        continue
+    }
     if ($r.status -ne "ready") {
         if ($BuildMissing -and $r.status -eq "missing-jar") {
             $combo = @($combos | Where-Object { $_.mod -eq $r.mod -and $_.loader -eq $r.loader -and $_.mc -eq $r.mc })[0]
             Write-Host ""
             Write-Host "[$idx/$($results.Count)] Baue fehlende JAR: $($r.mod) $($r.loader) $($r.mc) ..."
             try {
-                if (Build-MissingJar -Combo $combo) {
+                # Repo-Builds laufen prozessuebergreifend exklusiv (Parallel-Slices!).
+                if (Invoke-WithMatrixLock -Action { Build-MissingJar -Combo $combo } -Name "StatusModMatrixBuild") {
                     $jar = Find-ModJar -Dir $combo.jarDir -Pattern $combo.jarPattern
                     if ($jar) { $r.jar = $jar; $r.status = "ready"; $r.error = "" }
                 }
@@ -1067,7 +1229,10 @@ foreach ($r in $results) {
             Write-Host "  Starte Client (warte max. ${SpTimeoutSec}s auf Init+Join) ..."
             $spMarker = if ($r.mod -eq "mapswitch") { "Loaded maps:" } else { $combo.initMarker }
             $clientBaseDir = Join-Path $sharedDir ("client-" + $r.loader + "-" + ($r.envMc -replace '\.', '_'))
-            $clientBase = Install-ClientBase -Loader $r.loader -EnvMc $r.envMc -LoaderVer $loaderVer -InstallerUrl $installerUrl -JavaExe $javaExe -BaseDir $clientBaseDir
+            # Client-Basen sind pro (Loader, MC) geteilt - installs prozessuebergreifend exklusiv.
+            $clientBase = Invoke-WithMatrixLock -Name "StatusModMatrixClientBase" -Action {
+                Install-ClientBase -Loader $r.loader -EnvMc $r.envMc -LoaderVer $loaderVer -InstallerUrl $installerUrl -JavaExe $javaExe -BaseDir $clientBaseDir
+            }
             $clientJavaExe = Resolve-ClientJavaExe -DefaultExe $javaExe -EnvMc $r.envMc
             Write-Host "  Client-Java: $clientJavaExe"
             $spRes = Invoke-MatrixClientTest -Combo $combo -JarPath $r.jar -JavaExe $clientJavaExe -FabricApiUrl $fabricApiUrl -FabricApiVer $fabricApiVer -Base $clientBase -ClientDir (Join-Path $workDir "client") -ServerDir $serverDir -WorkDir $workDir -SpInitMarker $spMarker -TimeoutSec $SpTimeoutSec -EnvMc $r.envMc
@@ -1102,45 +1267,12 @@ foreach ($r in $results) {
 }
 
 # ---------------------------------------------------------------------------
-# Bericht
+# Bericht (inkl. Slice-Modus: nur eigene Range getestet, Rest skipped)
 # ---------------------------------------------------------------------------
 
-$spPass = @($results | Where-Object { $_.spStatus -eq "passed" }).Count
-$spFail = @($results | Where-Object { $_.spStatus -eq "failed" }).Count
-$summary = [ordered]@{
-    timestamp = (Get-Date).ToString("o")
-    total = $results.Count
-    passed = $passCount
-    failed = $failCount
-    skipped = $skipCount
-    spPassed = $spPass
-    spFailed = $spFail
-    results = $results
-}
-$summary | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $reportJson -Encoding UTF8
-
-$mpPass = @($results | Where-Object { $_.mpStatus -eq "passed" }).Count
-$md = @()
-$md += "# Mod x Loader x Version - Start-Matrix (Server + Client)"
-$md += ""
-$md += "Zeitpunkt: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
-$md += ""
-$md += "Server: **$mpPass/$($results.Count)** ($failCount Kombis mit Fehlern, $skipCount uebersprungen); Client: **$spPass** passed, $spFail failed"
-$md += ""
-$md += "| Mod | Loader | MC | Server | Client | JAR / Fehler |"
-$md += "|-----|--------|----|--------|--------|--------------|"
-foreach ($r in $results) {
-    $detail = if ($r.status -eq "passed") { Split-Path $r.jar -Leaf } else { $r.error }
-    $md += "| $($r.mod) | $($r.loader) | $($r.mc) | $($r.mpStatus) | $($r.spStatus) | $detail |"
-}
-$md += ""
-$md += "Details/Logs: $WorkRoot/<mod>-<loader>-<mc>/server.out.log (Server), sp-client.out.log (Client)"
-$md += ""
-$md += "Status: passed = Mod-Init + Done (Server) bzw. Init + Join (Client); missing-jar = JAR fehlt (-BuildMissing baut TimerWave/MapSwitch nach); blocked = bekannt nicht baubar."
-$md -join "`r`n" | Set-Content -LiteralPath $reportMd -Encoding UTF8
+$failCount = Write-MatrixReport -Results $results -ReportJson $reportJson -ReportMd $reportMd
 
 Write-Host ""
-Write-Host "=== Ergebnis Server: $mpPass/$($results.Count) passed ($failCount Kombis mit Fehlern, $skipCount skipped); Client: $spPass passed, $spFail failed ==="
 Write-Host "JSON: $reportJson"
 Write-Host "Markdown: $reportMd"
 

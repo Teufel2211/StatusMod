@@ -22,6 +22,8 @@ import java.util.Set;
 
 public final class SyncManager {
     private static final long SYNC_INTERVAL_MS = 30_000L;
+    private static final long PULL_INTERVAL_MS = 15_000L;
+    private static final long LOOP_TICK_MS = 2_000L;
     private static final int MAX_PLAYERS_PER_PUSH = 200;
     private static final int MAX_STATUS_LENGTH = 64;
     private static final int MAX_COLOR_LENGTH = 32;
@@ -34,8 +36,16 @@ public final class SyncManager {
             .build();
     private static final String IS_SECURE_URL_PATTERN = "^(https://|http://localhost|http://127\\.).*";
     private static volatile boolean started = false;
+    private static volatile boolean pushDirty = false;
+    public static volatile String lastPushInfo = "-";
+    public static volatile String lastPullInfo = "-";
     private static volatile Map<String, String> onlineNames = new HashMap<>();
     private static volatile MinecraftServer serverRef = null;
+
+    /** Marks local state changed: next loop iteration pushes immediately (<=2s). */
+    public static void requestPush() {
+        pushDirty = true;
+    }
 
     private SyncManager() {}
 
@@ -73,21 +83,33 @@ public final class SyncManager {
     }
 
     private static void loop() {
+        long lastPush = 0L;
+        long lastPull = 0L;
         while (true) {
             try {
-                Thread.sleep(SYNC_INTERVAL_MS);
+                Thread.sleep(LOOP_TICK_MS);
             } catch (InterruptedException e) {
                 return;
             }
-            try {
-                push();
-            } catch (Exception e) {
-                System.out.println("[StatusMod] Sync push failed: " + e.getMessage());
+            long now = System.currentTimeMillis();
+            if (pushDirty || (now - lastPush) >= SYNC_INTERVAL_MS) {
+                pushDirty = false;
+                lastPush = now;
+                try {
+                    push();
+                } catch (Exception e) {
+                    lastPushInfo = "ex: " + e.getMessage();
+                    System.out.println("[StatusMod] Sync push failed: " + e.getMessage());
+                }
             }
-            try {
-                pull();
-            } catch (Exception e) {
-                System.out.println("[StatusMod] Sync pull failed: " + e.getMessage());
+            if ((now - lastPull) >= PULL_INTERVAL_MS) {
+                lastPull = now;
+                try {
+                    pull();
+                } catch (Exception e) {
+                    lastPullInfo = "ex: " + e.getMessage();
+                    System.out.println("[StatusMod] Sync pull failed: " + e.getMessage());
+                }
             }
         }
     }
@@ -174,9 +196,13 @@ public final class SyncManager {
         try {
             HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                lastPushInfo = "HTTP " + response.statusCode();
                 System.out.println("[StatusMod] Sync push status " + response.statusCode() + ": " + response.body());
+            } else {
+                lastPushInfo = "ok";
             }
         } catch (java.io.IOException | InterruptedException e) {
+            lastPushInfo = "ex: " + e.getMessage();
             System.out.println("[StatusMod] Sync push exception: " + e.getMessage());
         }
     }
@@ -203,10 +229,15 @@ public final class SyncManager {
         try {
             response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (java.io.IOException | InterruptedException e) {
+            lastPullInfo = "ex: " + e.getMessage();
             System.out.println("[StatusMod] Sync pull exception: " + e.getMessage());
             return;
         }
-        if (response.statusCode() < 200 || response.statusCode() >= 300) return;
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            lastPullInfo = "HTTP " + response.statusCode();
+            return;
+        }
+        lastPullInfo = "ok";
 
         JsonObject json;
         try {

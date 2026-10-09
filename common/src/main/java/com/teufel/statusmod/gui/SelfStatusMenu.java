@@ -8,6 +8,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -105,6 +106,7 @@ public class SelfStatusMenu extends AbstractContainerMenu {
     private final List<Entry> entries;
     private final SimpleContainer container;
     private final ItemStack[] saved;
+    private final java.util.Set<String> menuNames = new java.util.HashSet<>();
     private long lastActionAtMs;
 
     public SelfStatusMenu(int syncId, Inventory playerInventory, Player viewer,
@@ -167,9 +169,8 @@ public class SelfStatusMenu extends AbstractContainerMenu {
                 wasPopulated[slotIndex] = false;
 
                 container.setItem(slotIndex, savedStack.copy());
-                try {
-                    menu.setCarried(polluted ? stack.copy() : ItemStack.EMPTY);
-                } catch (Throwable ignored) {}
+                clearCursor(menu, polluted ? stack.copy() : ItemStack.EMPTY);
+                purgeMenuItems();
                 if (polluted) return;
                 handleSlotAction(slotIndex);
             }
@@ -182,6 +183,7 @@ public class SelfStatusMenu extends AbstractContainerMenu {
     private void fillContainer() {
         for (int i = 0; i < Math.min(entries.size(), PRESET_SLOTS); i++) {
             Entry e = entries.get(i);
+            menuNames.add(e.label);
             Item wool = woolFor(e.color);
             List<Component> lore = new ArrayList<>();
             lore.add(Component.literal("Klicken zum Setzen").withStyle(ChatFormatting.GRAY));
@@ -189,6 +191,10 @@ public class SelfStatusMenu extends AbstractContainerMenu {
         }
         container.setItem(SLOT_DISPLAY, buildDisplayItem());
         fillGlass(SLOT_DISPLAY);
+        menuNames.add("\u25B6 Weiter");
+        menuNames.add("\u2716 Status l\u00F6schen");
+        menuNames.add("Dein Status");
+        menuNames.add(" ");
         container.setItem(SLOT_NEXT, makeItem(Items.ARROW, "\u25B6 Weiter",
             ChatFormatting.GREEN, hintLore("N\u00E4chstes Preset setzen")));
         container.setItem(SLOT_CLEAR, makeItem(Items.BARRIER, "\u2716 Status l\u00F6schen",
@@ -259,9 +265,71 @@ public class SelfStatusMenu extends AbstractContainerMenu {
                 return;
             }
             refreshDisplay();
+            purgeMenuItems();
         } catch (Throwable e) {
             System.err.println("[StatusMod] GUI action failed: " + e.getMessage());
         }
+    }
+
+    /**
+     * Removes menu items that escaped into the player inventory (number-key
+     * swap, drag, double-click). Matches exact item + custom name, so real
+     * player items are never touched.
+     */
+    private void purgeMenuItems() {
+        try {
+            if (!(viewer instanceof ServerPlayer sp)) return;
+            // Container-Schnittstelle statt Felder (versionsstabil): deckt
+            // Hauptinventar + Hotbar ab, ggf. auch Ruestung/Offhand.
+            net.minecraft.world.entity.player.Inventory inv = sp.getInventory();
+            int n = inv.getContainerSize();
+            for (int i = 0; i < n; i++) {
+                ItemStack stack;
+                try {
+                    stack = inv.getItem(i);
+                } catch (Throwable ignored) {
+                    continue;
+                }
+                if (stack.isEmpty()) continue;
+                try {
+                    if (isMenuItem(stack)) inv.setItem(i, ItemStack.EMPTY);
+                } catch (Throwable ignored) {}
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    /**
+     * Clears the cursor reliably on all versions: setCarried alone is flaky
+     * on 26.x, so the cursor is additionally forced via packet.
+     */
+    private void clearCursor(AbstractContainerMenu menu, ItemStack fallback) {
+        try {
+            if (menu != null) {
+                try {
+                    menu.setCarried(fallback == null ? ItemStack.EMPTY : fallback);
+                } catch (Throwable ignored) {}
+            }
+        } catch (Throwable ignored) {}
+        try {
+            if (viewer instanceof ServerPlayer sp) {
+                ItemStack cur = fallback == null ? ItemStack.EMPTY : fallback;
+                sp.connection.send(new net.minecraft.network.protocol.game.ClientboundSetCursorItemPacket(cur));
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    private boolean isMenuItem(ItemStack stack) {
+        String n;
+        try {
+            n = stack.getHoverName().getString();
+        } catch (Throwable t) {
+            return false;
+        }
+        if (n == null || !menuNames.contains(n)) return false;
+        for (ItemStack s : saved) {
+            if (!s.isEmpty() && s.getItem() == stack.getItem()) return true;
+        }
+        return false;
     }
 
     private static ItemStack makeItem(Item item, String name, ChatFormatting nameColor, List<Component> lore) {
@@ -313,6 +381,7 @@ public class SelfStatusMenu extends AbstractContainerMenu {
                     return ItemStack.EMPTY;
                 }
                 refreshDisplay();
+                purgeMenuItems();
             }
         } catch (Throwable e) {
             System.err.println("[StatusMod] GUI shift-click failed: " + e.getMessage());

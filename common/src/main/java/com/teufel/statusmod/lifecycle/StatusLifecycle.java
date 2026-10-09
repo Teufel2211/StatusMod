@@ -26,6 +26,62 @@ public final class StatusLifecycle {
     private static final Map<String, String> lastPlayerPositions = new ConcurrentHashMap<>();
     private static long lastBossbarMs = 0L;
     private static final long BOSSBAR_INTERVAL_MS = 2500L;
+    private static String lastOverviewJson = null;
+
+    /**
+     * Maintains config/statusmod/statuses.json with every known player's
+     * status (uuid, name, status, color, online flag). Skips the write when
+     * nothing changed. Runs on the tick pass, so every mutation path
+     * (commands, GUI, AFK, sync-pull) is covered automatically.
+     */
+    private static void writeStatusOverview(MinecraftServer server) {
+        try {
+            java.util.Map<String, PlayerSettings> all =
+                new java.util.HashMap<>(StatusMod.storage.getAllSnapshot());
+            java.util.Map<String, String> onlineNames = new java.util.HashMap<>();
+            for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+                String uuid = p.getUUID().toString();
+                onlineNames.put(uuid, p.getScoreboardName());
+                if (!all.containsKey(uuid)) {
+                    all.put(uuid, StatusMod.storage.forPlayer(uuid));
+                }
+            }
+            com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
+            java.util.List<String> uuids = new java.util.ArrayList<>(all.keySet());
+            uuids.sort(String::compareToIgnoreCase);
+            for (String uuid : uuids) {
+                PlayerSettings s = all.get(uuid);
+                if (s == null) continue;
+                String name = onlineNames.get(uuid);
+                if (name == null || name.isEmpty()) name = s.lastKnownName == null ? "" : s.lastKnownName;
+                com.google.gson.JsonObject o = new com.google.gson.JsonObject();
+                o.addProperty("uuid", uuid);
+                o.addProperty("name", name);
+                o.addProperty("status", s.status == null ? "" : s.status);
+                o.addProperty("color", s.color == null ? "reset" : s.color);
+                o.addProperty("online", onlineNames.containsKey(uuid));
+                arr.add(o);
+            }
+            com.google.gson.JsonObject root = new com.google.gson.JsonObject();
+            root.addProperty("updatedAt", System.currentTimeMillis());
+            root.add("players", arr);
+            String json = new com.google.gson.Gson().toJson(root);
+            if (json.equals(lastOverviewJson)) return;
+            lastOverviewJson = json;
+            java.nio.file.Path dir = java.nio.file.Paths.get("config/statusmod");
+            java.nio.file.Files.createDirectories(dir);
+            java.nio.file.Path tmp = dir.resolve("statuses.json.tmp");
+            java.nio.file.Path dst = dir.resolve("statuses.json");
+            java.nio.file.Files.writeString(tmp, json, java.nio.charset.StandardCharsets.UTF_8);
+            try {
+                java.nio.file.Files.move(tmp, dst,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+            } catch (Throwable ignored) {
+                java.nio.file.Files.move(tmp, dst, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (Throwable ignored) {}
+    }
 
     private StatusLifecycle() {}
 
@@ -97,6 +153,7 @@ public final class StatusLifecycle {
         settings.status = restored;
         settings.color = restoredColor;
         StatusMod.storage.put(uuid, settings);
+        SyncManager.requestPush();
         if (restored.isEmpty()) {
             player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§aDu bist nicht mehr AFK."));
         } else {
@@ -120,6 +177,9 @@ public final class StatusLifecycle {
             } catch (Throwable ignored) {}
             try {
                 com.teufel.statusmod.display.StatusSidebar.sync(server);
+            } catch (Throwable ignored) {}
+            try {
+                writeStatusOverview(server);
             } catch (Throwable ignored) {}
         }
         if ((now - lastConfigRefreshMs) > CONFIG_REFRESH_INTERVAL_MS) {
@@ -187,6 +247,7 @@ public final class StatusLifecycle {
                         settings.color = (cfg == null || cfg.afkColor == null) ? "gray" : cfg.afkColor;
                         settings.lastStatusChangeAtMs = now;
                         StatusMod.storage.put(uuid, settings);
+                        SyncManager.requestPush();
                         player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§eDu bist nun AFK (inaktiv seit " + ((now - settings.lastActivityAtMs) / 1000L) + "s)."));
                     }
                 }
