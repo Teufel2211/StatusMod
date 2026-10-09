@@ -7,7 +7,7 @@
   "icon": "assets/statusmod/icon.png",
   "authors": ["teufel"],
   "license": "MIT",
-  "environment": "server",
+  "environment": "*",
   "entrypoints": {
     "main": [
       "com.teufel.statusmod.fabric.StatusModFabric"
