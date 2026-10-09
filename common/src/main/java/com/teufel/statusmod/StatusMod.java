@@ -40,6 +40,9 @@ public final class StatusMod {
         System.out.println("[StatusMod] Initializing on " + platform.getName());
         if (com.teufel.statusmod.util.BedrockUtil.isFloodgatePresent()) {
             System.out.println("[StatusMod] Floodgate detected - Bedrock support enabled.");
+            if (isMc26_3()) {
+                System.out.println("[StatusMod] WARNING: Bedrock is not supported on MC 26.3 yet (no compatible Geyser release). Bedrock players may fail to join or see broken output.");
+            }
         }
 
         if (platform.isDedicatedServer()) {
@@ -50,6 +53,19 @@ public final class StatusMod {
 
     public static ModConfig getConfig() {
         return config;
+    }
+
+    /** True on MC 26.3 (via Mojang version, reflection-safe across versions). */
+    private static boolean isMc26_3() {
+        try {
+            Class<?> shared = Class.forName("net.minecraft.SharedConstants");
+            Object version = shared.getMethod("getCurrentVersion").invoke(null);
+            if (version == null) return false;
+            Object name = version.getClass().getMethod("name").invoke(version);
+            return name != null && name.toString().trim().startsWith("26.3");
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     public static SettingsStorage getStorage() {
