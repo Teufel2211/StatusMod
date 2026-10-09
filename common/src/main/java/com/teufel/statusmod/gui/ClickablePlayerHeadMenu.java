@@ -90,6 +90,7 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
                     container.setItem(slotIndex, ItemStack.EMPTY);
                     clearCursor(menu, stack.copy());
                     purgeHeads();
+                    resync(menu);
                     return;
                 }
                 if (matchesDefinition(stack, saved)) return;
@@ -100,6 +101,7 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
                 container.setItem(slotIndex, saved.copy());
                 clearCursor(menu, polluted ? stack.copy() : ItemStack.EMPTY);
                 purgeHeads();
+                resync(menu);
 
                 if (polluted) return;
                 handleHeadAction(slotIndex, false);
@@ -176,6 +178,12 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
             // bleibt ein per F getauschter (serverseitig geloschter) Kopf
             // clientseitig als Ghost sichtbar.
             syncOffhand();
+        } catch (Throwable ignored) {}
+    }
+
+    private static void resync(AbstractContainerMenu menu) {
+        try {
+            if (menu != null) menu.sendAllDataToRemote();
         } catch (Throwable ignored) {}
     }
 

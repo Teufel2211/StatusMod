@@ -158,6 +158,7 @@ public class SelfStatusMenu extends AbstractContainerMenu {
                     container.setItem(slotIndex, ItemStack.EMPTY);
                     clearCursor(menu, stack.copy());
                     purgeMenuItems();
+                    resync(menu);
                     return;
                 }
                 if (matchesDefinition(stack, savedStack)) return;
@@ -167,6 +168,7 @@ public class SelfStatusMenu extends AbstractContainerMenu {
                 container.setItem(slotIndex, savedStack.copy());
                 clearCursor(menu, polluted ? stack.copy() : ItemStack.EMPTY);
                 purgeMenuItems();
+                resync(menu);
                 if (polluted) return;
                 handleSlotAction(slotIndex);
             }
@@ -314,6 +316,19 @@ public class SelfStatusMenu extends AbstractContainerMenu {
      * Pushes the server-side offhand to the client (see purgeMenuItems: the
      * offhand has no slot in this menu and is never synced otherwise).
      */
+    /**
+     * Authoritative full resync (slots + cursor) after a handled interaction.
+     * Server state is always correct (restore from immutable saved[]), but with
+     * rapid clicks the client's predictions can diverge permanently (ghost
+     * slots, stale cursor). One full packet forces convergence. Send-only, so
+     * it is safe to call from inside the slot listener.
+     */
+    private static void resync(AbstractContainerMenu menu) {
+        try {
+            if (menu != null) menu.sendAllDataToRemote();
+        } catch (Throwable ignored) {}
+    }
+
     private void syncOffhand() {
         try {
             if (viewer instanceof ServerPlayer sp) {
