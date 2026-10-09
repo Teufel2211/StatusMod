@@ -104,12 +104,27 @@ if ($existingVersions -is [array]) {
 # --- publish ---
 $ok = 0; $fail = 0; $skipped = 0
 
-foreach ($jar in $jars) {
+# Group jars by content hash: byte-identical files (e.g. one Forge build for
+# all of 26.x) upload ONCE with the merged game versions. Duplicate uploads
+# of the same bytes get rejected as copies during review (CurseForge).
+$jarGroups = @{}
+foreach ($jar in @($jars | Sort-Object Name)) {
     $parsed = Parse-JarName -Name $jar.Name
     if ($null -eq $parsed) { Write-Warning "Skipping unrecognized: $($jar.Name)"; continue }
-    $loader = $parsed[0]; $mcVersion = $parsed[1]
-    $versionName = "StatusMod $modVersion ($loader $mcVersion)"
-    $versionNumber = "$modVersion+$loader+$mcVersion"
+    $h = (Get-FileHash -LiteralPath $jar.FullName -Algorithm SHA512).Hash
+    if (-not $jarGroups.ContainsKey($h)) {
+        $jarGroups[$h] = @{ file = $jar; mcs = @(); loader = $parsed[0] }
+    }
+    if ($jarGroups[$h].mcs -notcontains $parsed[1]) { $jarGroups[$h].mcs += $parsed[1] }
+}
+
+foreach ($group in $jarGroups.Values) {
+    $jar = $group.file
+    $loader = $group.loader
+    $mcList = @($group.mcs | Sort-Object { [version]($_ -replace '[^\d.]', '') })
+    $mcLabel = if ($mcList.Count -eq 1) { $mcList[0] } else { ($mcList -join ",") }
+    $versionName = "StatusMod $modVersion ($loader $mcLabel)"
+    $versionNumber = "$modVersion+$loader+$mcLabel"
     $vType = if ($modVersion -match '-') { "beta" } else { "release" }
 
     # Skip if already published on Modrinth
@@ -128,7 +143,7 @@ foreach ($jar in $jars) {
         name = $versionName
         version_number = $versionNumber
         changelog = $changelog
-        game_versions = @($mcVersion)
+        game_versions = @($mcList)
         version_type = $vType
         loaders = @($loader)
         featured = $false
@@ -157,8 +172,10 @@ foreach ($jar in $jars) {
     if (-not $hasCurseForge) { $ok++; continue }
 
     $cfGameVersions = New-Object System.Collections.Generic.List[int]
-    $mcId = Get-CfVersionId -Name $mcVersion
-    if ($mcId) { $cfGameVersions.Add($mcId) }
+    foreach ($mcVersion in $mcList) {
+        $mcId = Get-CfVersionId -Name $mcVersion
+        if ($mcId) { $cfGameVersions.Add($mcId) }
+    }
     $loaderId = Get-CfVersionId -Name ($loader.Substring(0,1).ToUpper() + $loader.Substring(1))
     if (-not $loaderId) {
         $cfAliases = @{ "fabric" = "Fabric"; "forge" = "Forge"; "neoforge" = "NeoForge"; "quilt" = "Quilt" }
