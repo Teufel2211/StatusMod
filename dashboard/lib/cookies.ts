@@ -25,9 +25,9 @@ export function getRefreshTokenFromCookie(request: Request): string | null {
 }
 
 export function refreshCookieHeader(raw: string): string {
-  return `${REFRESH_COOKIE}=${raw}; HttpOnly${secureFlag()}; SameSite=Strict; Path=/; Max-Age=${REFRESH_TTL_SECONDS}`
+  return `${REFRESH_COOKIE}=${raw}; HttpOnly${secureFlag()}; SameSite=Lax; Path=/; Max-Age=${REFRESH_TTL_SECONDS}`
 }
 
 export function clearRefreshCookieHeader(): string {
-  return `${REFRESH_COOKIE}=; HttpOnly${secureFlag()}; SameSite=Strict; Path=/; Max-Age=0`
+  return `${REFRESH_COOKIE}=; HttpOnly${secureFlag()}; SameSite=Lax; Path=/; Max-Age=0`
 }
