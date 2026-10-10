@@ -20,14 +20,14 @@ type AuditEntry = {
 }
 
 function ageString(iso: string | null): string {
-  if (!iso) return "--"
+  if (!iso) return "noch nie"
   const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000))
-  if (s < 60) return `${s}s ago`
+  if (s < 60) return `vor ${s} Sek.`
   const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
+  if (m < 60) return `vor ${m} Min.`
   const h = Math.floor(m / 60)
-  if (h < 48) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
+  if (h < 48) return `vor ${h} Std.`
+  return `vor ${Math.floor(h / 24)} Tg.`
 }
 
 function actionColor(action: string): string {
@@ -74,7 +74,7 @@ export default function FleetAdminPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d) {
-          setMessage("ACCESS DENIED — owner required.")
+          setMessage("Kein Zugriff – nur für Owner.")
           return
         }
         if (typeof d.dashboard_url === "string") setFleetUrl(d.dashboard_url)
@@ -82,7 +82,7 @@ export default function FleetAdminPage() {
         if (typeof d.updated_at === "string") setFleetUpdatedAt(d.updated_at)
         setLoaded(true)
       })
-      .catch(() => setMessage("UPLINK FAILED."))
+      .catch(() => setMessage("Laden fehlgeschlagen."))
   }, [])
 
   async function handleSave() {
@@ -97,16 +97,16 @@ export default function FleetAdminPage() {
       })
 
       if (res.ok) {
-        setMessage(">> DISTRIBUTED. Servers pull within ~60s + restart.")
+        setMessage("Gespeichert. Die Server übernehmen es in ca. 1 Minute (Neustart erforderlich).")
         apiFetch(`/api/fleet/config`)
           .then((r) => (r.ok ? r.json() : null))
           .then((d) => {
             if (d && typeof d.updated_at === "string") setFleetUpdatedAt(d.updated_at)
           })
           .catch(() => {})
-      } else setMessage(">> WRITE FAILED.")
+      } else setMessage("Speichern fehlgeschlagen.")
     } catch {
-      setMessage(">> WRITE FAILED.")
+      setMessage("Speichern fehlgeschlagen.")
     } finally {
       setSaving(false)
     }
@@ -114,20 +114,20 @@ export default function FleetAdminPage() {
 
   const fleetActive = fleetSecret !== "" || fleetUrl !== ""
   const sysRows: Array<[string, string, string]> = [
-    ["fleet.link", fleetActive ? "ACTIVE" : "EMPTY", fleetActive ? "var(--accent)" : "var(--cyan)"],
-    ["fleet.updated", ageString(fleetUpdatedAt), "var(--text-secondary)"],
-    ["sys.api", health?.status === "healthy" ? "ONLINE" : (health?.status ?? "--"), health?.status === "healthy" ? "var(--accent)" : "var(--cyan)"],
-    ["sys.db", health?.database === "connected" ? "LINKED" : (health?.database ?? "--"), health?.database === "connected" ? "var(--accent)" : "#ff5f5f"],
-    ["net.players", `${livePlayers.length} live / ${knownCount ?? "?"} known`, "var(--text-primary)"],
-    ["net.feed", connection.toUpperCase(), connection === "connected" ? "var(--accent)" : "var(--cyan)"],
-    ["srv.id", serverId ? `${serverId.slice(0, 8)}…` : "--", "var(--text-muted)"],
+    ["Fleet", fleetActive ? "Bereit" : "Leer", fleetActive ? "var(--accent)" : "var(--cyan)"],
+    ["Zuletzt geändert", ageString(fleetUpdatedAt), "var(--text-secondary)"],
+    ["Server", health?.status === "healthy" ? "Online" : "Prüfe…", health?.status === "healthy" ? "var(--accent)" : "var(--cyan)"],
+    ["Datenbank", health?.database === "connected" ? "Verbunden" : "Prüfe…", health?.database === "connected" ? "var(--accent)" : "#ff5f5f"],
+    ["Spieler", `${livePlayers.length} online / ${knownCount ?? "?"} bekannt`, "var(--text-primary)"],
+    ["Live-Feed", connection === "connected" ? "Verbunden" : "Getrennt", connection === "connected" ? "var(--accent)" : "var(--cyan)"],
+    ["Server-ID", serverId ? `${serverId.slice(0, 8)}…` : "—", "var(--text-muted)"],
   ]
 
   return (
     <div className="font-mono">
       <div className="mb-6 fade-up">
         <div className="text-xs tracking-widest mb-2" style={{ color: "var(--text-muted)" }}>
-          {"//"} privileged zone — fleet distribution control
+          Zentralsteuerung für alle Server
         </div>
         <h1 className="font-bold text-3xl sm:text-4xl fleet-phosphor">
           FLEET<span className="fleet-blink">_</span>COMMAND
@@ -140,7 +140,7 @@ export default function FleetAdminPage() {
           <span className="term-dot" style={{ backgroundColor: "#ff5f5f" }} />
           <span className="term-dot" style={{ backgroundColor: "var(--cyan)" }} />
           <span className="term-dot" style={{ backgroundColor: "var(--accent)" }} />
-          <span className="ml-2">$ fleet --status --watch</span>
+          <span className="ml-2">Status</span>
         </div>
         <div className="p-0">
           {sysRows.map(([k, v, c]) => (
@@ -161,11 +161,11 @@ export default function FleetAdminPage() {
           <div className="card p-0 overflow-hidden fade-up anim-d2">
             <div className="term-bar">
               <span className="pulse-dot" />
-              <span className="ml-2">live roster [{livePlayers.length}]</span>
+              <span className="ml-2">Spieler online [{livePlayers.length}]</span>
             </div>
             <div className="p-4">
               {livePlayers.length === 0 ? (
-                <p className="text-sm" style={{ color: "var(--text-muted)" }}>-- no signals. nobody online.</p>
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>Niemand online.</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {livePlayers.map((p) => (
@@ -191,15 +191,15 @@ export default function FleetAdminPage() {
 
           <div className="card p-0 overflow-hidden fade-up anim-d3">
             <div className="term-bar">
-              <span className="ml-0">$ tail -f audit.log</span>
+              <span className="ml-0">Letzte Aktivität</span>
               <span className="flex-1" />
               <a href="/dashboard/audit" className="underline underline-offset-2" style={{ color: "var(--text-muted)" }}>
-                full log →
+                Alle ansehen →
               </a>
             </div>
             <div className="p-4">
               {activity.length === 0 ? (
-                <p className="text-sm" style={{ color: "var(--text-muted)" }}>-- buffer empty.</p>
+                <p className="text-sm" style={{ color: "var(--text-muted)" }}>Noch keine Einträge.</p>
               ) : (
                 <div className="space-y-1.5">
                   {activity.map((entry) => (
@@ -227,13 +227,13 @@ export default function FleetAdminPage() {
               <span className="term-dot" style={{ backgroundColor: "#ff5f5f" }} />
               <span className="term-dot" style={{ backgroundColor: "var(--cyan)" }} />
               <span className="term-dot" style={{ backgroundColor: "var(--accent)" }} />
-              <span className="ml-2">$ fleet push --all</span>
+              <span className="ml-2">An alle verteilen</span>
             </div>
             <div className="p-4 sm:p-5">
               <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
-                {"//"} Verteilt URL + Secret an alle Fleet-Server. IDs/Keys bleiben je Server.
+                Verteilt URL + Secret an alle Fleet-Server. IDs und Keys bleiben je Server erhalten.
               </p>
-              <label className="text-xs block mb-1 tracking-widest" style={{ color: "var(--text-secondary)" }}>DASHBOARD_URL</label>
+              <label className="text-xs block mb-1 tracking-widest" style={{ color: "var(--text-secondary)" }}>DASHBOARD-URL</label>
               <input
                 className="input text-xs w-full"
                 value={fleetUrl}
@@ -242,41 +242,41 @@ export default function FleetAdminPage() {
                 spellCheck={false}
                 disabled={!loaded}
               />
-              <label className="text-xs block mb-1 mt-4 tracking-widest" style={{ color: "var(--text-secondary)" }}>SETUP_SECRET</label>
+              <label className="text-xs block mb-1 mt-4 tracking-widest" style={{ color: "var(--text-secondary)" }}>SETUP-SECRET</label>
               <input
                 className="input text-xs w-full"
                 type="password"
                 value={fleetSecret}
                 onChange={(e) => setFleetSecret(e.target.value)}
-                placeholder="••••••••••••••••"
+                placeholder="Gleicher Wert für alle Server"
                 spellCheck={false}
                 autoComplete="new-password"
                 disabled={!loaded}
               />
               <button className="btn-primary w-full mt-4 font-mono text-sm" onClick={handleSave} disabled={saving || !loaded}>
-                {saving ? "[...] pushing..." : "[>] DISTRIBUTE TO ALL SERVERS"}
+                {saving ? "Wird verteilt…" : "Auf alle Server verteilen"}
               </button>
               {message && (
-                <p className="text-xs mt-3 font-mono" style={{ color: message.startsWith(">> DISTRIBUTED") ? "var(--accent)" : "#ff5f5f" }}>
+                <p className="text-xs mt-3 font-mono" style={{ color: message.startsWith("Gespeichert") ? "var(--accent)" : "#ff5f5f" }}>
                   {message}
                 </p>
               )}
               <p className="text-[11px] font-mono mt-3" style={{ color: "var(--text-muted)" }}>
-                target: config/statusmodfleet/config.json · pull ~60s + restart
+                Datei auf Servern: config/statusmodfleet/config.json · ca. 1 Minute + Neustart
               </p>
             </div>
           </div>
 
           <div className="card p-0 overflow-hidden fade-up anim-d4">
             <div className="term-bar">
-              <span className="ml-0">$ ls actions/</span>
+              <span className="ml-0">Bereiche</span>
             </div>
             <div className="p-4 grid grid-cols-1 gap-2">
               {[
-                { href: "/dashboard/players", label: "players/", desc: "roster + status" },
-                { href: "/dashboard/keys", label: "keys/", desc: "api access" },
-                { href: "/dashboard/config", label: "config/", desc: "server json" },
-                { href: "/dashboard/audit", label: "audit/", desc: "full log" },
+                { href: "/dashboard/players", label: "Spieler", desc: "Übersicht + Status" },
+                { href: "/dashboard/keys", label: "Keys", desc: "API-Zugang" },
+                { href: "/dashboard/config", label: "Config", desc: "Server-JSON" },
+                { href: "/dashboard/audit", label: "Protokoll", desc: "Alle Aktionen" },
               ].map((link) => (
                 <a
                   key={link.href}
@@ -306,7 +306,7 @@ export default function FleetAdminPage() {
 
       <div className="fleet-ascii-hr mb-2 hidden sm:block" aria-hidden>{ASCII_HR}</div>
       <p className="font-mono text-[11px]" style={{ color: "var(--text-muted)" }}>
-        {"//"} owner-code: <span style={{ color: "var(--text-secondary)" }}>/fleet owner-code</span> in der Server-Konsole → hier über Login einlösen<span className="fleet-blink" style={{ color: "var(--accent)" }}>▌</span>
+        Owner-Code: <span style={{ color: "var(--text-secondary)" }}>/fleet owner-code</span> in der Server-Konsole eingeben, dann hier über Login einlösen<span className="fleet-blink" style={{ color: "var(--accent)" }}>▌</span>
       </p>
     </div>
   )
