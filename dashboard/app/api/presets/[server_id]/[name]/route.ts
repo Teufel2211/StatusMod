@@ -3,6 +3,9 @@ import { getServiceClient } from "@/lib/supabase"
 import { requireSession } from "@/lib/auth"
 import { validatePathUuid } from "@/lib/validators"
 
+
+export const dynamic = "force-dynamic"
+
 export async function DELETE(
   request: Request,
   { params }: { params: { server_id: string; name: string } }

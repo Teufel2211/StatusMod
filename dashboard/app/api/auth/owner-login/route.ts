@@ -11,6 +11,9 @@ import { refreshCookieHeader } from "@/lib/cookies"
 // Redeems an owner one-time login code (issued via /status owner-code).
 // Mirrors the player code flow: brute-force lockout, single use, owner
 // session with HttpOnly refresh cookie.
+
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   const ip = request.headers.get("x-forwarded-for") ?? "unknown"
   const ipHash = hashIp(ip)

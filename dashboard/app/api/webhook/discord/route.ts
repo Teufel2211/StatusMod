@@ -2,6 +2,9 @@ import { badRequest, ok, serverError, unauthorized } from "@/lib/response"
 import { getServiceClient } from "@/lib/supabase"
 import { getEnv } from "@/lib/env"
 
+
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization")
   if (!authHeader?.startsWith("Bearer ")) return unauthorized()

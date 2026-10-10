@@ -9,6 +9,9 @@ import { resolveApiKeyServer } from "@/lib/auth"
 // Registers an owner one-time login code (issued by the mod via
 // /status owner-code, printed to the server console only). Mirrors the
 // player verify-code flow, bound to the claiming owner's uuid.
+
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   const serverId = await resolveApiKeyServer(request, "check")
   if (!serverId) return unauthorized()

@@ -8,6 +8,9 @@ import { signJwt } from "@/lib/jwt"
 import { hashIp, hashUserAgent, verifyArgon2id } from "@/lib/hash"
 import { refreshCookieHeader } from "@/lib/cookies"
 
+
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   const ip = request.headers.get("x-forwarded-for") ?? "unknown"
   const ipHash = hashIp(ip)

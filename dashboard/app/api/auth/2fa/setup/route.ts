@@ -5,6 +5,9 @@ import { encryptSecret, hashArgon2id } from "@/lib/hash"
 import { generateSecret } from "otplib"
 import crypto from "crypto"
 
+
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   const session = requireSession(request)
   if (!session) return unauthorized()

@@ -4,6 +4,9 @@ import { requireSession } from "@/lib/auth"
 import { validatePathUuid, MutePlayerSchema } from "@/lib/validators"
 import { writeAuditLog } from "@/lib/audit"
 
+
+export const dynamic = "force-dynamic"
+
 export async function POST(
   request: Request,
   { params }: { params: { server_id: string; uuid: string } }

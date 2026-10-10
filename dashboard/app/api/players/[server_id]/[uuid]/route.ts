@@ -4,6 +4,9 @@ import { authorizeData, requireSession } from "@/lib/auth"
 import { validatePathUuid, PlayerStatusFieldSchema } from "@/lib/validators"
 import { hmacUuid } from "@/lib/hash"
 
+
+export const dynamic = "force-dynamic"
+
 export async function GET(
   request: Request,
   { params }: { params: { server_id: string; uuid: string } }

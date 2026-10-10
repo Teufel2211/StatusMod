@@ -5,6 +5,9 @@ import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { hashIp, decryptSecret } from "@/lib/hash"
 import { verify as totpVerify } from "otplib"
 
+
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   const session = requireSession(request)
   if (!session) return unauthorized()

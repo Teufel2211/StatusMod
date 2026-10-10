@@ -2,6 +2,9 @@ import { badRequest, ok, unauthorized, forbidden, serverError } from "@/lib/resp
 import { getServiceClient } from "@/lib/supabase"
 import { requireSession } from "@/lib/auth"
 
+
+export const dynamic = "force-dynamic"
+
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }

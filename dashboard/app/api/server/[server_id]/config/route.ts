@@ -4,6 +4,9 @@ import { authorizeData, requireSession } from "@/lib/auth"
 import { validatePathUuid, ServerConfigSchema } from "@/lib/validators"
 import { writeAuditLog } from "@/lib/audit"
 
+
+export const dynamic = "force-dynamic"
+
 export async function GET(
   request: Request,
   { params }: { params: { server_id: string } }

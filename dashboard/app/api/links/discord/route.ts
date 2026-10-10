@@ -2,6 +2,9 @@ import { badRequest, ok, serverError, unauthorized } from "@/lib/response"
 import { getServiceClient } from "@/lib/supabase"
 import { requireSession } from "@/lib/auth"
 
+
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   const session = requireSession(request)
   if (!session) return unauthorized()

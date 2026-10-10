@@ -6,6 +6,9 @@ import { hashArgon2id } from "@/lib/hash"
 import { checkRateLimit, RATE_LIMITS, getRateLimitHeaders } from "@/lib/rate-limit"
 import { NextResponse } from "next/server"
 
+
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   const env = getEnv()
   const expectedSecret = env.MOD_SETUP_SECRET

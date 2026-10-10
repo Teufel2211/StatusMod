@@ -6,6 +6,9 @@ import { hashArgon2id } from "@/lib/hash"
 import { checkRateLimit, RATE_LIMITS, getRateLimitHeaders } from "@/lib/rate-limit"
 import { resolveApiKeyServer } from "@/lib/auth"
 
+
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   const serverId = await resolveApiKeyServer(request, "check")
   if (!serverId) return unauthorized()

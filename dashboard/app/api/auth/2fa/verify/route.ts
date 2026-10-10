@@ -6,6 +6,9 @@ import { decryptSecret, verifyArgon2id, hashIp } from "@/lib/hash"
 import { verify as totpVerify } from "otplib"
 import { checkRateLimit, RATE_LIMITS, getRateLimitHeaders } from "@/lib/rate-limit"
 
+
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   const session = requireSession(request)
   if (!session) return unauthorized()

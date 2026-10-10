@@ -8,6 +8,9 @@ import { writeAuditLog } from "@/lib/audit"
 // on every server (secret rotation without file access). Reading requires any
 // valid server API key (same trust as the player sync); writing requires an
 // owner dashboard session.
+
+export const dynamic = "force-dynamic"
+
 export async function GET(request: Request) {
   // Mods authenticate with a server API key; the dashboard UI uses an owner JWT.
   const keyServerId = await resolveApiKeyServer(request, "check")

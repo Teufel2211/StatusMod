@@ -6,6 +6,9 @@ import { checkRateLimit, RATE_LIMITS, getRateLimitHeaders } from "@/lib/rate-lim
 import { validatePathUuid } from "@/lib/validators"
 import { NextResponse } from "next/server"
 
+
+export const dynamic = "force-dynamic"
+
 export async function GET(request: Request) {
   const env = getEnv()
   const expectedSecret = env.MOD_SETUP_SECRET

@@ -4,6 +4,9 @@ import { getServiceClient } from "@/lib/supabase"
 import { requireSession } from "@/lib/auth"
 import { verifyArgon2id } from "@/lib/hash"
 
+
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   const session = requireSession(request)
   if (!session) {

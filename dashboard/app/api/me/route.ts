@@ -2,6 +2,9 @@ import { ok, unauthorized } from "@/lib/response"
 import { requireSession } from "@/lib/auth"
 import { getServiceClient } from "@/lib/supabase"
 
+
+export const dynamic = "force-dynamic"
+
 export async function GET(request: Request) {
   const session = requireSession(request)
   if (!session) return unauthorized()

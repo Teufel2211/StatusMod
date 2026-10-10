@@ -4,6 +4,9 @@ import { getServiceClient } from "@/lib/supabase"
 import { getRefreshTokenFromCookie, clearRefreshCookieHeader } from "@/lib/cookies"
 import crypto from "crypto"
 
+
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   let refreshToken = getRefreshTokenFromCookie(request)
 

@@ -3,6 +3,9 @@ import { getServiceClient } from "@/lib/supabase"
 import { authorizeData } from "@/lib/auth"
 import { validatePathUuid } from "@/lib/validators"
 
+
+export const dynamic = "force-dynamic"
+
 export async function GET(
   request: Request,
   { params }: { params: { server_id: string } }

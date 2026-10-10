@@ -6,6 +6,9 @@ import { checkRateLimit, RATE_LIMITS, getRateLimitHeaders } from "@/lib/rate-lim
 import { hashIp, hashArgon2id } from "@/lib/hash"
 import crypto from "crypto"
 
+
+export const dynamic = "force-dynamic"
+
 export async function GET(request: Request) {
   const session = requireSession(request)
   if (!session) return unauthorized()

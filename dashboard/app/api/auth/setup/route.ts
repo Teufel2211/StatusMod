@@ -8,6 +8,9 @@ import { checkRateLimit, RATE_LIMITS, getRateLimitHeaders } from "@/lib/rate-lim
 import { refreshCookieHeader } from "@/lib/cookies"
 import crypto from "crypto"
 
+
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   const ip = request.headers.get("x-forwarded-for") ?? "unknown"
   const rl = checkRateLimit(`setup:${hashIp(ip)}`, RATE_LIMITS.LOGIN)

@@ -30,6 +30,9 @@ const SyncBodySchema = z.object({
   blocked: z.array(BlockedSyncSchema).min(0).max(200).optional().default([]),
 })
 
+
+export const dynamic = "force-dynamic"
+
 export async function POST(
   request: Request,
   { params }: { params: { server_id: string } }
