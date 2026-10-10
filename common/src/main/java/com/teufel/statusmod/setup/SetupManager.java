@@ -30,7 +30,7 @@ public final class SetupManager {
         if (config.dashboardUrl == null || config.dashboardUrl.trim().isEmpty()) return;
         if (config.setupSecret == null || config.setupSecret.trim().isEmpty()) return;
         String dashboardUrl = config.dashboardUrl.trim();
-        if (!isSecureUrl(dashboardUrl)) {
+        if (!CodeGenerator.isSecureHttpUrl(dashboardUrl)) {
             System.out.println("[StatusMod] Setup skipped: dashboardUrl must use HTTPS (or http://localhost for dev)");
             return;
         }
@@ -113,28 +113,28 @@ public final class SetupManager {
                     .GET()
                     .build();
 
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                return null;
+            HttpResponse<java.io.InputStream> response =
+                HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            String body;
+            try (java.io.InputStream in = response.body()) {
+                if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                    return null;
+                }
+                body = CodeGenerator.readCapped(in, CodeGenerator.MAX_BODY_BYTES);
             }
 
-            JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
+            JsonObject json = JsonParser.parseString(body).getAsJsonObject();
             if (!json.has("pending") || !json.get("pending").getAsBoolean()) {
                 return null;
             }
-            return json.get("api_key").getAsString();
+            String key = json.has("api_key") && !json.get("api_key").isJsonNull()
+                ? json.get("api_key").getAsString() : null;
+            if (key == null || key.isBlank() || key.length() > 512) return null;
+            return key.trim();
         } catch (Exception e) {
             System.out.println("[StatusMod] API-Key fetch exception: " + e);
             return null;
         }
-    }
-
-    private static boolean isSecureUrl(String url) {
-        if (url == null || url.isEmpty()) return false;
-        String lower = url.toLowerCase();
-        if (lower.startsWith("https://")) return true;
-        if (lower.startsWith("http://localhost") || lower.startsWith("http://127.")) return true;
-        return false;
     }
 
     private static boolean register(String serverId, String code, String dashboardUrl, String setupSecret) {
@@ -151,8 +151,11 @@ public final class SetupManager {
                     .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
                     .build();
 
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            return response.statusCode() >= 200 && response.statusCode() < 300;
+            HttpResponse<java.io.InputStream> response =
+                HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            try (java.io.InputStream in = response.body()) {
+                return response.statusCode() >= 200 && response.statusCode() < 300;
+            }
         } catch (Exception e) {
             System.out.println("[StatusMod] Setup registration exception: " + e);
             return false;

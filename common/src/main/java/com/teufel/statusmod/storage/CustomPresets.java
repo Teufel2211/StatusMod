@@ -28,18 +28,27 @@ public class CustomPresets {
 
     public synchronized boolean add(String name, String status, String color, String creatorUuid) {
         if (name == null || name.isBlank() || status == null || status.isBlank()) return false;
-        status = status.replaceAll("\u00A7.", "").replace("\u00A7", "");
-        if (status.length() > 64) status = status.substring(0, 64);
-        String key = name.trim().toLowerCase();
+        if (presets.size() >= 500) return false;
+        String key = normalizeKey(name);
+        if (key.isEmpty()) return false;
         if (presets.containsKey(key)) return false;
-        presets.put(key, new CustomPreset(status.trim(), color == null ? "reset" : color, creatorUuid));
+        String cleanStatus = com.teufel.statusmod.util.StatusTextUtil.sanitizePlayerText(status, 64);
+        if (cleanStatus.isEmpty()) return false;
+        presets.put(key, new CustomPreset(cleanStatus, color == null ? "reset" : color, creatorUuid));
         save();
         return true;
     }
 
+    private static String normalizeKey(String name) {
+        if (name == null) return "";
+        String clean = com.teufel.statusmod.util.StatusTextUtil.sanitizePlayerText(name, 32);
+        if (clean.isEmpty()) return "";
+        return clean.toLowerCase(java.util.Locale.ROOT);
+    }
+
     public synchronized boolean remove(String name, String requesterUuid) {
-        if (name == null || name.isBlank()) return false;
-        String key = name.trim().toLowerCase();
+        String key = normalizeKey(name);
+        if (key.isEmpty()) return false;
         CustomPreset p = presets.get(key);
         if (p == null) return false;
         if (requesterUuid != null && (p.creator == null || !p.creator.equals(requesterUuid))) return false;
@@ -53,8 +62,9 @@ public class CustomPresets {
     }
 
     public synchronized CustomPreset get(String name) {
-        if (name == null || name.isBlank()) return null;
-        return presets.get(name.trim().toLowerCase());
+        String key = normalizeKey(name);
+        if (key.isEmpty()) return null;
+        return presets.get(key);
     }
 
     public synchronized Collection<String> getNames() {

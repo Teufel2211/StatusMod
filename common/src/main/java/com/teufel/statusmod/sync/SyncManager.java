@@ -8,6 +8,9 @@ import com.google.gson.JsonParser;
 import com.teufel.statusmod.StatusMod;
 import com.teufel.statusmod.storage.ModConfig;
 import com.teufel.statusmod.storage.PlayerSettings;
+import com.teufel.statusmod.util.CodeGenerator;
+import com.teufel.statusmod.util.ColorMapper;
+import com.teufel.statusmod.util.StatusTextUtil;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -34,7 +37,6 @@ public final class SyncManager {
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
-    private static final String IS_SECURE_URL_PATTERN = "^(https://|http://localhost|http://127\\.).*";
     private static volatile boolean started = false;
     private static volatile boolean pushDirty = false;
     public static volatile String lastPushInfo = "-";
@@ -117,8 +119,10 @@ public final class SyncManager {
     private static void push() {
         ModConfig config = StatusMod.getConfig();
         if (config == null || StatusMod.storage == null) return;
-        String dashboardUrl = trimTrailingSlash(config.dashboardUrl);
-        if (!isSecureUrl(dashboardUrl)) return;
+        if (config.dashboardUrl == null) return;
+        String dashboardUrl = CodeGenerator.trimTrailingSlash(config.dashboardUrl.trim());
+        if (!CodeGenerator.isSecureHttpUrl(dashboardUrl)) return;
+        if (!isValidUuid(config.serverId)) return;
         String endpoint = dashboardUrl + "/api/players/" + config.serverId + "/sync";
         String apiKey = config.apiKey;
 
@@ -194,10 +198,15 @@ public final class SyncManager {
                 .build();
 
         try {
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                lastPushInfo = "HTTP " + response.statusCode();
-                System.out.println("[StatusMod] Sync push status " + response.statusCode() + ": " + response.body());
+            HttpResponse<java.io.InputStream> response =
+                HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            int code;
+            try (java.io.InputStream in = response.body()) {
+                code = response.statusCode();
+            }
+            if (code < 200 || code >= 300) {
+                lastPushInfo = "HTTP " + code;
+                System.out.println("[StatusMod] Sync push status " + code);
             } else {
                 lastPushInfo = "ok";
             }
@@ -210,11 +219,13 @@ public final class SyncManager {
     private static void pull() {
         ModConfig config = StatusMod.getConfig();
         if (config == null || StatusMod.mutedPlayers == null || StatusMod.blockedPlayers == null) return;
-        String dashboardUrl = trimTrailingSlash(config.dashboardUrl);
-        if (!isSecureUrl(dashboardUrl)) {
+        if (config.dashboardUrl == null) return;
+        String dashboardUrl = CodeGenerator.trimTrailingSlash(config.dashboardUrl.trim());
+        if (!CodeGenerator.isSecureHttpUrl(dashboardUrl)) {
             System.out.println("[StatusMod] Sync pull skipped: dashboardUrl must use HTTPS (or localhost for dev)");
             return;
         }
+        if (!isValidUuid(config.serverId)) return;
         String since = config.lastSyncAtMs > 0L ? "?since=" + java.time.Instant.ofEpochMilli(config.lastSyncAtMs) : "";
         String endpoint = dashboardUrl + "/api/players/" + config.serverId + "/sync" + since;
 
@@ -225,23 +236,28 @@ public final class SyncManager {
                 .GET()
                 .build();
 
-        HttpResponse<String> response;
+        String body;
         try {
-            response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<java.io.InputStream> response =
+                HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                lastPullInfo = "HTTP " + response.statusCode();
+                try { response.body().close(); } catch (Exception ignored) {}
+                return;
+            }
+            try (java.io.InputStream in = response.body()) {
+                body = CodeGenerator.readCapped(in, CodeGenerator.MAX_BODY_BYTES);
+            }
         } catch (java.io.IOException | InterruptedException e) {
             lastPullInfo = "ex: " + e.getMessage();
             System.out.println("[StatusMod] Sync pull exception: " + e.getMessage());
-            return;
-        }
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            lastPullInfo = "HTTP " + response.statusCode();
             return;
         }
         lastPullInfo = "ok";
 
         JsonObject json;
         try {
-            json = JsonParser.parseString(response.body()).getAsJsonObject();
+            json = JsonParser.parseString(body).getAsJsonObject();
         } catch (Exception e) {
             System.out.println("[StatusMod] Sync pull: invalid JSON response");
             return;
@@ -287,11 +303,13 @@ public final class SyncManager {
                 }
                 boolean changed = false;
                 if (hasStatus) {
-                    String status = truncate(p.get("status").getAsString(), MAX_STATUS_LENGTH);
+                    String status = StatusTextUtil.sanitizePlayerText(p.get("status").getAsString(), MAX_STATUS_LENGTH);
                     if (!status.equals(ps.status)) { ps.status = status; changed = true; }
                 }
                 if (hasColor) {
-                    String color = truncate(p.get("color").getAsString(), MAX_COLOR_LENGTH);
+                    String rc = p.get("color").getAsString();
+                    String color = (rc != null && ColorMapper.isValidColorInput(rc)
+                        && rc.length() <= MAX_COLOR_LENGTH) ? rc : "reset";
                     if (!color.equals(ps.color)) { ps.color = color; changed = true; }
                 }
                 if (changed) {
@@ -336,27 +354,7 @@ public final class SyncManager {
         } catch (Exception ignored) {}
     }
 
-    private static boolean isSecureUrl(String url) {
-        if (url == null || url.isEmpty()) return false;
-        String lower = url.toLowerCase();
-        if (lower.startsWith("https://")) return true;
-        if (lower.startsWith("http://localhost") || lower.startsWith("http://127.")) return true;
-        return false;
-    }
-
     private static boolean isValidUuid(String s) {
         return s != null && UUID_PATTERN.matcher(s).matches();
-    }
-
-    private static String truncate(String s, int max) {
-        if (s == null) return "";
-        return s.length() <= max ? s : s.substring(0, max);
-    }
-
-    private static String trimTrailingSlash(String url) {
-        while (url.endsWith("/")) {
-            url = url.substring(0, url.length() - 1);
-        }
-        return url;
     }
 }

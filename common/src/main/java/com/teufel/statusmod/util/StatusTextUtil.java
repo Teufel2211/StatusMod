@@ -112,4 +112,26 @@ public final class StatusTextUtil {
         } catch (Exception ignored) {}
         return -1;
     }
+
+    /**
+     * Sanitizes player- or remote-controlled display text (status, badge,
+     * preset name, username): strips legacy section-sign codes, control
+     * characters (log forging, packet glitches) and caps codepoint length.
+     * Newlines/tabs become spaces to preserve readability.
+     */
+    public static String sanitizePlayerText(String s, int maxCodePoints) {
+        if (s == null) return "";
+        String r = s.replaceAll("(?s)\u00A7.", "").replace("\u00A7", "");
+        StringBuilder sb = new StringBuilder(r.length());
+        r.codePoints().forEach(cp -> {
+            if (cp == '\n' || cp == '\r' || cp == '\t') sb.append(' ');
+            else if (Character.getType(cp) == Character.CONTROL) { /* drop */ }
+            else sb.appendCodePoint(cp);
+        });
+        String out = sb.toString().trim();
+        if (maxCodePoints > 0 && out.codePointCount(0, out.length()) > maxCodePoints) {
+            out = out.substring(0, out.offsetByCodePoints(0, maxCodePoints));
+        }
+        return out;
+    }
 }

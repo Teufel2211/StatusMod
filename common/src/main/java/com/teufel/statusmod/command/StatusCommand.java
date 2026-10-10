@@ -9,6 +9,7 @@ import com.teufel.statusmod.storage.AuditLogger;
 import com.teufel.statusmod.storage.ModConfig;
 import com.teufel.statusmod.storage.PlayerSettings;
 import com.teufel.statusmod.util.ColorMapper;
+import com.teufel.statusmod.util.CodeGenerator;
 import com.teufel.statusmod.util.CommandUtil;
 import com.teufel.statusmod.util.FontMapper;
 import com.teufel.statusmod.util.PermissionUtil;
@@ -463,14 +464,19 @@ public class StatusCommand {
                         .header("x-api-key", k)
                         .GET()
                         .build();
-                    HttpResponse<String> response = TRANSFER_HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+                    HttpResponse<java.io.InputStream> response = TRANSFER_HTTP.send(request, HttpResponse.BodyHandlers.ofInputStream());
                     if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                        try { response.body().close(); } catch (Exception ignored) {}
                         reply(src, server, false, "Transfer fehlgeschlagen (HTTP " + response.statusCode() + "). ID/Key prüfen.");
                         return;
                     }
+                    String transferBody;
+                    try (java.io.InputStream in = response.body()) {
+                        transferBody = CodeGenerator.readCapped(in, CodeGenerator.MAX_BODY_BYTES);
+                    }
                     com.google.gson.JsonElement parsed;
                     try {
-                        parsed = com.google.gson.JsonParser.parseString(response.body());
+                        parsed = com.google.gson.JsonParser.parseString(transferBody);
                     } catch (Exception e) {
                         reply(src, server, false, "Transfer fehlgeschlagen (ungültige Antwort).");
                         return;
@@ -481,6 +487,7 @@ public class StatusCommand {
                     }
                     int count = 0;
                     for (com.google.gson.JsonElement el : parsed.getAsJsonArray()) {
+                        if (count >= 5000) break;
                         if (!el.isJsonObject()) continue;
                         com.google.gson.JsonObject o = el.getAsJsonObject();
                         if (!o.has("uuid")) continue;
@@ -494,18 +501,19 @@ public class StatusCommand {
                         try {
                             PlayerSettings s = StatusMod.getStorage().forPlayer(uuid);
                             if (o.has("username") && !o.get("username").isJsonNull()) {
-                                String un = o.get("username").getAsString();
-                                if (un != null && !un.isEmpty()) s.lastKnownName = un;
+                                String un = StatusTextUtil.sanitizePlayerText(o.get("username").getAsString(), 16);
+                                if (!un.isEmpty()) s.lastKnownName = un;
                             }
                             if (o.has("status") && !o.get("status").isJsonNull()) {
-                                s.status = o.get("status").getAsString();
+                                s.status = StatusTextUtil.sanitizePlayerText(o.get("status").getAsString(), 64);
                             }
                             if (o.has("color") && !o.get("color").isJsonNull()) {
-                                s.color = o.get("color").getAsString();
+                                String rc = o.get("color").getAsString();
+                                s.color = (rc != null && ColorMapper.isValidColorInput(rc)
+                                    && rc.length() <= 32) ? rc : "reset";
                             }
                             if (o.has("avatar") && !o.get("avatar").isJsonNull()) {
-                                String av = o.get("avatar").getAsString();
-                                s.avatar = av == null ? "" : av;
+                                s.avatar = StatusTextUtil.sanitizePlayerText(o.get("avatar").getAsString(), 160);
                             }
                             StatusMod.getStorage().put(uuid, s);
                             if (server != null) {
@@ -615,7 +623,7 @@ public class StatusCommand {
     }
 
     private static void setAvatar(CommandSourceStack src, String rawArgs) { try { if (!StatusMod.getConfig().isEnabled("status")) { src.sendFailure(Component.literal("Das Status-Feature ist auf diesem Server deaktiviert.")); return; } String v = rawArgs == null ? "" : rawArgs.trim(); ServerPlayer actor = src.getPlayer(); if (v.contains(" ")) { String[] parts = v.split("\\s+", 2); if (!PermissionUtil.hasAdminPermission(src)) { src.sendFailure(Component.literal("Du hast nicht genuegend Rechte, um andere Spieler zu verwalten.")); return; } ServerPlayer target = src.getServer().getPlayerList().getPlayerByName(parts[0]); if (target == null) { src.sendFailure(Component.literal("Spieler '" + parts[0] + "' ist nicht online.")); return; } applyAvatar(src, target, parts[1].trim()); return; } if (actor == null) { src.sendFailure(Component.literal("Nur Spieler koennen diesen Befehl nutzen.")); return; } applyAvatar(src, actor, v); } catch (Exception e) { try { src.sendFailure(Component.literal("Fehler beim Setzen des Avatars.")); } catch (Exception ignore) {} e.printStackTrace(); } }
-private static void applyAvatar(CommandSourceStack src, ServerPlayer target, String value) { try { String v = value == null ? "" : value.trim(); boolean clear = v.equalsIgnoreCase("off") || v.equalsIgnoreCase("clear") || v.equalsIgnoreCase("reset"); if (!clear) { if (v.isEmpty()) { src.sendFailure(Component.literal("Nutze einen Spielernamen oder eine https:// Bild-URL (oder 'off' zum Entfernen).")); return; } if (v.length() > 160) { src.sendFailure(Component.literal("Zu lang (max. 160 Zeichen).")); return; } if (v.startsWith("http://") || v.startsWith("https://")) { if (v.contains(" ")) { src.sendFailure(Component.literal("Die URL darf keine Leerzeichen enthalten.")); return; } } else if (!v.matches("[A-Za-z0-9_]{1,16}")) { src.sendFailure(Component.literal("Ungueltig: Nutze einen Spielernamen (A-Z, 0-9, _) oder eine https:// URL zu einer Skin-PNG.")); return; } } String uuid = target.getUUID().toString(); PlayerSettings settings = StatusMod.getStorage().forPlayer(uuid); settings.avatar = clear ? "" : v; StatusMod.getStorage().put(uuid, settings); SyncManager.requestPush(); if (clear) { CommandUtil.sendSuccess(src, Component.literal("Avatar entfernt - das Dashboard zeigt wieder den Standard-Kopf."), false); } else { CommandUtil.sendSuccess(src, Component.literal("Avatar gesetzt: " + v + " (im Dashboard in ca. 30s sichtbar)"), false); } } catch (Exception e) { try { src.sendFailure(Component.literal("Fehler beim Setzen des Avatars.")); } catch (Exception ignore) {} e.printStackTrace(); } }
+private static void applyAvatar(CommandSourceStack src, ServerPlayer target, String value) { try { String v = value == null ? "" : value.trim(); boolean clear = v.equalsIgnoreCase("off") || v.equalsIgnoreCase("clear") || v.equalsIgnoreCase("reset"); if (!clear) { if (v.isEmpty()) { src.sendFailure(Component.literal("Nutze einen Spielernamen oder eine https:// Bild-URL (oder 'off' zum Entfernen).")); return; } if (v.length() > 160) { src.sendFailure(Component.literal("Zu lang (max. 160 Zeichen).")); return; } if (v.startsWith("https://")) { if (v.contains(" ") || !v.equals(StatusTextUtil.sanitizePlayerText(v, 160))) { src.sendFailure(Component.literal("Die URL enthaelt ungueltige Zeichen.")); return; } } else if (!v.matches("[A-Za-z0-9_]{1,16}")) { src.sendFailure(Component.literal("Ungueltig: Nutze einen Spielernamen (A-Z, 0-9, _) oder eine https:// URL zu einer Skin-PNG (http ist aus Sicherheitsgruenden nicht erlaubt).")); return; } } String uuid = target.getUUID().toString(); PlayerSettings settings = StatusMod.getStorage().forPlayer(uuid); settings.avatar = clear ? "" : v; StatusMod.getStorage().put(uuid, settings); SyncManager.requestPush(); if (clear) { CommandUtil.sendSuccess(src, Component.literal("Avatar entfernt - das Dashboard zeigt wieder den Standard-Kopf."), false); } else { CommandUtil.sendSuccess(src, Component.literal("Avatar gesetzt: " + v + " (im Dashboard in ca. 30s sichtbar)"), false); } } catch (Exception e) { try { src.sendFailure(Component.literal("Fehler beim Setzen des Avatars.")); } catch (Exception ignore) {} e.printStackTrace(); } }
 
 private static void adminSetStatus(CommandSourceStack src, String targetName, String status, String colorKey) { try { ServerPlayer target = src.getServer().getPlayerList().getPlayerByName(targetName); if (target == null) { src.sendFailure(Component.literal("Spieler '" + targetName + "' ist nicht online.")); return; } PlayerSettings settings = StatusMod.getStorage().forPlayer(target.getUUID().toString()); StatusUpdate update = parseStatusInput(status, colorKey, settings); if (!update.ok) { src.sendFailure(Component.literal(update.error)); return; } applyStatusUpdate(src, target, settings, update, false, null, false); String who = src.getTextName(); AuditLogger.logSet(who, targetName, update.status, update.color); CommandUtil.sendSuccess(src, Component.literal("Status von " + targetName + " gesetzt: " + update.status + " (" + update.color + ")"), false); target.sendSystemMessage(Component.literal("Dein Status wurde von einem Administrator gesetzt."));} catch (Exception e){try{src.sendFailure(Component.literal("Fehler beim Setzen des Status für '" + targetName + "'."));}catch(Exception ignore){} e.printStackTrace();}}
     private static void adminSetColor(CommandSourceStack src, String targetName, String colorInput) { try { if (!StatusMod.getConfig().isEnabled("status")) { src.sendFailure(Component.literal("Das Status-Feature ist auf diesem Server deaktiviert.")); return; } ServerPlayer target = src.getServer().getPlayerList().getPlayerByName(targetName); if (target == null) { src.sendFailure(Component.literal("Spieler '" + targetName + "' ist nicht online.")); return; } String color = colorInput == null ? "" : colorInput.trim(); if (!ColorMapper.isValidColorInput(color)) { src.sendFailure(Component.literal("Ungültige Farbe: " + color)); return; } String uuid = target.getUUID().toString(); PlayerSettings settings = StatusMod.getStorage().forPlayer(uuid); settings.color = color; StatusMod.getStorage().put(uuid, settings); SyncManager.requestPush(); StatusTeamUtil.applyStatus(src.getServer().getScoreboard(), target, settings, StatusTextUtil.resolveStatusForPlayer(settings, target), StatusTextUtil.resolveColorForPlayer(settings, target), PermissionUtil.hasAdminPermission(target)); AuditLogger.logSet(src.getTextName(), targetName, "", color); CommandUtil.sendSuccess(src, Component.literal("Farbe von " + targetName + " gesetzt: " + color), false); target.sendSystemMessage(Component.literal("Deine Status-Farbe wurde von einem Administrator gesetzt."));} catch (Exception e){try{src.sendFailure(Component.literal("Fehler beim Setzen der Farbe für '" + targetName + "'."));}catch(Exception ignore){} e.printStackTrace();}}
@@ -661,12 +669,16 @@ private static void adminSetStatus(CommandSourceStack src, String targetName, St
     private static void showHistory(CommandSourceStack src) { try { ServerPlayer player = src.getPlayer(); if (player == null) { src.sendFailure(Component.literal("Nur Spieler können diesen Befehl nutzen.")); return; } if (!PermissionUtil.hasStatusPermission(src)) { src.sendFailure(Component.literal("Du hast keine Berechtigung.")); return; } if (checkBlockedOrMuted(src, player.getUUID().toString())) return; PlayerSettings settings = StatusMod.getStorage().forPlayer(player.getUUID().toString()); CommandUtil.sendSuccess(src, Component.literal("Status-Verlauf:"), false); if (settings.statusHistory == null || settings.statusHistory.isEmpty()) { CommandUtil.sendSuccess(src, Component.literal("- (leer)"), false); return; } for (String h : settings.statusHistory) { if (h == null || h.isBlank()) continue; net.minecraft.network.chat.MutableComponent text = Component.literal(h); text = makeClickable(text, "/status " + h, "Klicken zum Nachsetzen"); Component entry = Component.literal("- ").append(text); CommandUtil.sendSuccess(src, entry, false); } } catch (Exception e){try{src.sendFailure(Component.literal("Fehler beim Anzeigen des Verlaufs."));}catch(Exception ignore){} e.printStackTrace();}}
 
     private static net.minecraft.network.chat.MutableComponent makeClickable(net.minecraft.network.chat.MutableComponent text, String command, String hoverText) {
-        try { Object clickEvt = findStaticMethod(net.minecraft.network.chat.ClickEvent.class, "runCommand", String.class).invoke(null, command); text = text.withStyle(net.minecraft.network.chat.Style.EMPTY.withClickEvent((net.minecraft.network.chat.ClickEvent) clickEvt)); } catch (Exception ignored) {}
-        try { Object hoverEvt = findStaticMethod(net.minecraft.network.chat.HoverEvent.class, "showText", net.minecraft.network.chat.Component.class).invoke(null, Component.literal(hoverText)); text = text.withStyle(net.minecraft.network.chat.Style.EMPTY.withHoverEvent((net.minecraft.network.chat.HoverEvent) hoverEvt)); } catch (Exception ignored) {}
+        try {
+            text = text.withStyle(net.minecraft.network.chat.Style.EMPTY.withClickEvent(
+                new net.minecraft.network.chat.ClickEvent.RunCommand(command)));
+        } catch (Throwable ignored) {}
+        try {
+            text = text.withStyle(net.minecraft.network.chat.Style.EMPTY.withHoverEvent(
+                new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal(hoverText))));
+        } catch (Throwable ignored) {}
         return text;
     }
-
-    private static java.lang.reflect.Method findStaticMethod(Class<?> clazz, String name, Class<?>... params) throws NoSuchMethodException { return clazz.getMethod(name, params); }
 
     private static void saveCustomPreset(CommandSourceStack src, String name, String status, String colorKey) {
         try {
@@ -809,6 +821,11 @@ private static void adminSetStatus(CommandSourceStack src, String targetName, St
                 src.sendFailure(Component.literal("Badge-Text darf maximal 32 Zeichen lang sein."));
                 return;
             }
+            text = StatusTextUtil.sanitizePlayerText(text, 32);
+            if (text.isEmpty()) {
+                src.sendFailure(Component.literal("Badge-Text ist nach Bereinigung leer."));
+                return;
+            }
 
             ModConfig cfg = StatusMod.getConfig();
             if (cfg.staffBadges == null) cfg.staffBadges = new HashMap<>();
@@ -896,12 +913,7 @@ private static void adminSetStatus(CommandSourceStack src, String targetName, St
     private static void applyStatusUpdate(CommandSourceStack src, ServerPlayer player, PlayerSettings settings, StatusUpdate update, boolean perWorld, Long expiresAtMs, boolean keepFont) { if (player == null || settings == null || update == null) return; SyncManager.requestPush(); settings.autoAfk = false; settings.preAfkStatus = ""; settings.preAfkColor = "reset"; settings.lastActivityAtMs = System.currentTimeMillis(); if (!keepFont && update.font != null && !update.font.isEmpty()) settings.fontStyle = FontMapper.normalizeStyle(update.font); if (perWorld) { String key = com.teufel.statusmod.util.CompatUtil.getWorldKey(player); if (key != null) { if (settings.statusByWorld != null) settings.statusByWorld.put(key, update.status); if (settings.colorByWorld != null) settings.colorByWorld.put(key, update.color); } } else { settings.status = update.status; settings.color = update.color; } if (expiresAtMs != null) settings.statusExpiresAtMs = expiresAtMs; settings.lastStatusChangeAtMs = System.currentTimeMillis(); addHistory(settings, update.status); StatusMod.getStorage().put(player.getUUID().toString(), settings); var server = src.getServer(); StatusTeamUtil.applyStatus(server.getScoreboard(), player, settings, StatusTextUtil.resolveStatusForPlayer(settings, player), StatusTextUtil.resolveColorForPlayer(settings, player), PermissionUtil.hasAdminPermission(player)); }
     private static void addHistory(PlayerSettings settings, String status) { if (settings == null || status == null || status.isBlank()) return; if (settings.statusHistory == null) settings.statusHistory = new java.util.ArrayList<>(); settings.statusHistory.remove(status); settings.statusHistory.add(status); int max = StatusMod.getConfig() == null ? 5 : StatusMod.getConfig().statusHistorySize; while (settings.statusHistory.size() > max && max > 0) settings.statusHistory.remove(0); if (max <= 0) settings.statusHistory.clear(); }
     private static StatusUpdate parseStatusInput(String statusInput, String colorKey, PlayerSettings settings) { if (settings == null) return StatusUpdate.error("Fehler: Keine Einstellungen."); int n = settings.statusWords <= 0 ? 1 : settings.statusWords; String[] tokens = statusInput == null ? new String[0] : statusInput.trim().split("\\s+"); if (tokens.length < n) return StatusUpdate.error("Bitte mindestens " + n + " Wörter für den Status angeben."); StringBuilder sb = new StringBuilder(); for (int i = 0; i < n; i++) { if (i > 0) sb.append(' '); sb.append(tokens[i]); }     String status = sb.toString();
-    status = status.replaceAll("(?s)\u00A7.", "");
-    status = status.replace("\u00A7", "");
-    if (status.codePointCount(0, status.length()) > MAX_STATUS_LENGTH) {
-        int end = status.offsetByCodePoints(0, MAX_STATUS_LENGTH);
-        status = status.substring(0, end);
-    } String resolvedColor = (colorKey == null || colorKey.isEmpty()) ? ((tokens.length > n) ? tokens[n] : (StatusMod.getConfig() != null && StatusMod.getConfig().defaultColor != null && !StatusMod.getConfig().defaultColor.isEmpty() ? StatusMod.getConfig().defaultColor : "reset")) : colorKey.trim(); if (!ColorMapper.isValidColorInput(resolvedColor)) return StatusUpdate.error("Ungültige Farbe: " + resolvedColor); return new StatusUpdate(status, resolvedColor, settings.fontStyle, true, null); }
+    status = StatusTextUtil.sanitizePlayerText(status, MAX_STATUS_LENGTH); String resolvedColor = (colorKey == null || colorKey.isEmpty()) ? ((tokens.length > n) ? tokens[n] : (StatusMod.getConfig() != null && StatusMod.getConfig().defaultColor != null && !StatusMod.getConfig().defaultColor.isEmpty() ? StatusMod.getConfig().defaultColor : "reset")) : colorKey.trim(); if (!ColorMapper.isValidColorInput(resolvedColor)) return StatusUpdate.error("Ungültige Farbe: " + resolvedColor); return new StatusUpdate(status, resolvedColor, settings.fontStyle, true, null); }
     private static String pickStableRandomColor(String uuid) { List<TextColor> palette = ColorMapper.rainbowPalette(); if (palette.isEmpty()) return "reset";         return ColorMapper.toHex(palette.get((uuid.hashCode() & Integer.MAX_VALUE) % palette.size())); }
     private static class Preset { final String status; final String color; final String font; Preset(String status, String color, String font) { this.status = status; this.color = color; this.font = font; } }
     private static class StatusUpdate { String status; String color; String font; boolean ok; String error; StatusUpdate(String status, String color, String font, boolean ok, String error) { this.status = status; this.color = color; this.font = font; this.ok = ok; this.error = error; } static StatusUpdate error(String msg) { return new StatusUpdate("", "reset", "normal", false, msg); } }

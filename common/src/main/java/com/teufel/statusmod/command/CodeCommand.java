@@ -63,7 +63,7 @@ public final class CodeCommand {
             return;
         }
         String dashboardUrl = config.dashboardUrl.trim();
-        if (!isSecureUrl(dashboardUrl)) {
+        if (!CodeGenerator.isSecureHttpUrl(dashboardUrl)) {
             src.sendFailure(Component.literal("[StatusMod] dashboardUrl muss HTTPS verwenden (oder http://localhost für Entwicklung)."));
             return;
         }
@@ -108,14 +108,6 @@ public final class CodeCommand {
         thread.start();
     }
 
-    private static boolean isSecureUrl(String url) {
-        if (url == null || url.isEmpty()) return false;
-        String lower = url.toLowerCase();
-        if (lower.startsWith("https://")) return true;
-        if (lower.startsWith("http://localhost") || lower.startsWith("http://127.")) return true;
-        return false;
-    }
-
     private static int requestCode(String dashboardUrl, String apiKey, String code) throws Exception {
         JsonObject payload = new JsonObject();
         payload.addProperty("code", code);
@@ -128,7 +120,10 @@ public final class CodeCommand {
                 .POST(HttpRequest.BodyPublishers.ofString(payload.toString()))
                 .build();
 
-        HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-        return response.statusCode();
+        HttpResponse<java.io.InputStream> response =
+            HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        try (java.io.InputStream in = response.body()) {
+            return response.statusCode();
+        }
     }
 }

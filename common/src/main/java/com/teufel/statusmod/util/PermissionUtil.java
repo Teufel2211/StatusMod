@@ -1,36 +1,25 @@
 package com.teufel.statusmod.util;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.teufel.statusmod.StatusMod;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.permissions.LevelBasedPermissionSet;
+import net.minecraft.server.permissions.PermissionLevel;
+import net.minecraft.server.permissions.PermissionSet;
+import net.minecraft.server.permissions.Permissions;
+import net.minecraft.server.players.NameAndId;
+import net.minecraft.server.players.ServerOpListEntry;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
+/**
+ * Permission checks without string-based reflection (works on intermediary
+ * runtimes like Fabric/Quilt 1.21.11, where Mojang/Yarn member names do not
+ * exist) and without username-based ops.json parsing (spoofable, redundant
+ * with vanilla's UUID-based op list).
+ */
 public class PermissionUtil {
     private static boolean luckypermsAvailable = false;
     private static Object luckypermsApi = null;
-    private static final long OPS_FILE_CACHE_MS = 10_000L;
-    private static volatile long lastOpsFileReadAt = 0L;
-    private static volatile OpsCache cachedOps = new OpsCache(Set.of(), Map.of());
-
-    private static final class OpsCache {
-        final Set<String> names;
-        final Map<String, Integer> levels;
-        OpsCache(Set<String> names, Map<String, Integer> levels) {
-            this.names = names;
-            this.levels = levels;
-        }
-    }
 
     static {
         try {
@@ -60,11 +49,12 @@ public class PermissionUtil {
     public static boolean hasAdminPermission(CommandSourceStack src) {
         ServerPlayer player = null;
         try { player = src.getPlayer(); } catch (Exception ignored) {}
-        boolean op = hasOperatorPermission(src);
         if (player != null && luckypermsAvailable && luckypermsApi != null) {
-            return checkLuckyPermsPermission(player, StatusMod.getConfig().adminPermissionNode) || op;
+            try {
+                if (checkLuckyPermsPermission(player, StatusMod.getConfig().adminPermissionNode)) return true;
+            } catch (Exception ignored) {}
         }
-        return op;
+        return hasOpLevel(src, player, requiredOpLevel());
     }
 
     public static boolean hasAdminPermission(ServerPlayer player) {
@@ -75,7 +65,105 @@ public class PermissionUtil {
             }
         } catch (Exception ignored) {}
         int requiredLevel = Math.max(1, StatusMod.getConfig() != null ? StatusMod.getConfig().adminOpLevel : 2);
-        return hasPlayerPermissionLevel(player, requiredLevel) || isOpByOpsFileFallback(player, requiredLevel);
+        MinecraftServer server = serverOf(player);
+        if (server != null && opLevelOf(server, player) >= requiredLevel) return true;
+        return tierLevelOf(playerPermissions(player)) >= requiredLevel;
+    }
+
+    private static int requiredOpLevel() {
+        try {
+            if (StatusMod.getConfig() != null) return Math.max(0, StatusMod.getConfig().adminOpLevel);
+        } catch (Exception ignored) {}
+        return 2;
+    }
+
+    private static boolean hasOpLevel(CommandSourceStack src, ServerPlayer player, int requiredLevel) {
+        if (requiredLevel <= 0) return true;
+        try {
+            if (src != null && src.getEntity() == null) {
+                String name = src.getTextName();
+                if ("Server".equals(name) || "Rcon".equals(name)) return true;
+            }
+        } catch (Exception ignored) {}
+        if (player != null) {
+            MinecraftServer server = null;
+            try { server = src.getServer(); } catch (Exception ignored) {}
+            if (server == null) server = serverOf(player);
+            if (server != null && opLevelOf(server, player) >= requiredLevel) return true;
+            if (tierLevelOf(playerPermissions(player)) >= requiredLevel) return true;
+        } else if (src != null) {
+            // Non-player sources (command blocks, functions): judge by their
+            // own permission set instead of failing open.
+            if (tierLevelOf(sourcePermissions(src)) >= requiredLevel) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Canonical OP level from vanilla's op list (UUID-based, spoof-proof).
+     * Returns -1 when not listed.
+     */
+    private static int opLevelOf(MinecraftServer server, ServerPlayer player) {
+        try {
+            if (server == null || player == null) return -1;
+            com.mojang.authlib.GameProfile profile = player.getGameProfile();
+            if (profile == null) return -1;
+            ServerOpListEntry entry = server.getPlayerList().getOps().get(new NameAndId(profile));
+            if (entry == null) return -1;
+            try {
+                LevelBasedPermissionSet perms = entry.permissions();
+                if (perms != null) {
+                    PermissionLevel lvl = perms.level();
+                    if (lvl != null) return lvl.id();
+                }
+            } catch (Throwable ignored) {}
+            return 4;
+        } catch (Throwable ignored) {
+            return -1;
+        }
+    }
+
+    /**
+     * Level represented by a permission set: exact for level-based sets,
+     * tier-mapped otherwise (OWNER=4, ADMIN=3, GAMEMASTER=2, MODERATOR=1).
+     * Returns -1 for empty/unknown sets (fail closed).
+     */
+    private static int tierLevelOf(PermissionSet ps) {
+        if (ps == null) return -1;
+        try {
+            if (ps instanceof LevelBasedPermissionSet lbs) {
+                try {
+                    PermissionLevel lvl = lbs.level();
+                    if (lvl != null) return lvl.id();
+                } catch (Throwable ignored) {}
+            }
+            if (ps.hasPermission(Permissions.COMMANDS_OWNER)) return 4;
+            if (ps.hasPermission(Permissions.COMMANDS_ADMIN)) return 3;
+            if (ps.hasPermission(Permissions.COMMANDS_GAMEMASTER)) return 2;
+            if (ps.hasPermission(Permissions.COMMANDS_MODERATOR)) return 1;
+        } catch (Throwable ignored) {}
+        return -1;
+    }
+
+    private static PermissionSet playerPermissions(ServerPlayer player) {
+        try {
+            if (player != null) return player.permissions();
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    private static PermissionSet sourcePermissions(CommandSourceStack src) {
+        try {
+            if (src != null) return src.permissions();
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    private static MinecraftServer serverOf(ServerPlayer player) {
+        try {
+            if (player != null) return player.level().getServer();
+        } catch (Throwable ignored) {}
+        return null;
     }
 
     private static boolean checkLuckyPermsPermission(ServerPlayer player, String permission) {
@@ -99,221 +187,5 @@ public class PermissionUtil {
             System.err.println("[StatusMod] LuckyPerms permission check failed: " + e.getMessage());
             return false;
         }
-    }
-
-    private static boolean isConsoleSource(CommandSourceStack src) {
-        if (src == null) return false;
-        try {
-            Object entity = null;
-            try { entity = src.getEntity(); } catch (Exception ignored) {}
-            if (entity != null) return false;
-            Object server = null;
-            try { server = src.getServer(); } catch (Exception ignored) {}
-            if (server == null) return false;
-            try {
-                java.lang.reflect.Method getLevel = src.getClass().getMethod("getLevel");
-                Object level = getLevel.invoke(src);
-                if (level != null) return false;
-            } catch (Exception ignored) {}
-            return true;
-        } catch (Exception ignored) {
-            return false;
-        }
-    }
-
-    private static boolean hasOperatorPermission(CommandSourceStack src) {
-        int requiredLevel = 2;
-        try {
-            if (StatusMod.getConfig() != null) requiredLevel = Math.max(0, StatusMod.getConfig().adminOpLevel);
-        } catch (Exception ignored) {}
-        if (isConsoleSource(src)) return true;
-        if (hasSourcePermissionLevel(src, requiredLevel)) return true;
-        ServerPlayer directPlayer = null;
-        try { directPlayer = src.getPlayer(); } catch (Exception ignored) {}
-        if (directPlayer != null) {
-            if (hasPlayerPermissionLevel(directPlayer, requiredLevel)) return true;
-            if (isOpByOpsFileFallback(directPlayer, requiredLevel)) return true;
-        }
-        return false;
-    }
-
-    private static boolean isOpByOpsFileFallback(ServerPlayer player) {
-        return isOpByOpsFileFallback(player, 0);
-    }
-
-    private static boolean isOpByOpsFileFallback(ServerPlayer player, int minLevel) {
-        try {
-            if (player == null) return false;
-            String currentName = player.getScoreboardName();
-            if (currentName == null || currentName.isBlank()) return false;
-            long now = System.currentTimeMillis();
-            if ((now - lastOpsFileReadAt) > OPS_FILE_CACHE_MS) {
-                try {
-                    java.lang.reflect.Method m = player.getClass().getMethod("getServer");
-                    net.minecraft.server.MinecraftServer server = (net.minecraft.server.MinecraftServer) m.invoke(player);
-                    if (server != null) {
-                        reloadOpsFileCache(server);
-                        lastOpsFileReadAt = now;
-                    }
-                } catch (Exception ignored) {}
-            }
-            OpsCache ops = cachedOps;
-            String key = currentName.toLowerCase();
-            if (!ops.names.contains(key)) return false;
-            if (minLevel <= 0) return true;
-            Integer level = ops.levels.get(key);
-            return level != null && level >= minLevel;
-        } catch (Exception ignored) {
-            return false;
-        }
-    }
-
-    private static void reloadOpsFileCache(MinecraftServer server) {
-        Set<String> names = new HashSet<>();
-        Map<String, Integer> levels = new HashMap<>();
-        try {
-            Path opsPath = server.getServerDirectory().resolve("ops.json");
-            if (!Files.exists(opsPath)) {
-                cachedOps = new OpsCache(Set.of(), Map.of());
-                return;
-            }
-            String json = Files.readString(opsPath);
-            JsonElement root = JsonParser.parseString(json);
-            if (!(root instanceof JsonArray arr)) {
-                cachedOps = new OpsCache(Set.of(), Map.of());
-                return;
-            }
-            for (JsonElement e : arr) {
-                if (!(e instanceof JsonObject obj)) continue;
-                JsonElement nameEl = obj.get("name");
-                if (nameEl == null || nameEl.isJsonNull()) continue;
-                JsonElement levelEl = obj.get("level");
-                int level = (levelEl != null && !levelEl.isJsonNull()) ? levelEl.getAsInt() : 0;
-                String n = nameEl.getAsString();
-                if (n == null || n.isBlank()) continue;
-                String key = n.toLowerCase();
-                names.add(key);
-                levels.put(key, level);
-            }
-        } catch (Exception ignored) {}
-        cachedOps = new OpsCache(Set.copyOf(names), Map.copyOf(levels));
-    }
-
-    private static boolean hasSourcePermissionLevel(CommandSourceStack src, int level) {
-        if (src == null) return false;
-        try {
-            java.lang.reflect.Method m = src.getClass().getMethod("hasPermission", int.class);
-            Object r = m.invoke(src, level);
-            return (r instanceof Boolean b) && b;
-        } catch (Exception ignored) {}
-        try {
-            java.lang.reflect.Method m = src.getClass().getMethod("hasPermissionLevel", int.class);
-            Object r = m.invoke(src, level);
-            return (r instanceof Boolean b) && b;
-        } catch (Exception ignored) {}
-        return checkNewPermissionApi(src, level);
-    }
-
-    private static boolean hasPlayerPermissionLevel(ServerPlayer player, int level) {
-        if (player == null) return false;
-        String[] candidates = new String[]{"hasPermissions", "hasPermissionLevel", "hasPermission"};
-        for (String name : candidates) {
-            try {
-                java.lang.reflect.Method m = player.getClass().getMethod(name, int.class);
-                Object r = m.invoke(player, level);
-                if (r instanceof Boolean b && b) return true;
-            } catch (Exception ignored) {}
-        }
-        return checkNewPermissionApi(player, level);
-    }
-
-    private static volatile boolean newPermApiResolved = false;
-    private static volatile boolean newPermApiAvailable = false;
-    private static volatile java.lang.reflect.Field cachedNoPermissions;
-    private static volatile java.lang.reflect.Field cachedAllPermissions;
-    private static volatile java.lang.reflect.Method cachedSetHasPermission;
-    private static volatile java.lang.reflect.Field[] cachedCommandPermissionFields;
-    private static volatile java.lang.reflect.Method cachedLevelMethod;
-    private static volatile java.lang.reflect.Method cachedByIdMethod;
-    private static volatile java.lang.reflect.Method cachedIsEqOrHigher;
-    private static volatile Class<?> permissionLevelClass;
-
-    /**
-     * MC 26.x replaced hasPermission(int) with a PermissionSet-based model
-     * (net.minecraft.server.permissions.*). Reflection is used because the
-     * mod is compiled against 1.21.11 mappings. Methods are resolved on the
-     * public interfaces (not the concrete, package-private implementations)
-     * so invoke() does not throw IllegalAccessException.
-     */
-    private static synchronized void resolveNewPermissionApi() {
-        if (newPermApiResolved) return;
-        newPermApiResolved = true;
-        try {
-            Class<?> permissionSetClass = Class.forName("net.minecraft.server.permissions.PermissionSet");
-            cachedNoPermissions = permissionSetClass.getField("NO_PERMISSIONS");
-            cachedAllPermissions = permissionSetClass.getField("ALL_PERMISSIONS");
-            Class<?> permissionInterface = Class.forName("net.minecraft.server.permissions.Permission");
-            Class<?> permissionsClass = Class.forName("net.minecraft.server.permissions.Permissions");
-            cachedSetHasPermission = permissionSetClass.getMethod("hasPermission", permissionInterface);
-            cachedCommandPermissionFields = new java.lang.reflect.Field[]{
-                permissionsClass.getField("COMMANDS_OWNER"),
-                permissionsClass.getField("COMMANDS_ADMIN"),
-                permissionsClass.getField("COMMANDS_GAMEMASTER"),
-                permissionsClass.getField("COMMANDS_MODERATOR")
-            };
-            try {
-                Class<?> lbsClass = Class.forName("net.minecraft.server.permissions.LevelBasedPermissionSet");
-                cachedLevelMethod = lbsClass.getMethod("level");
-                try {
-                    cachedLevelMethod.setAccessible(true);
-                } catch (Throwable ignored) {}
-                permissionLevelClass = Class.forName("net.minecraft.server.permissions.PermissionLevel");
-                cachedByIdMethod = permissionLevelClass.getMethod("byId", int.class);
-                cachedIsEqOrHigher = permissionLevelClass.getMethod("isEqualOrHigherThan", permissionLevelClass);
-            } catch (Throwable ignored) {}
-            newPermApiAvailable = true;
-        } catch (Throwable ignored) {}
-    }
-
-    private static boolean checkNewPermissionApi(Object target, int requiredLevel) {
-        if (!newPermApiResolved) resolveNewPermissionApi();
-        if (!newPermApiAvailable) return false;
-        try {
-            java.lang.reflect.Method permissionsMethod = target.getClass().getMethod("permissions");
-            Object ps = permissionsMethod.invoke(target);
-            if (ps != null && hasPermissionInSet(ps, requiredLevel)) return true;
-        } catch (Throwable ignored) {}
-        if (target instanceof ServerPlayer player) {
-            try {
-                Object ps = player.getClass().getMethod("permissions").invoke(player);
-                if (ps != null && hasPermissionInSet(ps, requiredLevel)) return true;
-            } catch (Throwable ignored) {}
-        }
-        return false;
-    }
-
-    private static boolean hasPermissionInSet(Object ps, int requiredLevel) {
-        try {
-            if (cachedNoPermissions != null && ps == cachedNoPermissions.get(null)) return false;
-            if (cachedAllPermissions != null && ps == cachedAllPermissions.get(null)) return true;
-        } catch (Throwable ignored) {}
-        if (cachedLevelMethod != null && permissionLevelClass != null) {
-            try {
-                Object playerLevel = cachedLevelMethod.invoke(ps);
-                if (playerLevel != null) {
-                    Object required = cachedByIdMethod.invoke(null, requiredLevel);
-                    return (boolean) cachedIsEqOrHigher.invoke(playerLevel, required);
-                }
-            } catch (Throwable ignored) {}
-        }
-        if (cachedSetHasPermission != null && cachedCommandPermissionFields != null) {
-            try {
-                for (java.lang.reflect.Field f : cachedCommandPermissionFields) {
-                    Object perm = f.get(null);
-                    if ((boolean) cachedSetHasPermission.invoke(ps, perm)) return true;
-                }
-            } catch (Throwable ignored) {}
-        }
-        return false;
     }
 }
