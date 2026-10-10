@@ -2,7 +2,7 @@ package com.teufel.fleet;
 
 public final class FleetMod {
     public static final String MOD_ID = "statusmodfleet";
-    public static final String BUILD = "fleet2";
+    public static final String BUILD = "fleet3";
 
     private FleetMod() {}
 

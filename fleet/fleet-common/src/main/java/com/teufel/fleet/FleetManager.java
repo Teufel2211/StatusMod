@@ -170,7 +170,7 @@ public final class FleetManager {
     @SuppressWarnings("unchecked")
     static Map<String, Object> readStatusConfig() {
         try {
-            Path p = configPath();
+            Path p = statusConfigPath();
             if (!Files.exists(p)) return null;
             String text = Files.readString(p);
             Object parsed = GSON.fromJson(text, Map.class);
