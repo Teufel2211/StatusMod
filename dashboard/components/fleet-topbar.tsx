@@ -6,15 +6,15 @@ import { useEffect, useState } from "react"
 import { logout } from "@/lib/client/auth"
 
 function useClock(): string {
-  const [now, setNow] = useState("--:--:--")
+  const [now, setNow] = useState("--:--")
   useEffect(() => {
     const tick = () => {
       const d = new Date()
       const p = (n: number) => String(n).padStart(2, "0")
-      setNow(`${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`)
+      setNow(`${p(d.getHours())}:${p(d.getMinutes())}`)
     }
     tick()
-    const id = setInterval(tick, 1000)
+    const id = setInterval(tick, 15000)
     return () => clearInterval(id)
   }, [])
   return now
@@ -37,41 +37,41 @@ export default function FleetTopbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-4">
         <div className="flex items-center gap-2.5">
           <div
-            className="w-8 h-8 rounded flex items-center justify-center font-mono font-bold text-sm"
-            style={{ backgroundColor: "var(--accent)", color: "#021205", boxShadow: "0 0 18px var(--glow-accent)" }}
+            className="w-8 h-8 rounded-xl flex items-center justify-center font-display font-bold text-sm"
+            style={{ background: "linear-gradient(135deg, var(--accent), var(--cyan))", color: "#04202b", boxShadow: "0 0 18px var(--glow-accent)" }}
           >
             F
           </div>
-          <div className="font-mono">
-            <div className="font-bold text-sm leading-none fleet-phosphor">FLEET//COMMAND</div>
-            <div className="text-[10px] tracking-widest mt-0.5" style={{ color: "var(--text-muted)" }}>ADMIN UPLINK</div>
+          <div>
+            <div className="font-display font-bold text-sm leading-none" style={{ color: "var(--text-primary)" }}>Fleet Admin</div>
+            <div className="text-[10px] tracking-widest mt-0.5 font-mono" style={{ color: "var(--text-muted)" }}>ADMIN-BEREICH</div>
           </div>
         </div>
 
         <div className="flex-1" />
 
-        <span className="font-mono text-xs hidden sm:inline" style={{ color: "var(--accent)" }}>
-          ● SECURE UPLINK
+        <span className="badge-green hidden sm:inline-flex">
+          <span className="pulse-dot mr-1.5" />Verbunden
         </span>
         <span className="font-mono text-xs tabular-nums" style={{ color: "var(--text-secondary)" }}>{clock}</span>
 
         <Link
           href="/dashboard"
-          className="font-mono text-xs px-3 py-1.5 rounded transition-all"
+          className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
           style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent-border)"; e.currentTarget.style.color = "var(--accent)" }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent-border)"; e.currentTarget.style.color = "var(--text-primary)" }}
           onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-secondary)" }}
         >
-          ← dashboard
+          ← Dashboard
         </Link>
         <button
           onClick={handleLogout}
-          className="font-mono text-xs px-3 py-1.5 rounded transition-all"
+          className="text-xs font-medium px-3 py-1.5 rounded-lg transition-all"
           style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "#ff5f5f"; e.currentTarget.style.borderColor = "rgba(255,95,95,0.4)" }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.borderColor = "rgba(239,68,68,0.4)" }}
           onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.borderColor = "var(--border)" }}
         >
-          logout_
+          Abmelden
         </button>
       </div>
     </header>

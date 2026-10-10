@@ -287,59 +287,35 @@
   }
 }
 
-/* ============ FLEET COMMAND: eigene Welt (Phosphor-Terminal) ============
+/* ============ FLEET: eigene Welt (Smaragd Ops-Deck, immer dunkel) ============
    Wrapper-Klasse auf der Fleet-Seite: ueberschreibt das Farb-System lokal.
    Alle card/input/badge-Komponenten uebernehmen die Palette automatisch. */
 .fleet-theme {
-  --bg-primary: #020604;
-  --bg-card: #060d08;
-  --bg-hover: #0b1a10;
-  --bg-input: #040a06;
-  --border: #1d3a26;
-  --text-primary: #d9ffe2;
-  --text-secondary: #7fb08a;
-  --text-muted: #3f6047;
-  --accent: #4dff6a;
-  --accent-dim: #4dff6a1a;
-  --accent-hover: #86ff9d;
-  --accent-border: #4dff6a44;
-  --cyan: #ffb000;
-  --glow-accent: rgba(77, 255, 106, 0.35);
-  --glow-cyan: rgba(255, 176, 0, 0.25);
-  --grid-opacity: 0.06;
-  --mesh-a: rgba(77, 255, 106, 0.08);
-  --mesh-b: rgba(255, 176, 0, 0.06);
+  --bg-primary: #04080c;
+  --bg-card: #0a1216;
+  --bg-hover: #10202a;
+  --bg-input: #060d12;
+  --border: #1c3440;
+  --text-primary: #eaf6f3;
+  --text-secondary: #93b8ad;
+  --text-muted: #4a6a60;
+  --accent: #2dd4a7;
+  --accent-dim: #2dd4a71c;
+  --accent-hover: #5ce8bf;
+  --accent-border: #2dd4a744;
+  --cyan: #7cc7ff;
+  --glow-accent: rgba(45, 212, 167, 0.35);
+  --glow-cyan: rgba(124, 199, 255, 0.25);
+  --grid-opacity: 0.05;
+  --mesh-a: rgba(45, 212, 167, 0.10);
+  --mesh-b: rgba(124, 199, 255, 0.08);
 }
 
 .fleet-theme .font-display {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  letter-spacing: 0;
-}
-
-.fleet-scanlines {
-  position: relative;
-}
-.fleet-scanlines::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 5;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0px,
-    transparent 3px,
-    rgba(0, 0, 0, 0.22) 3px,
-    rgba(0, 0, 0, 0.22) 4px
-  );
-  animation: scan-drift 9s linear infinite;
-}
-
-.fleet-blink {
-  animation: blink-caret 1.1s steps(1) infinite;
+  font-family: 'Bricolage Grotesque', 'DM Sans', system-ui, sans-serif;
 }
 
 .fleet-phosphor {
   color: var(--accent);
-  text-shadow: 0 0 8px var(--glow-accent), 0 0 32px var(--glow-accent);
+  text-shadow: 0 0 24px var(--glow-accent);
 }

@@ -32,13 +32,11 @@ function ageString(iso: string | null): string {
 
 function actionColor(action: string): string {
   const a = action.toLowerCase()
-  if (a.includes("mute") || a.includes("block") || a.includes("ban")) return "#ff5f5f"
+  if (a.includes("mute") || a.includes("block") || a.includes("ban")) return "#f87171"
   if (a.includes("fleet") || a.includes("config") || a.includes("key")) return "var(--accent)"
   if (a.includes("login") || a.includes("auth") || a.includes("code")) return "var(--cyan)"
   return "var(--text-secondary)"
 }
-
-const ASCII_HR = "─".repeat(72)
 
 export default function FleetAdminPage() {
   const [health, setHealth] = useState<HealthData | null>(null)
@@ -113,179 +111,168 @@ export default function FleetAdminPage() {
   }
 
   const fleetActive = fleetSecret !== "" || fleetUrl !== ""
-  const sysRows: Array<[string, string, string]> = [
-    ["Fleet", fleetActive ? "Bereit" : "Leer", fleetActive ? "var(--accent)" : "var(--cyan)"],
-    ["Zuletzt geändert", ageString(fleetUpdatedAt), "var(--text-secondary)"],
-    ["Server", health?.status === "healthy" ? "Online" : "Prüfe…", health?.status === "healthy" ? "var(--accent)" : "var(--cyan)"],
-    ["Datenbank", health?.database === "connected" ? "Verbunden" : "Prüfe…", health?.database === "connected" ? "var(--accent)" : "#ff5f5f"],
-    ["Spieler", `${livePlayers.length} online / ${knownCount ?? "?"} bekannt`, "var(--text-primary)"],
-    ["Live-Feed", connection === "connected" ? "Verbunden" : "Getrennt", connection === "connected" ? "var(--accent)" : "var(--cyan)"],
-    ["Server-ID", serverId ? `${serverId.slice(0, 8)}…` : "—", "var(--text-muted)"],
-  ]
+  const live = connection === "connected"
 
   return (
-    <div className="font-mono">
-      <div className="mb-6 fade-up">
-        <div className="text-xs tracking-widest mb-2" style={{ color: "var(--text-muted)" }}>
-          Zentralsteuerung für alle Server
+    <div>
+      <div className="card card-glow mb-6 fade-up overflow-hidden">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <div className="kicker mb-2">Zentrale Steuerung · alle Server</div>
+            <h1 className="font-display font-bold text-3xl sm:text-4xl text-glow" style={{ color: "var(--text-primary)" }}>
+              Fleet <span className="text-gradient">Admin</span>
+            </h1>
+            <p className="text-sm mt-2" style={{ color: "var(--text-muted)" }}>
+              Ein Wert hier, alle Server dort {fleetUpdatedAt && <span>· geändert {ageString(fleetUpdatedAt)}</span>}
+              {serverId !== "" && <span className="font-mono"> · {serverId.slice(0, 8)}…</span>}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs" style={{ border: "1px solid var(--accent-border)", backgroundColor: "var(--accent-dim)", color: "var(--accent)" }}>
+            <span className="pulse-dot" />
+            {fleetActive ? "FLEET BEREIT" : "FLEET LEER"}
+          </div>
         </div>
-        <h1 className="font-bold text-3xl sm:text-4xl fleet-phosphor">
-          FLEET<span className="fleet-blink">_</span>COMMAND
-        </h1>
-        <div className="fleet-ascii-hr mt-3 hidden sm:block" aria-hidden>{ASCII_HR}</div>
       </div>
 
-      <div className="card p-0 overflow-hidden mb-6 fade-up anim-d1">
-        <div className="term-bar">
-          <span className="term-dot" style={{ backgroundColor: "#ff5f5f" }} />
-          <span className="term-dot" style={{ backgroundColor: "var(--cyan)" }} />
-          <span className="term-dot" style={{ backgroundColor: "var(--accent)" }} />
-          <span className="ml-2">Status</span>
-        </div>
-        <div className="p-0">
-          {sysRows.map(([k, v, c]) => (
-            <div
-              key={k}
-              className="flex items-center justify-between gap-4 px-4 sm:px-5 py-2.5 text-xs sm:text-sm border-b last:border-0"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <span style={{ color: "var(--text-muted)" }}>{k}</span>
-              <span className="font-bold text-right" style={{ color: c }}>{v}</span>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: "Server", value: health?.status === "healthy" ? "Online" : "…", ok: health?.status === "healthy" ? true : null as boolean | null },
+          { label: "Spieler online", value: String(livePlayers.length), ok: (livePlayers.length > 0 ? true : null) as boolean | null, sub: knownCount !== null ? `${knownCount} bekannt` : undefined },
+          { label: "Live-Feed", value: live ? "Verbunden" : connection === "connecting" ? "…" : "Getrennt", ok: live ? true : connection === "connecting" ? null : false },
+          { label: "Datenbank", value: health?.database === "connected" ? "Ok" : "…", ok: health?.database === "connected" ? true : null },
+        ].map((s, i) => (
+          <div key={s.label} className={`card fade-up anim-d${i + 1} !p-5`}>
+            <div className="kicker mb-2" style={{ fontSize: "10px" }}>{s.label}</div>
+            <div className="flex items-center gap-2">
+              <span className="stat-num" style={{ fontSize: "1.5rem" }}>{s.value}</span>
+              {s.ok === true && <span className="badge-green">OK</span>}
+              {s.ok === false && <span className="badge-red">!</span>}
             </div>
-          ))}
-        </div>
+            {s.sub && <div className="text-[11px] font-mono mt-1" style={{ color: "var(--text-muted)" }}>{s.sub}</div>}
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
-        <div className="lg:col-span-3 space-y-6">
-          <div className="card p-0 overflow-hidden fade-up anim-d2">
-            <div className="term-bar">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
+        <div className="lg:col-span-3 space-y-4">
+          <div className="card card-glow fade-up anim-d2">
+            <div className="flex items-center gap-2 mb-3">
               <span className="pulse-dot" />
-              <span className="ml-2">Spieler online [{livePlayers.length}]</span>
+              <h2 className="font-display font-semibold" style={{ color: "var(--text-primary)" }}>Spieler online ({livePlayers.length})</h2>
             </div>
-            <div className="p-4">
-              {livePlayers.length === 0 ? (
-                <p className="text-sm" style={{ color: "var(--text-muted)" }}>Niemand online.</p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {livePlayers.map((p) => (
-                    <a
-                      key={p.uuid}
-                      href={`/dashboard/players/${p.uuid}`}
-                      className="flex items-center gap-2 px-3 py-2 rounded transition-all text-sm hover:-translate-y-0.5"
-                      style={{ border: "1px solid var(--border)", backgroundColor: "var(--bg-primary)" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent-border)"; e.currentTarget.style.boxShadow = "0 0 14px var(--glow-accent)" }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "" }}
-                    >
-                      <PlayerAvatar uuid={p.uuid} username={p.username} avatar={p.avatar} sizePx={20} />
-                      <span style={{ color: "var(--text-primary)" }}>{p.username ?? "Unknown"}</span>
-                      {p.status && (
-                        <span className="text-xs" style={{ color: "var(--text-muted)" }}>[{p.status}]</span>
-                      )}
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
+            {livePlayers.length === 0 ? (
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>Niemand online.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {livePlayers.map((p) => (
+                  <a
+                    key={p.uuid}
+                    href={`/dashboard/players/${p.uuid}`}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-sm hover:-translate-y-0.5"
+                    style={{ border: "1px solid var(--border)", backgroundColor: "var(--bg-primary)" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent-border)"; e.currentTarget.style.boxShadow = "0 0 14px var(--glow-accent)" }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "" }}
+                  >
+                    <PlayerAvatar uuid={p.uuid} username={p.username} avatar={p.avatar} sizePx={20} />
+                    <span className="font-medium" style={{ color: "var(--text-primary)" }}>{p.username ?? "Unknown"}</span>
+                    {p.status && (
+                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--accent-dim)", color: "var(--accent)" }}>{p.status}</span>
+                    )}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="card p-0 overflow-hidden fade-up anim-d3">
-            <div className="term-bar">
-              <span className="ml-0">Letzte Aktivität</span>
-              <span className="flex-1" />
-              <a href="/dashboard/audit" className="underline underline-offset-2" style={{ color: "var(--text-muted)" }}>
+          <div className="card fade-up anim-d3">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-display font-semibold" style={{ color: "var(--text-primary)" }}>Letzte Aktivität</h2>
+              <a href="/dashboard/audit" className="font-mono text-xs underline underline-offset-2" style={{ color: "var(--text-muted)" }}>
                 Alle ansehen →
               </a>
             </div>
-            <div className="p-4">
-              {activity.length === 0 ? (
-                <p className="text-sm" style={{ color: "var(--text-muted)" }}>Noch keine Einträge.</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {activity.map((entry) => (
-                    <div key={entry.id} className="flex items-baseline gap-3 text-xs sm:text-sm">
-                      <span className="shrink-0 tabular-nums" style={{ color: "var(--text-muted)" }}>
-                        {new Date(entry.created_at).toLocaleTimeString()}
-                      </span>
-                      <span className="shrink-0 font-bold" style={{ color: actionColor(entry.action) }}>
-                        [{entry.action}]
-                      </span>
+            {activity.length === 0 ? (
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>Noch keine Einträge.</p>
+            ) : (
+              <div className="space-y-2">
+                {activity.map((entry) => (
+                  <div key={entry.id} className="flex items-start gap-3 py-1.5 border-b last:border-0" style={{ borderColor: "var(--border)" }}>
+                    <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ backgroundColor: actionColor(entry.action), boxShadow: `0 0 8px ${actionColor(entry.action)}` }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <code className="text-xs font-mono font-semibold" style={{ color: actionColor(entry.action) }}>{entry.action}</code>
+                        <span className="text-[10px] font-mono" style={{ color: "var(--text-muted)" }}>
+                          {new Date(entry.created_at).toLocaleString()}
+                        </span>
+                      </div>
                       {entry.detail && (
-                        <span className="truncate" style={{ color: "var(--text-secondary)" }}>{entry.detail}</span>
+                        <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-secondary)" }}>{entry.detail}</p>
                       )}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="lg:col-span-2 space-y-6">
-          <div className="card p-0 overflow-hidden card-glow fade-up anim-d2">
-            <div className="term-bar">
-              <span className="term-dot" style={{ backgroundColor: "#ff5f5f" }} />
-              <span className="term-dot" style={{ backgroundColor: "var(--cyan)" }} />
-              <span className="term-dot" style={{ backgroundColor: "var(--accent)" }} />
-              <span className="ml-2">An alle verteilen</span>
-            </div>
-            <div className="p-4 sm:p-5">
-              <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
-                Verteilt URL + Secret an alle Fleet-Server. IDs und Keys bleiben je Server erhalten.
+        <div className="lg:col-span-2 space-y-4">
+          <div className="card card-glow fade-up anim-d2">
+            <div className="kicker mb-2">Verteilen</div>
+            <h2 className="font-display font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Fleet-Werte</h2>
+            <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+              An alle Fleet-Server. IDs und Keys bleiben je Server erhalten.
+            </p>
+            <label className="label">Dashboard-URL</label>
+            <input
+              className="input font-mono text-xs w-full"
+              value={fleetUrl}
+              onChange={(e) => setFleetUrl(e.target.value)}
+              placeholder="https://statusmod-dashboard.vercel.app"
+              spellCheck={false}
+              disabled={!loaded}
+            />
+            <label className="label mt-4">Setup-Secret</label>
+            <input
+              className="input font-mono text-xs w-full"
+              type="password"
+              value={fleetSecret}
+              onChange={(e) => setFleetSecret(e.target.value)}
+              placeholder="Gleicher Wert für alle Server"
+              spellCheck={false}
+              autoComplete="new-password"
+              disabled={!loaded}
+            />
+            <button className="btn-primary w-full mt-4 text-sm" onClick={handleSave} disabled={saving || !loaded}>
+              {saving ? "Wird verteilt…" : "Auf alle Server verteilen"}
+            </button>
+            {message && (
+              <p className={`text-xs mt-3 font-mono ${message.startsWith("Gespeichert") ? "text-emerald-400" : "text-red-400"}`}>
+                {message}
               </p>
-              <label className="text-xs block mb-1 tracking-widest" style={{ color: "var(--text-secondary)" }}>DASHBOARD-URL</label>
-              <input
-                className="input text-xs w-full"
-                value={fleetUrl}
-                onChange={(e) => setFleetUrl(e.target.value)}
-                placeholder="https://statusmod-dashboard.vercel.app"
-                spellCheck={false}
-                disabled={!loaded}
-              />
-              <label className="text-xs block mb-1 mt-4 tracking-widest" style={{ color: "var(--text-secondary)" }}>SETUP-SECRET</label>
-              <input
-                className="input text-xs w-full"
-                type="password"
-                value={fleetSecret}
-                onChange={(e) => setFleetSecret(e.target.value)}
-                placeholder="Gleicher Wert für alle Server"
-                spellCheck={false}
-                autoComplete="new-password"
-                disabled={!loaded}
-              />
-              <button className="btn-primary w-full mt-4 font-mono text-sm" onClick={handleSave} disabled={saving || !loaded}>
-                {saving ? "Wird verteilt…" : "Auf alle Server verteilen"}
-              </button>
-              {message && (
-                <p className="text-xs mt-3 font-mono" style={{ color: message.startsWith("Gespeichert") ? "var(--accent)" : "#ff5f5f" }}>
-                  {message}
-                </p>
-              )}
-              <p className="text-[11px] font-mono mt-3" style={{ color: "var(--text-muted)" }}>
-                Datei auf Servern: config/statusmodfleet/config.json · ca. 1 Minute + Neustart
-              </p>
-            </div>
+            )}
+            <p className="text-[11px] font-mono mt-3" style={{ color: "var(--text-muted)" }}>
+              Datei: config/statusmodfleet/config.json · ca. 1 Minute + Neustart
+            </p>
           </div>
 
-          <div className="card p-0 overflow-hidden fade-up anim-d4">
-            <div className="term-bar">
-              <span className="ml-0">Bereiche</span>
-            </div>
-            <div className="p-4 grid grid-cols-1 gap-2">
+          <div className="card fade-up anim-d4">
+            <div className="kicker mb-3">Bereiche</div>
+            <div className="grid grid-cols-1 gap-2">
               {[
-                { href: "/dashboard/players", label: "Spieler", desc: "Übersicht + Status" },
-                { href: "/dashboard/keys", label: "Keys", desc: "API-Zugang" },
-                { href: "/dashboard/config", label: "Config", desc: "Server-JSON" },
-                { href: "/dashboard/audit", label: "Protokoll", desc: "Alle Aktionen" },
+                { href: "/dashboard/players", label: "Spieler", desc: "Übersicht + Status", icon: "◎" },
+                { href: "/dashboard/keys", label: "Keys", desc: "API-Zugang", icon: "⌨" },
+                { href: "/dashboard/config", label: "Config", desc: "Server-JSON", icon: "⚙" },
+                { href: "/dashboard/audit", label: "Protokoll", desc: "Alle Aktionen", icon: "◉" },
               ].map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded transition-all text-sm font-mono"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm hover:-translate-y-0.5"
                   style={{ border: "1px solid var(--border)", color: "var(--text-secondary)", backgroundColor: "var(--bg-primary)" }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = "var(--accent-border)"
-                    e.currentTarget.style.color = "var(--accent)"
+                    e.currentTarget.style.color = "var(--text-primary)"
                     e.currentTarget.style.boxShadow = "0 0 14px var(--glow-accent)"
                   }}
                   onMouseLeave={(e) => {
@@ -294,8 +281,8 @@ export default function FleetAdminPage() {
                     e.currentTarget.style.boxShadow = ""
                   }}
                 >
-                  <span style={{ color: "var(--accent)" }}>▸</span>
-                  {link.label}
+                  <span style={{ color: "var(--accent)" }}>{link.icon}</span>
+                  <span className="font-medium">{link.label}</span>
                   <span className="text-xs" style={{ color: "var(--text-muted)" }}>— {link.desc}</span>
                 </a>
               ))}
@@ -304,9 +291,8 @@ export default function FleetAdminPage() {
         </div>
       </div>
 
-      <div className="fleet-ascii-hr mb-2 hidden sm:block" aria-hidden>{ASCII_HR}</div>
-      <p className="font-mono text-[11px]" style={{ color: "var(--text-muted)" }}>
-        Owner-Code: <span style={{ color: "var(--text-secondary)" }}>/fleet owner-code</span> in der Server-Konsole eingeben, dann hier über Login einlösen<span className="fleet-blink" style={{ color: "var(--accent)" }}>▌</span>
+      <p className="font-mono text-[11px] fade-up anim-d5" style={{ color: "var(--text-muted)" }}>
+        <span style={{ color: "var(--accent)" }}>Tipp:</span> Owner-Code mit <span style={{ color: "var(--text-secondary)" }}>/fleet owner-code</span> in der Server-Konsole erzeugen, dann hier über Login einlösen.
       </p>
     </div>
   )

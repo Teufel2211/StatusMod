@@ -45,7 +45,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (isFleet) {
     return (
-      <div className="fleet-theme fleet-scanlines min-h-screen hero-mesh bg-grid" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}>
+      <div className="fleet-theme min-h-screen hero-mesh bg-grid" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}>
         <FleetTopbar />
         <main className="flex-1 overflow-auto flex flex-col">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full">
