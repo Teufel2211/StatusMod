@@ -45,8 +45,8 @@ export default function ConfigPage() {
 
   return (
     <div>
-      <div className="mb-8 fade-up">
-        <div className="kicker mb-2">Raw JSON · validiert beim Speichern</div>
+      <div className="mb-6 fade-up">
+        <div className="kicker mb-2">Raw JSON · validated on save</div>
         <h1 className="font-display font-bold text-3xl text-glow" style={{ color: "var(--text-primary)" }}>Server Config</h1>
         <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>Edit your server configuration (JSON)</p>
       </div>
@@ -56,7 +56,7 @@ export default function ConfigPage() {
           <span className="term-dot" style={{ backgroundColor: "#ef4444" }} />
           <span className="term-dot" style={{ backgroundColor: "#f59e0b" }} />
           <span className="term-dot" style={{ backgroundColor: "#10b981" }} />
-          <span className="ml-2">config.json — vorsichtig editieren</span>
+          <span className="ml-2">config.json — edit carefully</span>
         </div>
         <div className="p-6">
           <textarea

@@ -77,7 +77,7 @@ export default function LoginPage() {
               </div>
 
               {error && (
-                <div className="text-sm rounded-lg px-3 py-2 font-mono" style={{ color: "#ef4444", backgroundColor: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}>
+                <div className="text-sm rounded-xl px-3 py-2 font-mono" style={{ color: "#ef4444", backgroundColor: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}>
                   [!] {error}
                 </div>
               )}

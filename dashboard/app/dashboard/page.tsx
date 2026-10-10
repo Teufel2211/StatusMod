@@ -13,6 +13,7 @@ type HealthData = {
 
 export default function DashboardOverview() {
   const [health, setHealth] = useState<HealthData | null>(null)
+  const [knownCount, setKnownCount] = useState<number | null>(null)
   const { players: livePlayers, connection } = useRealtimePlayers()
 
   useEffect(() => {
@@ -20,98 +21,122 @@ export default function DashboardOverview() {
       .then((r) => r.json())
       .then((d) => setHealth(d))
       .catch(() => {})
+    const sid = getServerId()
+    if (sid) {
+      apiFetch(`/api/players/${sid}`)
+        .then((r) => (r.ok ? r.json() : []))
+        .then((d) => setKnownCount(Array.isArray(d) ? d.length : null))
+        .catch(() => {})
+    }
   }, [])
 
-  const playerCount = livePlayers.length
-  const connectionLabel = connection === "connected" ? "Live" : connection === "connecting" ? "Connecting..." : "Offline"
-  const connectionBadge = connection === "connected" ? "badge-green" : connection === "connecting" ? "badge-yellow" : "badge-red"
-
-  const stats = [
-    { label: "Server Status", value: health?.status === "healthy" ? "Online" : (health?.status ?? "—"), badge: health?.status === "healthy" ? "badge-green" : "badge-yellow" },
-    { label: "Database", value: health?.database === "connected" ? "Linked" : (health?.database ?? "—"), badge: health?.database === "connected" ? "badge-green" : "badge-red" },
-    { label: "Players", value: String(playerCount), badge: "" },
-    { label: "Realtime", value: connectionLabel, badge: connectionBadge },
-  ]
+  const live = connection === "connected"
 
   return (
     <div>
-      <div className="mb-8 fade-up">
-        <div className="kicker mb-2">Ops console</div>
-        <h1 className="font-display font-bold text-3xl text-glow" style={{ color: "var(--text-primary)" }}>
-          Dash<span className="text-gradient">board</span>
-        </h1>
-        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>Overview of your server</p>
+      <div className="card card-glow mb-6 fade-up overflow-hidden">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <div className="kicker mb-2">Live ops · {live ? "streaming" : connection}</div>
+            <h1 className="font-display font-bold text-3xl sm:text-4xl text-glow" style={{ color: "var(--text-primary)" }}>
+              {livePlayers.length > 0 ? (
+                <><span className="text-gradient">{livePlayers.length}</span> online now</>
+              ) : (
+                <>All quiet<span className="text-gradient">.</span></>
+              )}
+            </h1>
+            <p className="text-sm mt-2" style={{ color: "var(--text-muted)" }}>
+              {knownCount !== null ? `${knownCount} known players` : "Loading roster…"}
+              {" · "}{health?.status === "healthy" ? "systems nominal" : "checking systems…"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl font-mono text-xs" style={{ border: "1px solid var(--accent-border)", backgroundColor: "var(--accent-dim)", color: "var(--accent)" }}>
+            <span className="pulse-dot" />
+            {live ? "LIVE FEED" : connection.toUpperCase()}
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {stats.map((s, i) => (
-          <div key={s.label} className={`card card-glow fade-up anim-d${i + 1}`}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: "Server", value: health?.status === "healthy" ? "Online" : (health?.status ?? "—"), ok: health?.status === "healthy" },
+          { label: "Database", value: health?.database === "connected" ? "Linked" : (health?.database ?? "—"), ok: health?.database === "connected" },
+          { label: "Known players", value: knownCount !== null ? String(knownCount) : "—", ok: null },
+          { label: "Realtime", value: live ? "Live" : connection === "connecting" ? "…" : "Off", ok: live ? true : connection === "connecting" ? null : false },
+        ].map((s, i) => (
+          <div key={s.label} className={`card fade-up anim-d${i + 1} !p-5`}>
             <div className="kicker mb-2" style={{ fontSize: "10px" }}>{s.label}</div>
             <div className="flex items-center gap-2">
-              <span className="stat-num">{s.value}</span>
-              {s.badge === "badge-green" && <span className="badge-green">OK</span>}
-              {s.badge === "badge-red" && <span className="badge-red">!</span>}
-              {s.badge === "badge-yellow" && <span className="badge-yellow">?</span>}
+              <span className="stat-num" style={{ fontSize: "1.5rem" }}>{s.value}</span>
+              {s.ok === true && <span className="badge-green">OK</span>}
+              {s.ok === false && <span className="badge-red">!</span>}
+              {s.ok === null && s.label === "Realtime" && <span className="badge-yellow">?</span>}
             </div>
           </div>
         ))}
       </div>
 
-      {livePlayers.length > 0 && (
-        <div className="card card-glow mb-8 fade-up anim-d3">
-          <div className="flex items-center gap-2 mb-3">
+      <div className="card card-glow mb-6 fade-up anim-d3">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
             <span className="pulse-dot" />
             <h2 className="font-display font-semibold" style={{ color: "var(--text-primary)" }}>Live Players</h2>
           </div>
+          <a href="/dashboard/players" className="font-mono text-xs underline underline-offset-2" style={{ color: "var(--text-muted)" }}>
+            roster →
+          </a>
+        </div>
+        {livePlayers.length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Nobody online right now — the feed lights up on join.</p>
+        ) : (
           <div className="flex flex-wrap gap-2">
             {livePlayers.map((p) => (
               <a
                 key={p.uuid}
                 href={`/dashboard/players/${p.uuid}`}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm hover:-translate-y-0.5"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all text-sm hover:-translate-y-0.5"
                 style={{ border: "1px solid var(--border)", backgroundColor: "var(--bg-primary)" }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent-border)"; e.currentTarget.style.boxShadow = "0 0 14px var(--glow-accent)" }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "" }}
               >
                 <PlayerAvatar uuid={p.uuid} username={p.username} avatar={p.avatar} sizePx={20} />
-                <span style={{ color: "var(--text-primary)" }}>{p.username ?? "Unknown"}</span>
+                <span className="font-medium" style={{ color: "var(--text-primary)" }}>{p.username ?? "Unknown"}</span>
                 {p.status && (
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>{p.status}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--accent-dim)", color: "var(--accent)" }}>{p.status}</span>
                 )}
               </a>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="card fade-up anim-d4">
         <div className="kicker mb-3">Shortcuts</div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {[
-            { href: "/dashboard/players", label: "Manage Players", icon: "◎" },
-            { href: "/dashboard/config", label: "Server Config", icon: "⚙" },
-            { href: "/dashboard/keys", label: "API Keys", icon: "⌨" },
-            { href: "/dashboard/audit", label: "Audit Log", icon: "◉" },
-            { href: "/dashboard/fleet", label: "Fleet Admin", icon: "⬡" },
+            { href: "/dashboard/players", label: "Players", icon: "◎", hint: "roster" },
+            { href: "/dashboard/fleet", label: "Fleet", icon: "⬡", hint: "distribute" },
+            { href: "/dashboard/config", label: "Config", icon: "⚙", hint: "json" },
+            { href: "/dashboard/keys", label: "Keys", icon: "⌨", hint: "access" },
+            { href: "/dashboard/audit", label: "Audit", icon: "◉", hint: "trail" },
           ].map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="flex items-center gap-2 px-3 py-3 rounded-lg transition-all text-sm hover:-translate-y-0.5"
-              style={{ border: "1px solid var(--border)", color: "var(--text-secondary)", backgroundColor: "var(--bg-primary)" }}
+              className="rounded-xl px-3 py-3.5 transition-all hover:-translate-y-0.5 group"
+              style={{ border: "1px solid var(--border)", backgroundColor: "var(--bg-primary)" }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = "var(--accent-border)"
-                e.currentTarget.style.color = "var(--text-primary)"
-                e.currentTarget.style.boxShadow = "0 0 14px var(--glow-accent)"
+                e.currentTarget.style.boxShadow = "0 0 18px var(--glow-accent)"
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = "var(--border)"
-                e.currentTarget.style.color = "var(--text-secondary)"
                 e.currentTarget.style.boxShadow = ""
               }}
             >
-              <span className="font-display" style={{ color: "var(--accent)" }}>{link.icon}</span>
-              {link.label}
+              <div className="font-display text-xl mb-1" style={{ color: "var(--accent)" }}>{link.icon}</div>
+              <div className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{link.label}</div>
+              <div className="font-mono text-[11px]" style={{ color: "var(--text-muted)" }}>{link.hint}</div>
             </a>
           ))}
         </div>

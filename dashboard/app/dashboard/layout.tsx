@@ -1,18 +1,15 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { usePathname, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import Sidebar from "@/components/sidebar"
-import FleetTopbar from "@/components/fleet-topbar"
 import Footer from "@/components/footer"
 import { ensureSession } from "@/lib/client/auth"
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const pathname = usePathname()
   const [authed, setAuthed] = useState(false)
   const [checking, setChecking] = useState(true)
-  const isFleet = pathname === "/dashboard/fleet" || pathname.startsWith("/dashboard/fleet/")
 
   useEffect(() => {
     let cancelled = false
@@ -42,20 +39,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   if (!authed) return null
-
-  if (isFleet) {
-    return (
-      <div className="fleet-theme fleet-scanlines min-h-screen hero-mesh bg-grid" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}>
-        <FleetTopbar />
-        <main className="flex-1 overflow-auto flex flex-col">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full">
-            {children}
-          </div>
-          <Footer className="px-6 pb-6" />
-        </main>
-      </div>
-    )
-  }
 
   return (
     <div className="flex min-h-screen hero-mesh bg-grid" style={{ backgroundColor: "var(--bg-primary)" }}>
