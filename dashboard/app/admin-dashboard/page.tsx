@@ -1,9 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { apiFetch, getServerId } from "@/lib/client/auth"
+import { useRouter } from "next/navigation"
+import { apiFetch, getServerId, ensureSession } from "@/lib/client/auth"
 import { useRealtimePlayers } from "@/lib/client/use-realtime"
 import { PlayerAvatar } from "@/components/player-avatar"
+import FleetTopbar from "@/components/fleet-topbar"
+import Footer from "@/components/footer"
 
 type HealthData = {
   status: string
@@ -39,6 +42,9 @@ function actionColor(action: string): string {
 }
 
 export default function FleetAdminPage() {
+  const router = useRouter()
+  const [authed, setAuthed] = useState(false)
+  const [checking, setChecking] = useState(true)
   const [health, setHealth] = useState<HealthData | null>(null)
   const [knownCount, setKnownCount] = useState<number | null>(null)
   const [activity, setActivity] = useState<AuditEntry[]>([])
@@ -52,6 +58,23 @@ export default function FleetAdminPage() {
   const { players: livePlayers, connection } = useRealtimePlayers()
 
   useEffect(() => {
+    let cancelled = false
+    ensureSession().then((ok) => {
+      if (cancelled) return
+      if (ok) {
+        setAuthed(true)
+        setChecking(false)
+      } else {
+        router.push("/login")
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [router])
+
+  useEffect(() => {
+    if (!authed) return
     fetch("/api/health")
       .then((r) => r.json())
       .then((d) => setHealth(d))
@@ -81,7 +104,7 @@ export default function FleetAdminPage() {
         setLoaded(true)
       })
       .catch(() => setMessage("Laden fehlgeschlagen."))
-  }, [])
+  }, [authed])
 
   async function handleSave() {
     setSaving(true)
@@ -113,8 +136,23 @@ export default function FleetAdminPage() {
   const fleetActive = fleetSecret !== "" || fleetUrl !== ""
   const live = connection === "connected"
 
+  if (checking) {
+    return (
+      <div className="fleet-theme min-h-screen flex items-center justify-center" style={{ backgroundColor: "var(--bg-primary)" }}>
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: "var(--accent)" }} />
+          <span className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>Verbindung wird aufgebaut…</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!authed) return null
+
   return (
-    <div>
+    <div className="fleet-theme min-h-screen hero-mesh bg-grid" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }}>
+      <FleetTopbar />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
       <div className="card card-glow mb-6 fade-up overflow-hidden">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
@@ -294,6 +332,8 @@ export default function FleetAdminPage() {
       <p className="font-mono text-[11px] fade-up anim-d5" style={{ color: "var(--text-muted)" }}>
         <span style={{ color: "var(--accent)" }}>Tipp:</span> Owner-Code mit <span style={{ color: "var(--text-secondary)" }}>/fleet owner-code</span> in der Server-Konsole erzeugen, dann hier über Login einlösen.
       </p>
+      </div>
+      <Footer className="px-6 pb-6" />
     </div>
   )
 }

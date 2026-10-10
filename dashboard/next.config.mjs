@@ -4,6 +4,15 @@ import { withSentryConfig } from "@sentry/nextjs"
 const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  async redirects() {
+    return [
+      {
+        source: "/dashboard/fleet",
+        destination: "/admin-dashboard",
+        permanent: true,
+      },
+    ]
+  },
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.externals.push({ "@node-rs/argon2": "commonjs @node-rs/argon2" })

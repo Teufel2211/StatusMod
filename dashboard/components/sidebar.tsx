@@ -11,7 +11,7 @@ const navSections = [
     items: [
       { href: "/dashboard", label: "Overview", icon: "◆" },
       { href: "/dashboard/players", label: "Players", icon: "◎" },
-      { href: "/dashboard/fleet", label: "Fleet", icon: "⬡" },
+      { href: "/admin-dashboard", label: "Fleet", icon: "⬡" },
     ],
   },
   {

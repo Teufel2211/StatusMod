@@ -32,7 +32,7 @@ export default function LoginPage() {
 
       const data = await res.json()
       setAccessToken(data.access_token)
-      router.push(ownerMode ? "/dashboard/fleet" : "/dashboard")
+      router.push(ownerMode ? "/admin-dashboard" : "/dashboard")
     } catch {
       setError("Connection failed")
     } finally {
