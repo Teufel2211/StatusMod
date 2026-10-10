@@ -119,8 +119,7 @@ public final class SyncManager {
     private static void push() {
         ModConfig config = StatusMod.getConfig();
         if (config == null || StatusMod.storage == null) return;
-        if (config.dashboardUrl == null) return;
-        String dashboardUrl = CodeGenerator.trimTrailingSlash(config.dashboardUrl.trim());
+        String dashboardUrl = CodeGenerator.trimTrailingSlash(config.effectiveDashboardUrl());
         if (!CodeGenerator.isSecureHttpUrl(dashboardUrl)) return;
         if (!isValidUuid(config.serverId)) return;
         String endpoint = dashboardUrl + "/api/players/" + config.serverId + "/sync";
@@ -219,8 +218,7 @@ public final class SyncManager {
     private static void pull() {
         ModConfig config = StatusMod.getConfig();
         if (config == null || StatusMod.mutedPlayers == null || StatusMod.blockedPlayers == null) return;
-        if (config.dashboardUrl == null) return;
-        String dashboardUrl = CodeGenerator.trimTrailingSlash(config.dashboardUrl.trim());
+        String dashboardUrl = CodeGenerator.trimTrailingSlash(config.effectiveDashboardUrl());
         if (!CodeGenerator.isSecureHttpUrl(dashboardUrl)) {
             System.out.println("[StatusMod] Sync pull skipped: dashboardUrl must use HTTPS (or localhost for dev)");
             return;

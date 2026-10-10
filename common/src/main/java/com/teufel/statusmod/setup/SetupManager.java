@@ -27,9 +27,10 @@ public final class SetupManager {
     public static void runIfNeeded() {
         ModConfig config = StatusMod.getConfig();
         if (config == null) return;
-        if (config.dashboardUrl == null || config.dashboardUrl.trim().isEmpty()) return;
-        if (config.setupSecret == null || config.setupSecret.trim().isEmpty()) return;
-        String dashboardUrl = config.dashboardUrl.trim();
+        String dashboardUrl = config.effectiveDashboardUrl();
+        String setupSecret = config.effectiveSetupSecret();
+        if (dashboardUrl.isEmpty()) return;
+        if (setupSecret.isEmpty()) return;
         if (!CodeGenerator.isSecureHttpUrl(dashboardUrl)) {
             System.out.println("[StatusMod] Setup skipped: dashboardUrl must use HTTPS (or http://localhost for dev)");
             return;
@@ -50,7 +51,7 @@ public final class SetupManager {
 
         Thread thread = new Thread(() -> {
             try {
-                if (register(serverId, code, baseUrl, config.setupSecret)) {
+                if (register(serverId, code, baseUrl, setupSecret)) {
                     config.serverId = serverId;
                     config.save();
                     System.out.println("==============================================");
@@ -89,7 +90,7 @@ public final class SetupManager {
                 return;
             }
             try {
-                String apiKey = fetchPendingKey(CodeGenerator.trimTrailingSlash(config.dashboardUrl), config.serverId, config.setupSecret);
+                String apiKey = fetchPendingKey(CodeGenerator.trimTrailingSlash(config.effectiveDashboardUrl()), config.serverId, config.effectiveSetupSecret());
                 if (apiKey != null) {
                     config.apiKey = apiKey;
                     config.save();

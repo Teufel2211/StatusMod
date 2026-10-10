@@ -62,7 +62,7 @@ public final class CodeCommand {
             src.sendFailure(Component.literal("[StatusMod] dashboardUrl ist in der Konfiguration nicht gesetzt."));
             return;
         }
-        String dashboardUrl = config.dashboardUrl.trim();
+        String dashboardUrl = config.effectiveDashboardUrl();
         if (!CodeGenerator.isSecureHttpUrl(dashboardUrl)) {
             src.sendFailure(Component.literal("[StatusMod] dashboardUrl muss HTTPS verwenden (oder http://localhost für Entwicklung)."));
             return;

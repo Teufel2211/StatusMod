@@ -201,4 +201,36 @@ public class ModConfig {
         }
         return s;
     }
+
+    /**
+     * Fleet override: when the Fleet mod manages dashboardUrl/setupSecret in
+     * its own file (config/statusmodfleet/config.json), those values win over
+     * this config. serverId/apiKey always stay local (per-server identity).
+     */
+    private static String fleetValue(String key) {
+        try {
+            Path p = Path.of("config", "statusmodfleet", "config.json");
+            if (!Files.exists(p)) return "";
+            Object parsed = GSON.fromJson(Files.readString(p), Map.class);
+            if (parsed instanceof Map<?, ?> map) {
+                Object v = map.get(key);
+                return v == null ? "" : String.valueOf(v).trim();
+            }
+        } catch (Exception ignored) {}
+        return "";
+    }
+
+    /** Effective dashboard URL: fleet file wins when set, else own config. */
+    public String effectiveDashboardUrl() {
+        String f = fleetValue("dashboardUrl");
+        if (!f.isEmpty()) return f;
+        return dashboardUrl == null ? "" : dashboardUrl;
+    }
+
+    /** Effective setup secret: fleet file wins when set, else own config. */
+    public String effectiveSetupSecret() {
+        String f = fleetValue("setupSecret");
+        if (!f.isEmpty()) return f;
+        return setupSecret == null ? "" : setupSecret;
+    }
 }

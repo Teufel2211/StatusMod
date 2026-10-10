@@ -9,6 +9,7 @@ const navItems = [
   { href: "/dashboard", label: "Overview", icon: "◆" },
   { href: "/dashboard/players", label: "Players", icon: "◎" },
   { href: "/dashboard/config", label: "Config", icon: "⚙" },
+  { href: "/dashboard/fleet", label: "Fleet", icon: "⬡" },
   { href: "/dashboard/keys", label: "API Keys", icon: "⌨" },
   { href: "/dashboard/audit", label: "Audit Log", icon: "◉" },
 ]

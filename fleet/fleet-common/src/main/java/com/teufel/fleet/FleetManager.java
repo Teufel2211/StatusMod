@@ -27,7 +27,9 @@ import java.util.Map;
  * all unknown fields.
  */
 public final class FleetManager {
-    private static final long PULL_INTERVAL_MS = 60_000L;
+    private static final long DEFAULT_PULL_INTERVAL_MS = 60_000L;
+    private static final long MIN_PULL_INTERVAL_MS = 15_000L;
+    private static final long MAX_PULL_INTERVAL_MS = 3_600_000L;
     private static final long LOOP_TICK_MS = 5_000L;
     private static final int MAX_BODY_BYTES = 8 * 1024 * 1024;
     private static final Gson GSON = new Gson();
@@ -56,6 +58,7 @@ public final class FleetManager {
 
     private static void loop() {
         long lastPull = 0L;
+        long interval = DEFAULT_PULL_INTERVAL_MS;
         while (true) {
             try {
                 Thread.sleep(LOOP_TICK_MS);
@@ -63,7 +66,8 @@ public final class FleetManager {
                 return;
             }
             long now = System.currentTimeMillis();
-            if (pullNow || (now - lastPull) >= PULL_INTERVAL_MS) {
+            interval = pullIntervalMs();
+            if (pullNow || (now - lastPull) >= interval) {
                 pullNow = false;
                 lastPull = now;
                 try {
@@ -77,11 +81,94 @@ public final class FleetManager {
     }
 
     private static Path configPath() {
+        return Path.of("config", "statusmodfleet", "config.json");
+    }
+
+    private static Path statusConfigPath() {
         return Path.of("config", "statusmod", "config.json");
     }
 
+    /**
+     * Fleet's own config (fleet-managed values live here, NOT in StatusMod's
+     * config). First start bootstraps dashboardUrl/setupSecret from StatusMod's
+     * config so existing setups migrate seamlessly.
+     */
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> readConfig() {
+    static Map<String, Object> readFleetConfig() {
+        try {
+            Path p = configPath();
+            if (Files.exists(p)) {
+                Object parsed = GSON.fromJson(Files.readString(p), Map.class);
+                if (parsed instanceof Map<?, ?> map) {
+                    Map<String, Object> out = new LinkedHashMap<>();
+                    for (Map.Entry<?, ?> e : map.entrySet()) {
+                        if (e.getKey() instanceof String k) out.put(k, e.getValue());
+                    }
+                    return out;
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("[Fleet] cannot read fleet config: " + e.getMessage());
+        }
+        // Bootstrap from StatusMod's config (one-time import).
+        Map<String, Object> boot = new LinkedHashMap<>();
+        boot.put("enabled", true);
+        boot.put("pullIntervalSecs", 60);
+        boot.put("dashboardUrl", "");
+        boot.put("setupSecret", "");
+        try {
+            Path sp = statusConfigPath();
+            if (Files.exists(sp)) {
+                Object parsed = GSON.fromJson(Files.readString(sp), Map.class);
+                if (parsed instanceof Map<?, ?> map) {
+                    Object du = map.get("dashboardUrl");
+                    Object ss = map.get("setupSecret");
+                    if (du != null) boot.put("dashboardUrl", String.valueOf(du).trim());
+                    if (ss != null) boot.put("setupSecret", String.valueOf(ss).trim());
+                }
+            }
+        } catch (Exception ignored) {}
+        try {
+            writeFleetConfig(boot);
+        } catch (Exception e) {
+            System.out.println("[Fleet] cannot write fleet config: " + e.getMessage());
+        }
+        return boot;
+    }
+
+    static void writeFleetConfig(Map<String, Object> cfg) throws java.io.IOException {
+        Path target = configPath();
+        if (target.getParent() != null) Files.createDirectories(target.getParent());
+        Path tmp = target.resolveSibling(target.getFileName().toString() + ".tmp");
+        Files.writeString(tmp, GSON.toJson(cfg));
+        try {
+            Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (Exception ignored) {
+            Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private static long pullIntervalMs() {
+        try {
+            Object v = readFleetConfig().get("pullIntervalSecs");
+            long secs = v instanceof Number n ? n.longValue() : 60L;
+            return Math.max(MIN_PULL_INTERVAL_MS, Math.min(MAX_PULL_INTERVAL_MS, secs * 1000L));
+        } catch (Exception ignored) {
+            return DEFAULT_PULL_INTERVAL_MS;
+        }
+    }
+
+    private static boolean fleetEnabled() {
+        try {
+            Object v = readFleetConfig().get("enabled");
+            if (v instanceof Boolean b) return b;
+            if (v != null) return Boolean.parseBoolean(String.valueOf(v));
+        } catch (Exception ignored) {}
+        return true;
+    }
+
+    @SuppressWarnings("unchecked")
+    static Map<String, Object> readStatusConfig() {
         try {
             Path p = configPath();
             if (!Files.exists(p)) return null;
@@ -100,27 +187,24 @@ public final class FleetManager {
         return null;
     }
 
-    private static void writeConfig(Map<String, Object> cfg) throws java.io.IOException {
-        Path target = configPath();
-        if (target.getParent() != null) Files.createDirectories(target.getParent());
-        Path tmp = target.resolveSibling(target.getFileName().toString() + ".tmp");
-        Files.writeString(tmp, GSON.toJson(cfg));
-        try {
-            Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (Exception ignored) {
-            Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
-        }
-    }
-
     private static String str(Object o) {
         return o == null ? "" : String.valueOf(o).trim();
     }
 
     static void pull() {
-        Map<String, Object> local = readConfig();
+        if (!fleetEnabled()) {
+            lastPullInfo = "disabled (fleet config)";
+            return;
+        }
+        Map<String, Object> fleet = readFleetConfig();
+        Map<String, Object> local = readStatusConfig();
         if (local == null) return;
-        String dashboardUrl = trimSlash(str(local.get("dashboardUrl")));
+        // apiKey is per-server identity: always from StatusMod's config, never stored in fleet file.
         String apiKey = str(local.get("apiKey"));
+        if (apiKey.isEmpty()) return;
+        // dashboardUrl: fleet file wins when set, else StatusMod's config.
+        String dashboardUrl = trimSlash(str(fleet.get("dashboardUrl")));
+        if (dashboardUrl.isEmpty()) dashboardUrl = trimSlash(str(local.get("dashboardUrl")));
         if (dashboardUrl.isEmpty() || apiKey.isEmpty()) return;
         if (!isSecureHttpUrl(dashboardUrl)) return;
 
@@ -167,26 +251,26 @@ public final class FleetManager {
 
         boolean changed = false;
         StringBuilder what = new StringBuilder();
-        if (!fleetSecret.isEmpty() && fleetSecret.length() <= 512 && !fleetSecret.equals(str(local.get("setupSecret")))) {
-            local.put("setupSecret", fleetSecret);
+        if (!fleetSecret.isEmpty() && fleetSecret.length() <= 512 && !fleetSecret.equals(str(fleet.get("setupSecret")))) {
+            fleet.put("setupSecret", fleetSecret);
             changed = true;
             what.append("setupSecret ");
         }
-        if (!fleetUrl.isEmpty() && fleetUrl.length() <= 256 && !fleetUrl.equals(str(local.get("dashboardUrl")))) {
+        if (!fleetUrl.isEmpty() && fleetUrl.length() <= 256 && !fleetUrl.equals(str(fleet.get("dashboardUrl")))) {
             if (isSecureHttpUrl(trimSlash(fleetUrl))) {
-                local.put("dashboardUrl", trimSlash(fleetUrl));
+                fleet.put("dashboardUrl", trimSlash(fleetUrl));
                 changed = true;
                 what.append("dashboardUrl ");
             }
         }
         if (!changed) return;
         try {
-            writeConfig(local);
+            writeFleetConfig(fleet);
             lastChangeInfo = "applied " + what.toString().trim() + " (restart to take full effect)";
             System.out.println("[Fleet] applied fleet config: " + what.toString().trim()
                     + ". Restart the server to take full effect.");
         } catch (Exception e) {
-            System.out.println("[Fleet] cannot write StatusMod config: " + e.getMessage());
+            System.out.println("[Fleet] cannot write fleet config: " + e.getMessage());
         }
     }
 

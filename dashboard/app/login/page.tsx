@@ -32,7 +32,7 @@ export default function LoginPage() {
 
       const data = await res.json()
       setAccessToken(data.access_token)
-      router.push("/dashboard")
+      router.push(ownerMode ? "/dashboard/fleet" : "/dashboard")
     } catch {
       setError("Connection failed")
     } finally {
@@ -55,7 +55,7 @@ export default function LoginPage() {
           </h1>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
             {ownerMode
-              ? "Use /status owner-code on the server console for your 16-character owner code"
+              ? "Use /fleet owner-code on the server console for your 16-character owner code"
               : "Use /code in-game to get your 8-character login code"}
           </p>
         </div>
@@ -94,7 +94,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-center mt-6 text-xs" style={{ color: "var(--text-muted)" }}>
-          Code expires in 10 minutes &mdash; {ownerMode ? "run /status owner-code again if needed" : "use /code again if needed"}
+          Code expires in 10 minutes &mdash; {ownerMode ? "run /fleet owner-code again if needed" : "use /code again if needed"}
         </p>
       </div>
 
