@@ -100,6 +100,8 @@ public class StatusCommand {
         statusTree = statusTree.then(Commands.literal("transfer")
         .then(Commands.argument("server", StringArgumentType.word())
         .then(Commands.argument("key", StringArgumentType.word()).executes(ctx -> { return transferFrom(ctx.getSource(), StringArgumentType.getString(ctx, "server"), StringArgumentType.getString(ctx, "key")); }))));
+        statusTree = statusTree.then(Commands.literal("setup-secret")
+        .then(Commands.argument("secret", StringArgumentType.greedyString()).executes(ctx -> { return setSetupSecret(ctx.getSource(), StringArgumentType.getString(ctx, "secret")); })));
         }
         statusTree = statusTree.then(Commands.literal("config").then(Commands.literal("reload").executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte, um diese Aktion auszuführen.")); return 0; } StatusMod.config = ModConfig.load(); CommandUtil.sendSuccess(ctx.getSource(), Component.literal("StatusMod configuration reloaded."), false); return 1; }))            .then(Commands.literal("show").executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte, um diese Aktion auszuführen.")); return 0; } ModConfig c = StatusMod.getConfig(); CommandUtil.sendSuccess(ctx.getSource(), Component.literal("StatusMod configuration:"), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" adminOpLevel = " + c.adminOpLevel), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusPermissionNode = " + c.statusPermissionNode), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" adminPermissionNode = " + c.adminPermissionNode), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" enableAdminOverrides = " + c.enableAdminOverrides), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" defaultColor = " + c.defaultColor), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusReapplyTicks = " + c.statusReapplyTicks), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusCooldownSeconds = " + c.statusCooldownSeconds), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusHistorySize = " + c.statusHistorySize), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" enableStaffBadge = " + c.enableStaffBadge), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadgeText = " + c.staffBadgeText), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadgeColor = " + c.staffBadgeColor), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadgeBrackets = " + c.staffBadgeBrackets), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadges (Overrides) = " + (c.staffBadges == null ? 0 : c.staffBadges.size())), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" enableAutoAfk = " + c.enableAutoAfk), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" afkTimeoutSeconds = " + c.afkTimeoutSeconds), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" restoreStatusOnJoin = " + c.restoreStatusOnJoin), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" restoreAfkOnJoin = " + c.restoreAfkOnJoin), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" restoreTimedOnJoin = " + c.restoreTimedOnJoin), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" Features:"), false); for (Map.Entry<String, Boolean> fe : c.features.entrySet()) { CommandUtil.sendSuccess(ctx.getSource(), Component.literal("   " + fe.getKey() + " = " + fe.getValue()), false); } return 1; })));
         statusTree = statusTree.then(Commands.literal("feature").then(Commands.literal("list").executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte.")); return 0; } ModConfig c = StatusMod.getConfig(); CommandUtil.sendSuccess(ctx.getSource(), Component.literal("Features:"), false); for (Map.Entry<String, Boolean> fe : c.features.entrySet()) { CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" " + fe.getKey() + " = " + fe.getValue()), false); } return 1; }))
@@ -415,6 +417,46 @@ public class StatusCommand {
             } else {
                 CommandUtil.sendSuccess(src, Component.literal("API-Key gespeichert. Sync startet bei konfiguriertem Dashboard, sonst nach Neustart."), false);
             }
+            return 1;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    /**
+     * Stores the dashboard setup secret ingame (admin only, persisted).
+     * Used for secret rotation without file access. Takes effect on restart
+     * (setup runs at boot). NOTE: typed commands land in the server log -
+     * prefer console or direct config edit for maximum secrecy. The secret is
+     * never echoed back.
+     */
+    private static int setSetupSecret(CommandSourceStack src, String secret) {
+        try {
+            if (!PermissionUtil.hasAdminPermission(src)) {
+                src.sendFailure(Component.literal("Du hast nicht genügend Rechte."));
+                return 0;
+            }
+            String v = secret == null ? "" : secret.trim();
+            while (v.length() >= 2 && ((v.startsWith("\"") && v.endsWith("\"")) || (v.startsWith("'") && v.endsWith("'")))) {
+                v = v.substring(1, v.length() - 1).trim();
+            }
+            if (v.isEmpty()) {
+                src.sendFailure(Component.literal("Kein Secret angegeben."));
+                return 0;
+            }
+            if (v.contains(" ")) {
+                src.sendFailure(Component.literal("Ungültiges Secret (keine Leerzeichen erlaubt)."));
+                return 0;
+            }
+            ModConfig c = StatusMod.getConfig();
+            if (c == null) {
+                src.sendFailure(Component.literal("Keine Konfiguration geladen."));
+                return 0;
+            }
+            c.setupSecret = v;
+            c.save();
+            CommandUtil.sendSuccess(src, Component.literal("Setup-Secret gespeichert. Server neu starten, damit es aktiv wird."), false);
             return 1;
         } catch (Exception e) {
             e.printStackTrace();
