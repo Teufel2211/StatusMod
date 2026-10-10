@@ -48,59 +48,65 @@ export default function PlayersPage() {
     }
   })
 
+  const onlineCount = merged.filter((p) => p.is_online).length
+
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-display mb-1" style={{ color: "var(--text-primary)" }}>Players</h1>
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-          {players.length} known player(s) · {merged.filter((p) => p.is_online).length} online
+      <div className="mb-8 fade-up">
+        <div className="kicker mb-2">Roster · {players.length} known · {onlineCount} online</div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="font-display font-bold text-3xl text-glow" style={{ color: "var(--text-primary)" }}>Players</h1>
           {connection === "connected" && (
-            <span className="ml-2 text-xs badge-green">live</span>
+            <span className="badge-green"><span className="pulse-dot mr-1.5" />live</span>
           )}
-        </p>
+        </div>
       </div>
 
       {loading ? (
-        <div className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>Loading...</div>
+        <div className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>$ scanning roster…</div>
       ) : players.length === 0 ? (
-        <div className="card text-center py-12">
-          <div className="text-3xl mb-3 opacity-30">◎</div>
+        <div className="card card-glow text-center py-12 fade-up">
+          <div className="font-display text-4xl mb-3" style={{ color: "var(--accent)", opacity: 0.5 }}>◎</div>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>No players yet</p>
-          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Players will appear here when they join the server</p>
+          <p className="text-xs mt-1 font-mono" style={{ color: "var(--text-muted)" }}>Players will appear here when they join the server</p>
         </div>
       ) : (
-        <div className="card p-0 overflow-hidden">
+        <div className="card card-glow p-0 overflow-hidden fade-up anim-d1">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b" style={{ borderColor: "var(--border)" }}>
-                <th className="text-left px-5 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Username</th>
-                <th className="text-left px-5 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Status</th>
-                <th className="text-left px-5 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>UUID</th>
-                <th className="text-left px-5 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Joined</th>
+              <tr className="border-b font-mono text-[11px] uppercase tracking-widest" style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-primary)", color: "var(--text-muted)" }}>
+                <th className="text-left px-5 py-3 font-medium">Username</th>
+                <th className="text-left px-5 py-3 font-medium">Status</th>
+                <th className="text-left px-5 py-3 font-medium">UUID</th>
+                <th className="text-left px-5 py-3 font-medium">Joined</th>
               </tr>
             </thead>
             <tbody>
               {merged.map((p) => (
                 <tr
                   key={p.id}
-                  className="border-b last:border-0 transition-colors cursor-pointer"
+                  className="border-b last:border-0 transition-all cursor-pointer hover:-translate-y-px"
                   style={{ borderColor: "var(--border)", opacity: p.is_online ? 1 : 0.5 }}
                   onClick={() => window.location.href = `/dashboard/players/${p.uuid}`}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = "var(--bg-hover)"
                     e.currentTarget.style.opacity = "1"
+                    e.currentTarget.style.boxShadow = "inset 2px 0 0 var(--accent)"
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = ""
                     e.currentTarget.style.opacity = p.is_online ? "1" : "0.5"
+                    e.currentTarget.style.boxShadow = ""
                   }}
                 >
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2.5">
                       <PlayerAvatar uuid={p.uuid} username={p.username} avatar={p.avatar} sizePx={24} />
                       <span
-                        className={`w-1.5 h-1.5 rounded-full inline-block ${p.is_online ? "badge-green" : ""}`}
-                        style={p.is_online ? undefined : { backgroundColor: "var(--border)" }}
+                        className="w-1.5 h-1.5 rounded-full inline-block"
+                        style={p.is_online
+                          ? { backgroundColor: "#10b981", boxShadow: "0 0 8px rgba(16,185,129,0.8)" }
+                          : { backgroundColor: "var(--border)" }}
                         title={p.is_online ? "online" : "offline"}
                       />
                       <span className="font-medium" style={{ color: "var(--text-primary)" }}>{p.username ?? "—"}</span>
@@ -108,11 +114,11 @@ export default function PlayersPage() {
                   </td>
                   <td className="px-5 py-3.5">
                     {p.status ? (
-                      <span className="inline-flex items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ border: "1px solid var(--border)", backgroundColor: "var(--bg-primary)" }}>
                         {p.color && (
                           <span
                             className="w-2 h-2 rounded-full inline-block"
-                            style={{ background: cssColor(p.color) }}
+                            style={{ background: cssColor(p.color), boxShadow: `0 0 8px ${cssColor(p.color)}` }}
                           />
                         )}
                         <span style={{ color: "var(--text-secondary)" }}>{p.status}</span>
@@ -124,7 +130,7 @@ export default function PlayersPage() {
                   <td className="px-5 py-3.5">
                     <code className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>{p.uuid.slice(0, 8)}...</code>
                   </td>
-                  <td className="px-5 py-3.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                  <td className="px-5 py-3.5 text-xs font-mono" style={{ color: "var(--text-muted)" }}>
                     {new Date(p.created_at).toLocaleDateString()}
                   </td>
                 </tr>

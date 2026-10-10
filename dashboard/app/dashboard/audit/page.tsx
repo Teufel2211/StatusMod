@@ -32,9 +32,10 @@ export default function AuditPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-display mb-1" style={{ color: "var(--text-primary)" }}>Audit Log</h1>
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>Track changes and actions on your server</p>
+      <div className="mb-8 fade-up">
+        <div className="kicker mb-2">$ tail -f audit.log</div>
+        <h1 className="font-display font-bold text-3xl text-glow" style={{ color: "var(--text-primary)" }}>Audit Log</h1>
+        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>Track changes and actions on your server</p>
       </div>
 
       {loading ? (

@@ -63,43 +63,48 @@ export default function SetupPage() {
 
   if (result) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ backgroundColor: "var(--bg-primary)" }}>
-        <div className="w-full max-w-lg">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-display mb-2" style={{ color: "var(--text-primary)" }}>
-              Server <span className="text-gradient">Claimed</span>
-            </h1>
-            <p className="text-sm" style={{ color: "var(--text-muted)" }}>Your server is registered. The API key is delivered automatically.</p>
-          </div>
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 hero-mesh bg-grid" style={{ backgroundColor: "var(--bg-primary)" }}>
+        <div className="w-full max-w-lg fade-up">
+          <div className="term-window">
+            <div className="term-bar">
+              <span className="term-dot" style={{ backgroundColor: "#ef4444" }} />
+              <span className="term-dot" style={{ backgroundColor: "#f59e0b" }} />
+              <span className="term-dot" style={{ backgroundColor: "#10b981" }} />
+              <span className="ml-2">statusmod — claim: OK</span>
+            </div>
+            <div className="p-6 sm:p-8">
+              <div className="kicker mb-2">Server linked</div>
+              <h1 className="font-display font-bold text-3xl mb-2" style={{ color: "var(--text-primary)" }}>
+                Server <span className="text-gradient">Claimed</span>
+              </h1>
+              <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>Your server is registered. The API key is delivered automatically.</p>
 
-          {result.api_key && (
-            <div className="card mb-4" style={{ borderColor: "var(--accent)", backgroundColor: "var(--accent-dim)" }}>
-              <div className="text-sm font-medium mb-2" style={{ color: "var(--accent)" }}>Mod API Key — auto-delivered to your server</div>
-              <code className="block text-xs rounded-lg px-4 py-3 font-mono break-all" style={{ backgroundColor: "var(--bg-primary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
-                {result.api_key}
-              </code>
-              <div className="mt-3 flex items-center gap-2">
-                <button className="btn-primary text-xs px-4 py-2" onClick={copyKey}>
-                  {copied ? "Copied!" : "Copy Key"}
-                </button>
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>Fallback only — the mod picks it up automatically within 30s</span>
+              {result.api_key && (
+                <div className="rounded-lg p-4 mb-4" style={{ border: "1px solid var(--accent-border)", backgroundColor: "var(--accent-dim)" }}>
+                  <div className="text-sm font-medium mb-2" style={{ color: "var(--accent)" }}>Mod API Key — auto-delivered to your server</div>
+                  <code className="block text-xs rounded-lg px-4 py-3 font-mono break-all" style={{ backgroundColor: "var(--bg-primary)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
+                    {result.api_key}
+                  </code>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button className="btn-primary text-xs px-4 py-2" onClick={copyKey}>
+                      {copied ? "Copied!" : "Copy Key"}
+                    </button>
+                    <span className="text-xs" style={{ color: "var(--text-muted)" }}>Fallback only — the mod picks it up automatically within 30s</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-lg p-4 text-xs space-y-1.5 mb-6 font-mono" style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}>
+                <div><span style={{ color: "var(--accent)" }}>$</span> claim complete — key auto-delivered (≤ 30s)</div>
+                <div><span style={{ color: "var(--accent)" }}>$</span> fallback: key into <span style={{ color: "var(--text-secondary)" }}>config/statusmod/config.json</span></div>
+                <div><span style={{ color: "var(--accent)" }}>$</span> <span style={{ color: "var(--text-secondary)" }}>/code</span> works in-game, no restart</div>
               </div>
-            </div>
-          )}
 
-          <div className="card text-xs space-y-1.5 mb-6" style={{ color: "var(--text-muted)" }}>
-            <div>1. The server fetches the API key automatically (≤ 30s). No config.json edit needed.</div>
-            <div>
-              2. If that fails, use the key above in <code className="font-mono" style={{ color: "var(--text-secondary)" }}>config/statusmod/config.json</code>.
-            </div>
-            <div>
-              3. <code className="font-mono" style={{ color: "var(--text-secondary)" }}>/code</code> then works in-game — no restart required.
+              <button className="btn-primary w-full" onClick={goToDashboard}>
+                Go to Dashboard
+              </button>
             </div>
           </div>
-
-          <button className="btn-primary w-full" onClick={goToDashboard}>
-            Go to Dashboard
-          </button>
         </div>
 
         <Footer className="mt-12" />
@@ -108,46 +113,55 @@ export default function SetupPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ backgroundColor: "var(--bg-primary)" }}>
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-display mb-2" style={{ color: "var(--text-primary)" }}>
-            Server <span className="text-gradient">Setup</span>
-          </h1>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Enter the 16-character setup code from your server console
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="card space-y-4">
-          <div>
-            <label className="label">Setup Code</label>
-            <input
-              className="input font-mono tracking-widest text-center text-lg uppercase"
-              placeholder="Xk9mR2pL7vN3bW8z"
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              maxLength={16}
-              autoFocus
-            />
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 hero-mesh bg-grid" style={{ backgroundColor: "var(--bg-primary)" }}>
+      <div className="w-full max-w-sm fade-up">
+        <div className="term-window">
+          <div className="term-bar">
+            <span className="term-dot" style={{ backgroundColor: "#ef4444" }} />
+            <span className="term-dot" style={{ backgroundColor: "#f59e0b" }} />
+            <span className="term-dot" style={{ backgroundColor: "#10b981" }} />
+            <span className="ml-2">statusmod — claim</span>
           </div>
+          <div className="p-6 sm:p-8">
+            <div className="kicker mb-2">New server</div>
+            <h1 className="font-display font-bold text-3xl mb-2" style={{ color: "var(--text-primary)" }}>
+              Server <span className="text-gradient">Setup</span>
+            </h1>
+            <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
+              Enter the 16-character setup code from your server console
+            </p>
 
-          {error && (
-            <div className="text-sm text-red-400 rounded-lg px-3 py-2" style={{ backgroundColor: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}>
-              {error}
-            </div>
-          )}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="label font-mono text-xs uppercase tracking-widest">Setup Code</label>
+                <input
+                  className="input tracking-widest text-center text-lg uppercase"
+                  placeholder="Xk9mR2pL7vN3bW8z"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  maxLength={16}
+                  autoFocus
+                />
+              </div>
 
-          <button type="submit" className="btn-primary w-full" disabled={code.length !== 16 || loading}>
-            {loading ? "Verifying..." : "Claim Server"}
-          </button>
-        </form>
+              {error && (
+                <div className="text-sm rounded-lg px-3 py-2 font-mono" style={{ color: "#ef4444", backgroundColor: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}>
+                  [!] {error}
+                </div>
+              )}
 
-        <p className="text-center mt-6 text-xs" style={{ color: "var(--text-muted)" }}>
-          Code appears only in the server console log.
-          <br />
-          <span style={{ color: "var(--accent)", opacity: 0.5 }}>Expires in 24 hours</span>
-        </p>
+              <button type="submit" className="btn-primary w-full" disabled={code.length !== 16 || loading}>
+                {loading ? "Verifying..." : "Claim Server"}
+              </button>
+            </form>
+
+            <p className="text-center mt-6 text-xs font-mono" style={{ color: "var(--text-muted)" }}>
+              Code appears only in the server console log.
+              <br />
+              <span style={{ color: "var(--accent)", opacity: 0.7 }}>Expires in 24 hours</span>
+            </p>
+          </div>
+        </div>
       </div>
 
       <Footer className="mt-12" />

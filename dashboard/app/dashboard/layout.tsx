@@ -41,10 +41,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!authed) return null
 
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: "var(--bg-primary)" }}>
+    <div className="flex min-h-screen hero-mesh bg-grid" style={{ backgroundColor: "var(--bg-primary)" }}>
       <Sidebar />
       <main className="flex-1 overflow-auto flex flex-col">
-        <div className="max-w-5xl mx-auto px-8 py-8 flex-1 w-full">
+        <div className="max-w-6xl mx-auto px-8 py-8 flex-1 w-full">
           {children}
         </div>
         <Footer className="px-8 pb-6" />

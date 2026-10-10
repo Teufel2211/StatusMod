@@ -78,12 +78,12 @@ export default function PlayerDetailPage() {
     setSaving(false)
   }
 
-  if (loading) return <div className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>Loading...</div>
+  if (loading) return <div className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>$ loading profile…</div>
 
   if (!player) {
     return (
-      <div className="card text-center py-12">
-        <div className="text-3xl mb-3 opacity-30">◎</div>
+      <div className="card card-glow text-center py-12">
+        <div className="font-display text-4xl mb-3" style={{ color: "var(--accent)", opacity: 0.5 }}>◎</div>
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>Player not found</p>
       </div>
     )
@@ -93,93 +93,109 @@ export default function PlayerDetailPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <div className="flex items-center gap-4 mb-1">
-          <PlayerAvatar uuid={player.uuid} username={player.username} avatar={player.avatar} sizePx={64} />
+      <div className="mb-8 fade-up">
+        <div className="kicker mb-3">Profile · {player.uuid.slice(0, 8)}</div>
+        <div className="flex items-center gap-5">
+          <div style={{ filter: "drop-shadow(0 0 18px var(--glow-accent))" }}>
+            <PlayerAvatar uuid={player.uuid} username={player.username} avatar={player.avatar} sizePx={72} />
+          </div>
           <div>
-            <h1 className="text-2xl font-display" style={{ color: "var(--text-primary)" }}>
+            <h1 className="font-display font-bold text-3xl text-glow" style={{ color: "var(--text-primary)" }}>
               {player.username ?? "Unknown Player"}
             </h1>
-            <p className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>{player.uuid}</p>
+            <p className="text-xs font-mono mt-1" style={{ color: "var(--text-muted)" }}>{player.uuid}</p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-        <div className="card">
-          <div className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>Status</div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="card card-glow fade-up anim-d1">
+          <div className="kicker mb-2" style={{ fontSize: "10px" }}>Status</div>
           <div className="flex items-center gap-2">
             {player.color && player.color !== "reset" && (
-              <span className="w-3 h-3 rounded-full inline-block" style={{ background: cssColor(player.color) }} />
+              <span className="w-3 h-3 rounded-full inline-block shrink-0" style={{ background: cssColor(player.color), boxShadow: `0 0 10px ${cssColor(player.color)}` }} />
             )}
-            <span style={{ color: "var(--text-primary)" }}>{player.status ?? "—"}</span>
+            <span className="font-medium" style={{ color: "var(--text-primary)" }}>{player.status ?? "—"}</span>
           </div>
         </div>
-        <div className="card">
-          <div className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>Joined</div>
-          <div style={{ color: "var(--text-primary)" }}>{new Date(player.created_at).toLocaleDateString()}</div>
+        <div className="card fade-up anim-d2">
+          <div className="kicker mb-2" style={{ fontSize: "10px" }}>Joined</div>
+          <div className="font-mono text-sm" style={{ color: "var(--text-primary)" }}>{new Date(player.created_at).toLocaleDateString()}</div>
+        </div>
+        <div className="card fade-up anim-d3">
+          <div className="kicker mb-2" style={{ fontSize: "10px" }}>Preview</div>
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full inline-block shrink-0" style={{ background: displayColor, boxShadow: `0 0 10px ${displayColor}` }} />
+            <span className="text-sm truncate" style={{ color: "var(--text-secondary)" }}>{status || "—"}</span>
+          </div>
         </div>
       </div>
 
-      <div className="card">
-        <div className="text-xs font-medium mb-4" style={{ color: "var(--text-muted)" }}>Edit Status</div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Status Text</label>
-            <input
-              type="text"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              maxLength={64}
-              placeholder="AFK, Busy, Building..."
-              className="input font-mono"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs block mb-1" style={{ color: "var(--text-muted)" }}>Color</label>
-            <div className="flex flex-wrap gap-2">
-              {COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  className={`w-7 h-7 rounded border-2 transition-all ${
-                    color === c ? "scale-110" : ""
-                  }`}
-                  style={{
-                    backgroundColor: cssColor(c),
-                    borderColor: color === c ? "var(--accent)" : "var(--border)",
-                  }}
-                  title={c}
-                />
-              ))}
+      <div className="term-window fade-up anim-d2">
+        <div className="term-bar">
+          <span className="term-dot" style={{ backgroundColor: "#ef4444" }} />
+          <span className="term-dot" style={{ backgroundColor: "#f59e0b" }} />
+          <span className="term-dot" style={{ backgroundColor: "#10b981" }} />
+          <span className="ml-2">edit --status</span>
+        </div>
+        <div className="p-6">
+          <div className="space-y-4">
+            <div>
+              <label className="label font-mono text-xs uppercase tracking-widest">Status Text</label>
               <input
                 type="text"
-                value={color.startsWith("#") ? color : ""}
-                onChange={(e) => { const v = e.target.value; if (v.startsWith("#")) setColor(v) }}
-                placeholder="#RRGGBB"
-                className="w-24 rounded px-2 py-1 text-xs font-mono"
-                style={{
-                  backgroundColor: "var(--bg-input)",
-                  border: "1px solid var(--border)",
-                  color: "var(--text-primary)",
-                }}
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                maxLength={64}
+                placeholder="AFK, Busy, Building..."
+                className="input font-mono"
               />
             </div>
-          </div>
 
-          <div className="flex items-center gap-3 pt-2">
-            <button
-              onClick={save}
-              disabled={saving}
-              className="btn-primary text-sm px-4 py-2"
-              style={{ backgroundColor: "#4a6fa5", color: "#fff" }}
-            >
-              {saving ? "Saving..." : "Save"}
-            </button>
-            {saved && <span className="text-xs text-green-400">Saved!</span>}
-            {error && <span className="text-xs text-red-400">{error}</span>}
+            <div>
+              <label className="label font-mono text-xs uppercase tracking-widest">Color</label>
+              <div className="flex flex-wrap gap-2">
+                {COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setColor(c)}
+                    className={`w-7 h-7 rounded border-2 transition-all hover:scale-110 ${
+                      color === c ? "scale-110" : ""
+                    }`}
+                    style={{
+                      backgroundColor: cssColor(c),
+                      borderColor: color === c ? "var(--accent)" : "var(--border)",
+                      boxShadow: color === c ? "0 0 10px var(--glow-accent)" : undefined,
+                    }}
+                    title={c}
+                  />
+                ))}
+                <input
+                  type="text"
+                  value={color.startsWith("#") ? color : ""}
+                  onChange={(e) => { const v = e.target.value; if (v.startsWith("#")) setColor(v) }}
+                  placeholder="#RRGGBB"
+                  className="w-24 rounded px-2 py-1 text-xs font-mono"
+                  style={{
+                    backgroundColor: "var(--bg-input)",
+                    border: "1px solid var(--border)",
+                    color: "var(--text-primary)",
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={save}
+                disabled={saving}
+                className="btn-primary text-sm px-4 py-2"
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+              {saved && <span className="text-xs font-mono text-green-400">[OK] Saved!</span>}
+              {error && <span className="text-xs font-mono text-red-400">[ERR] {error}</span>}
+            </div>
           </div>
         </div>
       </div>

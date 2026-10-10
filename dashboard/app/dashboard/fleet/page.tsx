@@ -140,10 +140,11 @@ export default function FleetAdminPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap fade-up">
         <div>
-          <h1 className="text-2xl font-display mb-1" style={{ color: "var(--text-primary)" }}>Fleet Admin</h1>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          <div className="kicker mb-2">Zentrale Steuerung · alle Server</div>
+          <h1 className="font-display font-bold text-3xl text-glow" style={{ color: "var(--text-primary)" }}>Fleet <span className="text-gradient">Admin</span></h1>
+          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
             Zentrale Steuerung für alle Server mit Fleet-Mod
           </p>
         </div>
