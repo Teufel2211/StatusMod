@@ -45,6 +45,7 @@ export const ServerConfigSchema = z.object({
 export const FleetConfigSchema = z.object({
   dashboard_url: z.string().max(256).optional(),
   setup_secret: z.string().max(512).optional(),
+  restore_id: z.number().int().positive().optional(),
 })
 
 export function validatePathUuid(value: string): boolean {

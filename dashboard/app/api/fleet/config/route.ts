@@ -45,10 +45,28 @@ export async function PUT(request: Request) {
   const parsed = FleetConfigSchema.safeParse(body)
   if (!parsed.success) return badRequest()
 
+  let dashboardUrl = parsed.data.dashboard_url
+  let setupSecret = parsed.data.setup_secret
+  let restoredFrom: number | null = null
+
+  // Rollback: Werte aus einem Historien-Eintrag übernehmen.
+  if (parsed.data.restore_id !== undefined) {
+    const sb = getServiceClient()
+    const { data: hist, error: histError } = await (sb as any)
+      .from("fleet_config_history")
+      .select("dashboard_url, setup_secret")
+      .eq("id", parsed.data.restore_id)
+      .maybeSingle()
+    if (histError || !hist) return badRequest()
+    dashboardUrl = typeof hist.dashboard_url === "string" ? hist.dashboard_url : ""
+    setupSecret = typeof hist.setup_secret === "string" ? hist.setup_secret : ""
+    restoredFrom = parsed.data.restore_id
+  }
+
   const sb = getServiceClient()
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
-  if (parsed.data.dashboard_url !== undefined) patch.dashboard_url = parsed.data.dashboard_url
-  if (parsed.data.setup_secret !== undefined) patch.setup_secret = parsed.data.setup_secret
+  if (dashboardUrl !== undefined) patch.dashboard_url = dashboardUrl
+  if (setupSecret !== undefined) patch.setup_secret = setupSecret
 
   const { error } = await (sb as any)
     .from("fleet_config")
@@ -57,11 +75,20 @@ export async function PUT(request: Request) {
 
   if (error) return serverError()
 
+  // Historie für Rollbacks (nur die tatsächlich gesetzten Werte).
+  await (sb as any).from("fleet_config_history").insert({
+    dashboard_url: typeof patch.dashboard_url === "string" ? patch.dashboard_url : "",
+    setup_secret: typeof patch.setup_secret === "string" ? patch.setup_secret : "",
+    by_uuid: session.sub,
+  })
+
   await writeAuditLog({
     server_id: session.server_id,
-    action: "fleet_config_update",
+    action: restoredFrom !== null ? "fleet_config_rollback" : "fleet_config_update",
     who_uuid: session.sub,
-    details: { keys: Object.keys(patch).filter((k) => k !== "updated_at") },
+    details: restoredFrom !== null
+      ? { restored_from: restoredFrom }
+      : { keys: Object.keys(patch).filter((k) => k !== "updated_at") },
   })
 
   return ok({ success: true })
