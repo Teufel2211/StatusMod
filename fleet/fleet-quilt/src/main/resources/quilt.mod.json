@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "quilt_loader": {
+    "group": "com.teufel.fleet",
+    "id": "statusmodfleet",
+    "version": "${version}",
+    "metadata": {
+      "name": "StatusMod Fleet",
+      "description": "Fleet config sync for StatusMod - distributes dashboard URL and setup secret to all servers",
+      "contributors": {
+        "teufel": "Owner"
+      },
+      "license": "MIT",
+      "environment": "*"
+    },
+    "entrypoints": {
+      "main": [
+        "com.teufel.fleet.fabric.FleetModFabric"
+      ]
+    },
+    "intermediate_mappings": "net.fabricmc:intermediary",
+    "depends": [
+      {
+        "id": "quilt_loader",
+        "versions": ">=${quilt_loader_version}"
+      },
+      {
+        "id": "minecraft",
+        "versions": ">=1.21.11"
+      },
+      {
+        "id": "fabric-api",
+        "versions": "*"
+      }
+    ]
+  },
+  "minecraft": {
+    "environment": "*"
+  }
+}

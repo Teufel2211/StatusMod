@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [code, setCode] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [ownerMode, setOwnerMode] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -17,7 +18,8 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const res = await fetch("/api/auth/code", {
+      const endpoint = ownerMode ? "/api/auth/owner-login" : "/api/auth/code"
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
@@ -38,6 +40,8 @@ export default function LoginPage() {
     }
   }
 
+  const codeLength = ownerMode ? 16 : 8
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ backgroundColor: "var(--bg-primary)" }}>
       <div className="w-full max-w-sm">
@@ -50,19 +54,21 @@ export default function LoginPage() {
             Sign <span className="text-gradient">In</span>
           </h1>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Use /code in-game to get your 8-character login code
+            {ownerMode
+              ? "Use /status owner-code on the server console for your 16-character owner code"
+              : "Use /code in-game to get your 8-character login code"}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4">
           <div>
-            <label className="label">Login Code</label>
+            <label className="label">{ownerMode ? "Owner Code" : "Login Code"}</label>
             <input
               className="input font-mono tracking-widest text-center text-lg uppercase"
-              placeholder="A3kR9xZ2"
+              placeholder={ownerMode ? "AAAAAAAAAAAAAAAA" : "A3kR9xZ2"}
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              maxLength={8}
+              maxLength={codeLength}
               autoFocus
             />
           </div>
@@ -73,13 +79,22 @@ export default function LoginPage() {
             </div>
           )}
 
-          <button type="submit" className="btn-primary w-full" disabled={code.length !== 8 || loading}>
-            {loading ? "Verifying..." : "Sign In"}
+          <button type="submit" className="btn-primary w-full" disabled={code.length !== codeLength || loading}>
+            {loading ? "Verifying..." : ownerMode ? "Sign In as Owner" : "Sign In"}
+          </button>
+
+          <button
+            type="button"
+            className="w-full text-xs underline underline-offset-2"
+            style={{ color: "var(--text-muted)" }}
+            onClick={() => { setOwnerMode(!ownerMode); setCode(""); setError("") }}
+          >
+            {ownerMode ? "Use player login code instead" : "Log in as owner with one-time code"}
           </button>
         </form>
 
         <p className="text-center mt-6 text-xs" style={{ color: "var(--text-muted)" }}>
-          Code expires in 10 minutes &mdash; use /code again if needed
+          Code expires in 10 minutes &mdash; {ownerMode ? "run /status owner-code again if needed" : "use /code again if needed"}
         </p>
       </div>
 

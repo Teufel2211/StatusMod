@@ -15,6 +15,10 @@ export const LoginCodeSchema = z.object({
   code: z.string().length(8).regex(/^[A-Za-z0-9]+$/),
 })
 
+export const OwnerCodeSchema = z.object({
+  code: z.string().length(16).regex(/^[A-Za-z0-9]+$/),
+})
+
 export const RefreshTokenSchema = z.object({
   refresh_token: z.string().min(1),
 })
@@ -36,6 +40,11 @@ export const ServerConfigSchema = z.object({
   config: z.record(z.unknown()).refine((v) => JSON.stringify(v).length < 102400, {
     message: "Config too large (max 100KB)",
   }),
+})
+
+export const FleetConfigSchema = z.object({
+  dashboard_url: z.string().max(256).optional(),
+  setup_secret: z.string().max(512).optional(),
 })
 
 export function validatePathUuid(value: string): boolean {

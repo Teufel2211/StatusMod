@@ -1,0 +1,61 @@
+plugins {
+    id 'java'
+    id 'net.minecraftforge.gradle' version '[7.0.29,8.0)'
+}
+
+version = project.findProperty('version') ?: '1.0'
+group = project.findProperty('maven_group') ?: 'com.teufel.fleet'
+base {
+    archivesName = project.findProperty('archives_base_name') ?: 'fleet-forge26.1'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+sourceSets {
+    main {
+        java {
+            srcDirs += file('../../fleet/fleet-common/src/main/java')
+            srcDirs += file('../../fleet/fleet-forge/src/main/java')
+        }
+        resources {
+            srcDirs += file('../../fleet/fleet-common/src/main/resources')
+            srcDirs += file('../../fleet/fleet-forge/src/main/resources')
+        }
+    }
+}
+
+minecraft {
+    // MC 26.x ships unobfuscated - no mappings needed
+    runs {
+        configureEach {
+            workingDir = layout.projectDirectory.dir('run')
+        }
+        register('client')
+        register('server')
+    }
+}
+
+repositories {
+    minecraft.mavenizer(it)
+    maven fg.forgeMaven
+    maven fg.minecraftLibsMaven
+    mavenCentral()
+}
+
+processResources {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    filesMatching("META-INF/mods.toml") {
+        expand "version": project.version
+    }
+}
+
+dependencies {
+    implementation minecraft.dependency("net.minecraftforge:forge:${project.findProperty('forge_minecraft_version') ?: '26.1'}-${project.findProperty('forge_version') ?: '62.0.9'}")
+    implementation "com.google.code.gson:gson:2.11.0"
+}
+
+tasks.register('writeVersion') {
+    doLast {
+        println "Version: ${project.version}"
+    }
+}

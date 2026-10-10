@@ -88,6 +88,17 @@ Loader/fabric26.1/run/
 Loader/forge26.1/.gradle/
 Loader/forge26.1/build/
 Loader/forge26.1/run/
+Loader/fleet-forge26.1/.gradle/
+Loader/fleet-forge26.1/build/
+Loader/fleet-forge26.1/run/
+
+# Fleet module builds
+fleet/*/build/
+fleet/*/.gradle/
+
+# Dashboard deps/build
+dashboard/node_modules/
+dashboard/.next/
 
 # Multiversion output
 dist/multiversion/.gradle-user-home/

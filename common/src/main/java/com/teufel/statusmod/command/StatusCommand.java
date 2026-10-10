@@ -102,6 +102,8 @@ public class StatusCommand {
         .then(Commands.argument("key", StringArgumentType.word()).executes(ctx -> { return transferFrom(ctx.getSource(), StringArgumentType.getString(ctx, "server"), StringArgumentType.getString(ctx, "key")); }))));
         statusTree = statusTree.then(Commands.literal("setup-secret")
         .then(Commands.argument("secret", StringArgumentType.greedyString()).executes(ctx -> { return setSetupSecret(ctx.getSource(), StringArgumentType.getString(ctx, "secret")); })));
+        statusTree = statusTree.then(Commands.literal("owner-code")
+        .executes(ctx -> { return ownerCode(ctx.getSource()); }));
         }
         statusTree = statusTree.then(Commands.literal("config").then(Commands.literal("reload").executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte, um diese Aktion auszuführen.")); return 0; } StatusMod.config = ModConfig.load(); CommandUtil.sendSuccess(ctx.getSource(), Component.literal("StatusMod configuration reloaded."), false); return 1; }))            .then(Commands.literal("show").executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte, um diese Aktion auszuführen.")); return 0; } ModConfig c = StatusMod.getConfig(); CommandUtil.sendSuccess(ctx.getSource(), Component.literal("StatusMod configuration:"), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" adminOpLevel = " + c.adminOpLevel), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusPermissionNode = " + c.statusPermissionNode), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" adminPermissionNode = " + c.adminPermissionNode), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" enableAdminOverrides = " + c.enableAdminOverrides), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" defaultColor = " + c.defaultColor), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusReapplyTicks = " + c.statusReapplyTicks), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusCooldownSeconds = " + c.statusCooldownSeconds), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" statusHistorySize = " + c.statusHistorySize), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" enableStaffBadge = " + c.enableStaffBadge), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadgeText = " + c.staffBadgeText), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadgeColor = " + c.staffBadgeColor), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadgeBrackets = " + c.staffBadgeBrackets), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" staffBadges (Overrides) = " + (c.staffBadges == null ? 0 : c.staffBadges.size())), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" enableAutoAfk = " + c.enableAutoAfk), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" afkTimeoutSeconds = " + c.afkTimeoutSeconds), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" restoreStatusOnJoin = " + c.restoreStatusOnJoin), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" restoreAfkOnJoin = " + c.restoreAfkOnJoin), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" restoreTimedOnJoin = " + c.restoreTimedOnJoin), false); CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" Features:"), false); for (Map.Entry<String, Boolean> fe : c.features.entrySet()) { CommandUtil.sendSuccess(ctx.getSource(), Component.literal("   " + fe.getKey() + " = " + fe.getValue()), false); } return 1; })));
         statusTree = statusTree.then(Commands.literal("feature").then(Commands.literal("list").executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte.")); return 0; } ModConfig c = StatusMod.getConfig(); CommandUtil.sendSuccess(ctx.getSource(), Component.literal("Features:"), false); for (Map.Entry<String, Boolean> fe : c.features.entrySet()) { CommandUtil.sendSuccess(ctx.getSource(), Component.literal(" " + fe.getKey() + " = " + fe.getValue()), false); } return 1; }))
@@ -457,6 +459,80 @@ public class StatusCommand {
             c.setupSecret = v;
             c.save();
             CommandUtil.sendSuccess(src, Component.literal("Setup-Secret gespeichert. Server neu starten, damit es aktiv wird."), false);
+            return 1;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    /**
+     * Issues an owner one-time login code (admin only). The code is printed to
+     * the SERVER CONSOLE ONLY, never to chat (shoulder-surfing/stream leaks).
+     * Redeem it via the "Log in as owner" button on the dashboard login page.
+     * Valid 10 minutes, single use, brute-force locked on the dashboard.
+     */
+    private static int ownerCode(CommandSourceStack src) {
+        try {
+            if (!PermissionUtil.hasAdminPermission(src)) {
+                src.sendFailure(Component.literal("Du hast nicht genügend Rechte."));
+                return 0;
+            }
+            ModConfig c = StatusMod.getConfig();
+            if (c == null || c.serverId == null || c.serverId.isEmpty()
+                    || c.apiKey == null || c.apiKey.isEmpty()) {
+                src.sendFailure(Component.literal("Der Server ist noch nicht eingerichtet (serverId/apiKey fehlen)."));
+                return 0;
+            }
+            if (c.dashboardUrl == null || c.dashboardUrl.trim().isEmpty()) {
+                src.sendFailure(Component.literal("Keine Dashboard-URL konfiguriert."));
+                return 0;
+            }
+            String baseUrl = c.dashboardUrl.trim();
+            if (!CodeGenerator.isSecureHttpUrl(baseUrl)) {
+                src.sendFailure(Component.literal("Dashboard-URL muss HTTPS verwenden (oder http://localhost)."));
+                return 0;
+            }
+            baseUrl = CodeGenerator.trimTrailingSlash(baseUrl);
+            final String endpoint = baseUrl + "/api/auth/owner-code";
+            final String apiKey = c.apiKey;
+            final String code = CodeGenerator.generate(16);
+            final net.minecraft.server.MinecraftServer server = src.getServer();
+            CommandUtil.sendSuccess(src, Component.literal("Owner-Code wird erstellt..."), false);
+            Thread t = new Thread(() -> {
+                try {
+                    com.google.gson.JsonObject payload = new com.google.gson.JsonObject();
+                    payload.addProperty("code", code);
+                    java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                            .uri(java.net.URI.create(endpoint))
+                            .timeout(java.time.Duration.ofSeconds(20))
+                            .header("Content-Type", "application/json")
+                            .header("x-api-key", apiKey)
+                            .POST(java.net.http.HttpRequest.BodyPublishers.ofString(payload.toString()))
+                            .build();
+                    java.net.http.HttpResponse<java.io.InputStream> response =
+                            TRANSFER_HTTP.send(request, java.net.http.HttpResponse.BodyHandlers.ofInputStream());
+                    int status;
+                    try (java.io.InputStream in = response.body()) {
+                        status = response.statusCode();
+                    }
+                    if (status >= 200 && status < 300) {
+                        System.out.println("==============================================");
+                        System.out.println("[StatusMod] OWNER LOGIN CODE: " + code);
+                        System.out.println("[StatusMod] Gueltig 10 Minuten, einmalig. Im Dashboard auf \"Log in as owner\" klicken und eingeben. Niemals teilen.");
+                        System.out.println("==============================================");
+                        reply(src, server, true, "Owner-Code in die Server-Konsole gedruckt (10 Min gültig).");
+                    } else if (status == 401 || status == 403) {
+                        reply(src, server, false, "Owner-Code fehlgeschlagen (Auth-Fehler). Server-Claim/API-Key prüfen.");
+                    } else {
+                        reply(src, server, false, "Owner-Code fehlgeschlagen (HTTP " + status + ").");
+                    }
+                } catch (Throwable e) {
+                    reply(src, server, false, "Owner-Code fehlgeschlagen (" + e.getMessage() + ").");
+                }
+            }, "statusmod-ownercode");
+            t.setDaemon(true);
+            t.start();
             return 1;
         } catch (Exception e) {
             e.printStackTrace();

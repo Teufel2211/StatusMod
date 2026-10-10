@@ -1,0 +1,35 @@
+plugins {
+    id 'dev.architectury.loom'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs += file('../fleet-common/src/main/java')
+        }
+        resources {
+            srcDirs += file('../fleet-common/src/main/resources')
+        }
+    }
+}
+
+// Expand ${version} so standalone builds (without build script metadata
+// expansion) also produce correct jars.
+processResources {
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand "version": project.version
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    mappings loom.officialMojangMappings()
+    neoForge "net.neoforged:neoforge:${neoforge_version}"
+    implementation "com.google.code.gson:gson:2.11.0"
+}

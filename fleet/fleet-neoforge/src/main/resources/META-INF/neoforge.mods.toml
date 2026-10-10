@@ -1,0 +1,16 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="MIT"
+
+[[mods]]
+modId="statusmodfleet"
+version="${version}"
+displayName="StatusMod Fleet"
+description="Fleet config sync for StatusMod - distributes dashboard URL and setup secret to all servers"
+
+[[dependencies.statusmodfleet]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.21.11,26.4)"
+ordering="NONE"
+side="BOTH"

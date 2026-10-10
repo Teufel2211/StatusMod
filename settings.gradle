@@ -22,10 +22,15 @@ def allLoaders = ['common', 'fabric', 'forge', 'neoforge', 'quilt']
 if (targetLoader && targetLoader in ['fabric', 'forge', 'neoforge', 'quilt']) {
 	include 'common'
 	include targetLoader
+} else if (targetLoader && targetLoader in ['fleet-fabric', 'fleet-forge', 'fleet-neoforge']) {
+	include "fleet:$targetLoader"
 } else {
 	include 'common'
 	include 'fabric'
 	include 'forge'
 	include 'neoforge'
 	include 'quilt'
+	include 'fleet:fleet-fabric'
+	include 'fleet:fleet-forge'
+	include 'fleet:fleet-neoforge'
 }

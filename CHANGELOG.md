@@ -6,7 +6,8 @@ All notable changes to this project are documented in this file.
 
 - Self-status GUI: bare `/status` opens a beginner-friendly menu (colored wool presets including own customs, live status display, next/clear buttons).
 - Admin player GUI: `/status gui` with skinned heads, search and pages; clicking a head prepares the status/color command.
-- Dashboard link: automatic server setup via console code, live two-way sync (status, badge, mute, block, online presence), `/status transfer`, `/status apikey`, `/status setup-secret`, `/status sync`.
+- Dashboard link: automatic server setup via console code, live two-way sync (status, badge, mute, block, online presence), `/status transfer`, `/status apikey`, `/status setup-secret`, `/status owner-code`, `/status sync`.
+- Owner one-time login: `/status owner-code` prints a 10-minute single-use code to the server console; redeem it via the "Log in as owner" button for a cookie-persisted admin session.
 - Custom dashboard avatars: `/status avatar <name|url|off>` (self or, for admins, other players).
 - Bedrock (Geyser/Floodgate) output channels: boss bar/action bar, sidebar and `/status list`; warning when running on unsupported MC 26.3.
 - New toggles/commands: `/status sidebar`, `/status topbar`, `/status version`, clickable status history.

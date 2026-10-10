@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "statusmodfleet",
+  "version": "${version}",
+  "name": "StatusMod Fleet",
+  "description": "Fleet config sync for StatusMod - distributes dashboard URL and setup secret to all servers",
+  "authors": ["teufel"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.teufel.fleet.fabric.FleetModFabric"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": ">=1.21.11"
+  }
+}
