@@ -249,3 +249,87 @@
     transform: scale(0.8);
   }
 }
+
+@keyframes blink-caret {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes scan-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 120px;
+  }
+}
+
+/* ============ FLEET COMMAND: eigene Identitaet (Phosphor-Terminal) ============
+   Wird als Wrapper-Klasse auf der Fleet-Seite gesetzt und ueberschreibt das
+   komplette Farb-System lokal. Alle card/input/badge-Komponenten uebernehmen
+   die Phosphor-Palette automatisch ueber CSS-Variablen. */
+.fleet-theme {
+  --bg-primary: #020604;
+  --bg-card: #060d08;
+  --bg-hover: #0b1a10;
+  --bg-input: #040a06;
+  --border: #1d3a26;
+  --text-primary: #d9ffe2;
+  --text-secondary: #7fb08a;
+  --text-muted: #3f6047;
+  --accent: #4dff6a;
+  --accent-dim: #4dff6a1a;
+  --accent-hover: #86ff9d;
+  --accent-border: #4dff6a44;
+  --cyan: #ffb000;
+  --glow-accent: rgba(77, 255, 106, 0.35);
+  --glow-cyan: rgba(255, 176, 0, 0.25);
+  --grid-opacity: 0.06;
+  --mesh-a: rgba(77, 255, 106, 0.08);
+  --mesh-b: rgba(255, 176, 0, 0.06);
+}
+
+.fleet-theme .font-display {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.fleet-scanlines {
+  position: relative;
+}
+.fleet-scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    rgba(0, 0, 0, 0.22) 3px,
+    rgba(0, 0, 0, 0.22) 4px
+  );
+  animation: scan-drift 9s linear infinite;
+}
+
+.fleet-ascii-hr {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  user-select: none;
+}
+
+.fleet-blink {
+  animation: blink-caret 1.1s steps(1) infinite;
+}
+
+.fleet-phosphor {
+  color: var(--accent);
+  text-shadow: 0 0 8px var(--glow-accent), 0 0 32px var(--glow-accent);
+}
