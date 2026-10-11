@@ -335,7 +335,16 @@ public final class SyncManager {
         if (server == null || uuidStr == null) return;
         try {
             java.util.UUID id = java.util.UUID.fromString(uuidStr);
-            final PlayerSettings snapshot = ps;
+            // Defensive copy: the sync thread keeps mutating ps while the
+            // server thread reads it (race). Copy all display-relevant fields.
+            final PlayerSettings snapshot = new PlayerSettings();
+            snapshot.status = ps.status == null ? "" : ps.status;
+            snapshot.color = ps.color == null ? "reset" : ps.color;
+            snapshot.brackets = ps.brackets;
+            snapshot.beforeName = ps.beforeName;
+            snapshot.fontStyle = ps.fontStyle;
+            snapshot.statusWords = ps.statusWords;
+            snapshot.avatar = ps.avatar == null ? "" : ps.avatar;
             server.execute(() -> {
                 try {
                     ModConfig cfg = StatusMod.getConfig();
