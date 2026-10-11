@@ -1,4 +1,4 @@
-import { LoginCodeSchema } from "@/lib/validators"
+import { SetupCodeSchema } from "@/lib/validators"
 import { badRequest, ok, unauthorized, serverError } from "@/lib/response"
 import { getServiceClient } from "@/lib/supabase"
 import { requireSession } from "@/lib/auth"
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     return badRequest()
   }
 
-  const parsed = LoginCodeSchema.safeParse(body)
+  const parsed = SetupCodeSchema.safeParse(body)
   if (!parsed.success) return badRequest()
 
   const { code } = parsed.data

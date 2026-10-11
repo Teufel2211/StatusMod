@@ -66,6 +66,13 @@ export async function POST(request: Request) {
 
   if (!matchedCode) {
     recordLoginFailure(lockoutKey)
+    // Burn attempts on all checked codes so the attempt_count filter works.
+    for (const vc of verifyCodes) {
+      await (sb as any)
+        .from("verify_codes")
+        .update({ attempt_count: (vc.attempt_count ?? 0) + 1 })
+        .eq("code_hash", vc.code_hash)
+    }
     return unauthorized()
   }
 
