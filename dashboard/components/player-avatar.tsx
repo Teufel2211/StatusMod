@@ -13,7 +13,7 @@ export function PlayerAvatar({
 }) {
   const style = { width: sizePx, height: sizePx }
 
-  if (avatar && /^https?:\/\//i.test(avatar)) {
+  if (avatar && /^https:\/\/[^"\s()<>]+$/i.test(avatar)) {
     return (
       <div
         className="rounded-sm shrink-0"
