@@ -48,6 +48,14 @@ Abhaken der Reihe nach. Alles auf `development` vorbereiten, erst ganz am Ende n
 - [ ] CurseForge: Dateien da, Freigabe abwarten
 - [ ] GitHub Release angelegt (Changelog aus Git-Log seit letztem Tag)
 
+## 7b. Neue Fixes seit Checklisten-Start (alle verifiziert 2026-10-11)
+
+- [x] /status version antwortet (greedy-Arg frass ersion/history/list/clear als Statustext; Literale stehen jetzt zuerst)
+- [x] Private Antworten kommen auf Remap-Runtimes an (direkter sendSystemMessage-Fallback in CommandUtil)
+- [x] 26.3-Warnung: Konsole immer + Admin-Join-Ping + /status version-Zeile (Texte gekuerzt, User-verifiziert ingame)
+- [x] BUILD-Tag aktuell: edrock263 (/status version meldet ihn)
+- [x] Modrinth-Profile: 24/24 gesynct + byte-identisch (inkl. 4x 26.3 mit Warnung)
+
 ## 8. Danach
 
 - [ ] Testserver + Nitrado auf 1.4.0-JARs aktualisieren + Neustart
