@@ -44,7 +44,7 @@ public final class StatusMod {
             System.out.println("[StatusMod] Floodgate detected - Bedrock support enabled.");
         }
         if (isMc26_3()) {
-            System.out.println("[StatusMod] WARNING: MC 26.3 is NOT Bedrock-compatible (no Geyser/Floodgate release for 26.3). Do NOT install Geyser here - Bedrock players cannot join reliably. Java only.");
+            System.out.println("[StatusMod] WARNING: MC 26.3 is NOT Bedrock-compatible. Bedrock players cannot join reliably. Java only.");
         }
 
         if (platform.isDedicatedServer()) {
