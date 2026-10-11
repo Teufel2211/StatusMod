@@ -43,16 +43,25 @@ function sha256Hex(input: string): string {
   return crypto.createHash("sha256").update(input).digest("hex")
 }
 
+// Peppered hash for persisted values (refresh_tokens, audit_log): without a
+// pepper, IPv4/user-agents are brute-forceable from a DB leak. The pepper is
+// the service key (never leaves the server). NOTE: rotating SERVICE_ROLE_KEY
+// invalidates all sessions + audit linkability (one-time logout for everyone).
+function pepperedHex(input: string): string {
+  const pepper = process.env.SERVICE_ROLE_KEY ?? ""
+  return crypto.createHash("sha256").update(pepper + "|" + input).digest("hex")
+}
+
 export function hashIp(ip: string): string {
-  return sha256Hex(ip)
+  return pepperedHex("ip|" + ip)
 }
 
 export function hashUserAgent(ua: string): string {
-  return sha256Hex(ua)
+  return pepperedHex("ua|" + ua)
 }
 
 export function hashAuditUuid(uuid: string): string {
-  return sha256Hex(uuid)
+  return pepperedHex("audit|" + uuid)
 }
 
 export async function hashArgon2id(plaintext: string): Promise<string> {
