@@ -12,6 +12,7 @@ type HealthData = {
   status: string
   database: string
   timestamp: string
+  previous_secret_active?: boolean
 }
 
 type AuditEntry = {
@@ -320,6 +321,9 @@ export default function FleetAdminPage() {
   const alerts: Alert[] = []
   if (health && health.status !== "healthy") {
     alerts.push({ level: "error", text: `System meldet: ${health.status} – Dashboard prüfen.` })
+  }
+  if (health && health.previous_secret_active) {
+    alerts.push({ level: "warn", text: "Altes JWT-Secret noch aktiv – Rotation abschließen (JWT_SECRET_PREVIOUS entfernen)." })
   }
   if (loaded && !fleetActive) {
     alerts.push({ level: "warn", text: "Fleet ist leer – keine Verteilung aktiv. Unten Werte setzen." })

@@ -16,6 +16,7 @@ export async function GET() {
       cors: env.CORS_ORIGIN ? "configured" : "missing",
       database: dbOk ? "connected" : "error",
       timestamp: new Date().toISOString(),
+      previous_secret_active: env.JWT_SECRET_PREVIOUS ? true : false,
     })
   } catch (err) {
     return serverError()
