@@ -26,6 +26,13 @@ public final class CommandUtil {
             m.invoke(src, msg);
             return;
         } catch (Throwable ignored) {}
+        // Direct calls (Mojang names, remapped per loader at build time).
+        // Reflection above fails on intermediary/SRG runtimes (Fabric/Quilt
+        // 1.21.11, Forge SRG), which would otherwise swallow private replies.
+        try {
+            src.getPlayer().sendSystemMessage(msg);
+            return;
+        } catch (Throwable ignored) {}
         // Remapped runtimes (Fabric Intermediary, Forge/NeoForge renames) do not
         // expose Mojang method names via reflection, so every attempt above fails.
         // Fall back to the console so server operators still see command output.

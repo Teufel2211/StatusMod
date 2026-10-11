@@ -53,7 +53,6 @@ public class StatusCommand {
             .executes(ctx -> { openSelfStatusGui(ctx.getSource()); return 1; })
             .then(Commands.literal("clear").executes(ctx -> { clearStatus(ctx.getSource()); return 1; }))
             .then(Commands.literal("list").executes(ctx -> { listOnlineStatuses(ctx.getSource()); return 1; }))
-            .then(Commands.argument("status", StringArgumentType.greedyString()).suggests(CommandSuggestions.STATUS_SUGGESTIONS).executes(ctx -> { setStatus(ctx.getSource(), StringArgumentType.getString(ctx, "status"), null); return 1; }))
             .then(Commands.literal("preset")
                 .then(Commands.literal("save").then(Commands.argument("preset_name", StringArgumentType.word()).then(Commands.argument("status", StringArgumentType.greedyString()).suggests(CommandSuggestions.STATUS_SUGGESTIONS).executes(ctx -> { saveCustomPreset(ctx.getSource(), StringArgumentType.getString(ctx, "preset_name"), StringArgumentType.getString(ctx, "status"), null); return 1; }))))
                 .then(Commands.literal("remove").then(Commands.argument("preset_name", StringArgumentType.word()).suggests(CommandSuggestions.CUSTOM_PRESET_SUGGESTIONS).executes(ctx -> { removeCustomPreset(ctx.getSource(), StringArgumentType.getString(ctx, "preset_name")); return 1; })))
@@ -64,7 +63,11 @@ public class StatusCommand {
             .then(Commands.literal("history").executes(ctx -> { showHistory(ctx.getSource()); return 1; }))
             .then(Commands.literal("version").executes(ctx -> { showVersion(ctx.getSource()); return 1; }))
             .then(Commands.literal("world").then(Commands.literal("clear").executes(ctx -> { clearWorldStatus(ctx.getSource()); return 1; }))
-                .then(Commands.argument("status", StringArgumentType.greedyString()).suggests(CommandSuggestions.STATUS_SUGGESTIONS).executes(ctx -> { setWorldStatus(ctx.getSource(), StringArgumentType.getString(ctx, "status"), null); return 1; })));
+                .then(Commands.argument("status", StringArgumentType.greedyString()).suggests(CommandSuggestions.STATUS_SUGGESTIONS).executes(ctx -> { setWorldStatus(ctx.getSource(), StringArgumentType.getString(ctx, "status"), null); return 1; })))
+            // Greedy status argument LAST: Brigadier tries children in order,
+            // so literals (version, history, list, ...) must come first —
+            // otherwise "/status version" is eaten as status text "version".
+            .then(Commands.argument("status", StringArgumentType.greedyString()).suggests(CommandSuggestions.STATUS_SUGGESTIONS).executes(ctx -> { setStatus(ctx.getSource(), StringArgumentType.getString(ctx, "status"), null); return 1; }));
         if (StatusMod.getConfig().enableAdminOverrides) {
             statusTree = statusTree.then(Commands.literal("admin")
                 .then(Commands.literal("clear").then(Commands.argument("player", net.minecraft.commands.arguments.EntityArgument.player()).executes(ctx -> { if (!PermissionUtil.hasAdminPermission(ctx.getSource())) { ctx.getSource().sendFailure(Component.literal("Du hast nicht genügend Rechte, um andere Spieler zu verwalten.")); return 0; } ServerPlayer player = net.minecraft.commands.arguments.EntityArgument.getPlayer(ctx, "player"); adminClearStatus(ctx.getSource(), player.getScoreboardName()); return 1; })))
