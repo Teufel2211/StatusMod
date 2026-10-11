@@ -33,9 +33,21 @@ public final class StatusModAPI {
     public static void setStatus(UUID uuid, String status, String color) {
         if (uuid == null || StatusMod.storage == null || status == null) return;
         String key = uuid.toString();
+        // External callers bypass commands: enforce the same guards
+        // (mute/block/sanitize) so the API cannot be used to circumvent them.
+        try {
+            if (StatusMod.getBlockedPlayers() != null && StatusMod.getBlockedPlayers().isBlocked(key)) return;
+            if (StatusMod.getMutedPlayers() != null && StatusMod.getMutedPlayers().isMuted(key)) return;
+        } catch (Exception ignored) {}
         PlayerSettings settings = StatusMod.storage.forPlayer(key);
-        settings.status = status;
-        settings.color = (color != null && !color.isEmpty()) ? color : "reset";
+        settings.status = com.teufel.statusmod.util.StatusTextUtil.sanitizePlayerText(status, 64);
+        String c = (color != null && !color.isEmpty()) ? color.trim() : "reset";
+        try {
+            if (!com.teufel.statusmod.util.ColorMapper.isValidColorInput(c) || c.length() > 32) c = "reset";
+        } catch (Exception ignored) {
+            c = "reset";
+        }
+        settings.color = c;
         settings.lastStatusChangeAtMs = System.currentTimeMillis();
         StatusMod.storage.put(key, settings);
     }
