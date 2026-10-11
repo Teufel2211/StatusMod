@@ -119,7 +119,7 @@ public final class StatusLifecycle {
             if (StatusMod.isMc26_3()) {
                 try {
                     if (PermissionUtil.hasAdminPermission(player)) {
-                        player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§c[StatusMod] MC 26.3 ist nicht Bedrock-kompatibel (kein Geyser). Bitte kein Geyser installieren."));
+                        player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§c[StatusMod] MC 26.3 ist nicht Bedrock-kompatibel."));
                     }
                 } catch (Throwable ignored) {}
             }

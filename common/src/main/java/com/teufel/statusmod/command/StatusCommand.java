@@ -613,7 +613,7 @@ public class StatusCommand {
     private static void showVersion(CommandSourceStack src) {
         CommandUtil.sendSuccess(src, Component.literal("StatusMod 1.4.0 (build " + StatusMod.BUILD + ")"), false);
         if (StatusMod.isMc26_3()) {
-            CommandUtil.sendSuccess(src, Component.literal("§cWarnung: MC 26.3 ist nicht Bedrock-kompatibel (kein Geyser). Nur Java."), false);
+            CommandUtil.sendSuccess(src, Component.literal("§cWarnung: MC 26.3 ist nicht Bedrock-kompatibel. Nur Java."), false);
         }
     }
 
