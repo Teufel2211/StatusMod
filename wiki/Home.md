@@ -2,27 +2,36 @@
 
 StatusMod adds lightweight status tags for players on Minecraft servers and clients.
 
+Current version: **1.4.0** (see [CHANGELOG](../CHANGELOG.md)).
+
 Supported loaders and Minecraft versions:
 
 | Loader | Versions | Build system |
 |--------|----------|--------------|
-| Fabric | 1.19 - 1.21.11 | Architectury Loom |
-| Fabric | 26.1 - 26.2 | Standalone Loom |
-| Forge | 1.19 - 25.x | Architectury Loom |
-| Forge | 26.1 - 26.2 | Standalone ForgeGradle 7 |
-| NeoForge | 1.21+ | Architectury Loom |
+| Fabric | 1.21.11 | Architectury Loom |
+| Fabric | 26.1 – 26.3 | Plain javac (unobfuscated) |
+| Forge | 1.21.11 | Architectury Loom (`loom.platform=forge`) |
+| Forge | 26.1 – 26.3 | Standalone ForgeGradle 7 (`Loader/forge26.1/`) |
+| NeoForge | 1.21.11 | Architectury Loom (`loom.platform=neoforge`) |
+| NeoForge | 26.1 – 26.3 | Plain javac (unobfuscated) |
+| Quilt | 1.21.11, 26.1 – 26.3 | Repackaged from Fabric |
+
+That's 24 JARs: 4 loaders × 6 versions.
 
 ## Wiki Pages
 
-- [Installation](Installation)
-- [Building](Building)
-- [Compatibility](Compatibility)
-- [Commands](Commands)
-- [Configuration](Configuration)
+- [Installation](Installation) — download, install, first start
+- [Commands](Commands) — all commands with examples
+- [Configuration](Configuration) — `config.json` fields and storage files
+- [Dashboard](Dashboard) — web dashboard: setup, sync, players, keys
+- [Building](Building) — build all 24 JARs locally
+- [Compatibility](Compatibility) — loaders, versions, Bedrock
+- [Release](Release) — token check + publishing (maintainers)
 
 ## Quick Summary
 
-- Players can set a custom status and color.
-- Status appears in the player list and name rendering.
-- Status data is stored locally in `config/statusmod/`.
-- All three loaders (Fabric, Forge, NeoForge) are built by the multiversion script.
+- Players set a custom status + color (`/status`), shown in tab list, names, boss bar/sidebar.
+- Beginner GUI: bare `/status` opens a preset menu; `/status gui` (admin) shows player heads.
+- Optional web dashboard (opt-in): live two-way sync, player management, API keys.
+- Status data is stored locally in `config/statusmod/` (JSON, works without dashboard).
+- AI disclosure: development is AI-assisted (see Modrinth project page).

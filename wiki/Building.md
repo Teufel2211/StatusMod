@@ -1,12 +1,14 @@
 # Building
 
-## All loaders (recommended)
+## All loaders, all versions (recommended)
 
-Build all 15 combinations (fabric/forge/neoforge × 26.2/26.1.2/26.1.1/26.1/1.21.11):
+Builds all 24 combinations (fabric/forge/neoforge/quilt × 1.21.11/26.1/26.1.1/26.1.2/26.2/26.3):
 
 ```powershell
-.\scripts\local\build-multiversion.ps1 -Loaders fabric,forge,neoforge -ContinueOnError:$false
+.\scripts\local\build-multiversion.ps1 -Loaders fabric,forge,neoforge,quilt -ContinueOnError:$false
 ```
+
+Output: `dist/multiversion/` (24 × `Statusmod-1.4.0-<loader>-<mc>.jar`), verified by `scripts/ci/verify-jars.ps1`.
 
 ## Single loader
 
@@ -14,40 +16,33 @@ Build all 15 combinations (fabric/forge/neoforge × 26.2/26.1.2/26.1.1/26.1/1.21
 .\scripts\local\build-multiversion.ps1 -Loaders fabric -ContinueOnError:$false
 .\scripts\local\build-multiversion.ps1 -Loaders forge -ContinueOnError:$false
 .\scripts\local\build-multiversion.ps1 -Loaders neoforge -ContinueOnError:$false
+.\scripts\local\build-multiversion.ps1 -Loaders quilt -ContinueOnError:$false
 ```
 
-## Standalone 26.x branches
+## How 26.x builds work
+
+- **Fabric/NeoForge 26.x**: plain `javac` against Mojang's unobfuscated JARs (`scripts/local/build-fabric26-plain.ps1`, `build-neoforge26-plain.ps1`). A mapping gate refuses `net/minecraft/class_*` references.
+- **Forge 26.x**: standalone ForgeGradle 7 (`Loader/forge26.1/`), one build copied to all five 26.x versions.
+- **Quilt**: repackaged from the Fabric JAR (metadata swap only).
+
+## Requirements
+
+- Java 21 for 1.21.11 builds, Java 25 for 26.x (auto-detected under `C:\Program Files\Java`, override with `-JavaHome` on plain scripts)
+- Gradle via wrapper (`gradlew.bat`) — no separate install needed
+- > 6 GB free disk (Loom caches); `~\.gradle\caches\fabric-loom` can be deleted safely if space runs out
+
+## Testing
 
 ```powershell
-.\gradlew.bat -p Loader\fabric26.1 clean build --no-daemon
-.\gradlew.bat -p Loader\forge26.1 clean build --no-daemon
+# Server boot matrix (default server-only, no client windows)
+.\scripts\ci\test-mod-matrix.ps1 -Loaders fabric -McVersions 1.21.11 -Mods StatusMod
+# With client: -WithClient (see docs/modrinth-client-test.md)
 ```
-
-## What gets built
-
-- Shared Fabric: MC 1.19 - 1.21.11 via Loom
-- Shared Forge: MC 1.19 - 25.x via Loom (`loom.platform=forge`)
-- Shared NeoForge: MC 1.21+ via Loom (`loom.platform=neoforge`)
-- Dedicated Fabric 26.x: MC 26.1 - 26.2 via standalone Loom
-- Dedicated Forge 26.x: MC 26.1 - 26.2 via standalone ForgeGradle 7
-
-Output is written to `dist/multiversion/` for the shared line and `Loader/<loader>26.1/build/` for the 26.x branches.
 
 ## Local release publishing
 
 ```powershell
-.\scripts\local\run-workflow-local.ps1 -Workflow build
-.\scripts\local\run-workflow-local.ps1 -Workflow publish -DryRun
-.\scripts\local\run-workflow-local.ps1 -Workflow publish-multi-version -ReleaseType release
+.\scripts\ci\check-release-tokens.ps1   # read-only: are all tokens/IDs valid?
 ```
 
-Output JARs are named `statusmod-<modversion>-<modloader>-<minecraftversion>.jar`.
-
-Required env vars: `MODRINTH_PROJECT_ID`, `MODRINT_TOKEN`, `CURSEFORGE_PROJECT_ID`, `CURSEFORGE_API_KEY`.
-Optional: copy `scripts/local/.release.env.example` to `scripts/local/.release.env`.
-
-## Requirements
-
-- Java 21 for MC < 26
-- Java 25 for MC >= 26 (Forge/NeoForge 26.x)
-- Gradle is invoked via wrapper (`gradlew.bat`) -- no separate install needed
+Required env vars: `MODRINTH_TOKEN`, `MODRINTH_PROJECT_ID`, `CURSEFORGE_TOKEN`, `CURSEFORGE_PROJECT_ID` (all required since 1.4.0 — publishing aborts otherwise). Details: [Release](Release).
