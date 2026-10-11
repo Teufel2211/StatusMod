@@ -95,9 +95,9 @@ public final class FleetManager {
      */
     @SuppressWarnings("unchecked")
     static Map<String, Object> readFleetConfig() {
-        try {
-            Path p = configPath();
-            if (Files.exists(p)) {
+        Path p = configPath();
+        if (Files.exists(p)) {
+            try {
                 Object parsed = GSON.fromJson(Files.readString(p), Map.class);
                 if (parsed instanceof Map<?, ?> map) {
                     Map<String, Object> out = new LinkedHashMap<>();
@@ -106,9 +106,18 @@ public final class FleetManager {
                     }
                     return out;
                 }
+                // Corrupt file: warn + in-memory defaults, NEVER overwrite
+                // (would silently destroy the fleet secret).
+                System.out.println("[Fleet] WARNING: fleet config corrupt, using defaults until fixed: " + p);
+            } catch (Exception e) {
+                System.out.println("[Fleet] cannot read fleet config: " + e.getMessage());
             }
-        } catch (Exception e) {
-            System.out.println("[Fleet] cannot read fleet config: " + e.getMessage());
+            Map<String, Object> fallback = new LinkedHashMap<>();
+            fallback.put("enabled", true);
+            fallback.put("pullIntervalSecs", 60);
+            fallback.put("dashboardUrl", "");
+            fallback.put("setupSecret", "");
+            return fallback;
         }
         // Bootstrap from StatusMod's config (one-time import).
         Map<String, Object> boot = new LinkedHashMap<>();
