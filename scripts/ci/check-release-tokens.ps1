@@ -62,23 +62,25 @@ if (-not [string]::IsNullOrWhiteSpace($mrToken) -and -not [string]::IsNullOrWhit
     } catch { Write-Fail "Versions-Abfrage: $($_.Exception.Message)" }
 }
 
-Write-Host "=== CurseForge (optional) ==="
+Write-Host "=== CurseForge (Pflicht) ==="
 $cfToken = [string]$env:CURSEFORGE_TOKEN
 $cfProject = [string]$env:CURSEFORGE_PROJECT_ID
-if ([string]::IsNullOrWhiteSpace($cfToken) -or [string]::IsNullOrWhiteSpace($cfProject)) {
-    Write-Warn "CURSEFORGE_TOKEN/PROJECT_ID unvollstaendig - CF-Upload wird beim Release uebersprungen"
-} else {
+if ([string]::IsNullOrWhiteSpace($cfToken)) { Write-Fail "CURSEFORGE_TOKEN nicht gesetzt" }
+else { Write-Host "  CURSEFORGE_TOKEN gesetzt ($(Mask $cfToken))" }
+if ([string]::IsNullOrWhiteSpace($cfProject)) { Write-Fail "CURSEFORGE_PROJECT_ID nicht gesetzt" }
+else { Write-Host "  CURSEFORGE_PROJECT_ID=$cfProject" }
+if (-not [string]::IsNullOrWhiteSpace($cfToken) -and -not [string]::IsNullOrWhiteSpace($cfProject)) {
     Write-Host "  CURSEFORGE_TOKEN gesetzt ($(Mask $cfToken)), Projekt=$cfProject"
     try {
         $vers = Invoke-RestMethod -Uri "https://minecraft.curseforge.com/api/game/versions" -Method Get `
             -Headers @{ "X-API-Key" = $cfToken } -TimeoutSec 30 -ErrorAction Stop
         Write-Ok "Game-Versions lesbar ($($vers.Count) Eintraege)"
-    } catch { Write-Warn "Game-Versions: $($_.Exception.Message) - CF wird uebersprungen" }
+    } catch { Write-Fail "Game-Versions: $($_.Exception.Message)" }
     try {
         $p = Invoke-RestMethod -Uri "https://minecraft.curseforge.com/api/projects/$cfProject" -Method Get `
             -Headers @{ "X-API-Key" = $cfToken } -TimeoutSec 30 -ErrorAction Stop
         Write-Ok "Projekt lesbar: $($p.name) (id=$($p.id))"
-    } catch { Write-Warn "Projekt-Abfrage: $($_.Exception.Message)" }
+    } catch { Write-Fail "Projekt-Abfrage: $($_.Exception.Message)" }
 }
 
 Write-Host "=== GitHub (CI-Releases) ==="

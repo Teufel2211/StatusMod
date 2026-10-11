@@ -27,9 +27,10 @@ $curseforgeProjectId = [string]$env:CURSEFORGE_PROJECT_ID
 
 if ([string]::IsNullOrWhiteSpace($modrinthToken)) { throw "MODRINTH_TOKEN not set" }
 if ([string]::IsNullOrWhiteSpace($modrinthProjectId)) { throw "MODRINTH_PROJECT_ID not set" }
+if ([string]::IsNullOrWhiteSpace($curseforgeToken)) { throw "CURSEFORGE_TOKEN not set (Pflicht seit 1.4.0)" }
+if ([string]::IsNullOrWhiteSpace($curseforgeProjectId)) { throw "CURSEFORGE_PROJECT_ID not set (Pflicht seit 1.4.0)" }
 
-$hasCurseForge = (-not [string]::IsNullOrWhiteSpace($curseforgeToken)) -and
-                  (-not [string]::IsNullOrWhiteSpace($curseforgeProjectId))
+$hasCurseForge = $true
 
 $pattern = "(?i)^Statusmod-$([Regex]::Escape($modVersion))-(fabric|forge|neoforge|quilt)-(\d+(?:\.\d+)*)\.jar$"
 
@@ -82,9 +83,7 @@ if ($hasCurseForge) {
             -Headers @{ "X-API-Key" = $curseforgeToken } -ErrorAction Stop
         Write-Host "   OK ($($cfGameVersionCache.Count) versions)"
     } catch {
-        Write-Warning "   FAILED to fetch game versions: $($_.Exception.Message)"
-        Write-Warning "   CurseForge publishing will be skipped; add IDs manually to continue"
-        $hasCurseForge = $false
+        throw "CurseForge game versions unerreichbar (Pflicht): $($_.Exception.Message)"
     }
 }
 
@@ -168,8 +167,7 @@ foreach ($group in $jarGroups.Values) {
         continue
     }
 
-    # --- CurseForge ---
-    if (-not $hasCurseForge) { $ok++; continue }
+    # --- CurseForge (Pflicht seit 1.4.0) ---
 
     $cfGameVersions = New-Object System.Collections.Generic.List[int]
     foreach ($mcVersion in $mcList) {
@@ -186,10 +184,7 @@ foreach ($group in $jarGroups.Values) {
     if ($envId) { $cfGameVersions.Add($envId) }
 
     if ($cfGameVersions.Count -lt 3) {
-        Write-Warning "   CurseForge: missing game version IDs (found $($cfGameVersions.Count)/3), skipping"
-        Write-Warning "   Found MC=$mcId, Loader=$loaderId, Env=$envId"
-        $ok++
-        continue
+        throw "CurseForge: game version IDs unvollstaendig (gefunden $($cfGameVersions.Count)/3; MC=$mcId, Loader=$loaderId, Env=$envId)"
     }
 
     try {
@@ -209,7 +204,9 @@ foreach ($group in $jarGroups.Values) {
             }
         Write-Host "   CurseForge OK"
     } catch {
+        $fail++
         Write-Warning "   CurseForge FAILED: $($_.Exception.Message)"
+        continue
     }
     $ok++
 }
