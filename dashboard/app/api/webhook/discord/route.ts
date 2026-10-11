@@ -11,7 +11,8 @@ export async function POST(request: Request) {
 
   const token = authHeader.slice(7)
   const secret = getEnv().DISCORD_WEBHOOK_SECRET
-  if (secret && token !== secret) return unauthorized()
+  // Fail closed: without a configured secret, no webhook call is trusted.
+  if (!secret || token !== secret) return unauthorized()
 
   let body: unknown
   try { body = await request.json() } catch { return badRequest() }

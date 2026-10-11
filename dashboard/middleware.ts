@@ -18,6 +18,10 @@ export function middleware(request: NextRequest) {
     if (!CORS_ORIGIN) {
       return NextResponse.next()
     }
+    const origin = request.headers.get("origin")
+    if (origin !== CORS_ORIGIN) {
+      return NextResponse.next()
+    }
     return new NextResponse(null, {
       status: 204,
       headers: {
