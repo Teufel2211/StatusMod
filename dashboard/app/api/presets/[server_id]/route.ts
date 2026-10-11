@@ -1,7 +1,8 @@
-import { ok, serverError, unauthorized, badRequest } from "@/lib/response"
+import { ok, serverError, unauthorized, forbidden, badRequest } from "@/lib/response"
 import { getServiceClient } from "@/lib/supabase"
 import { authorizeData, requireSession } from "@/lib/auth"
 import { validatePathUuid } from "@/lib/validators"
+import { writeAuditLog } from "@/lib/audit"
 import { z } from "zod"
 
 
@@ -42,6 +43,7 @@ export async function POST(
   const session = requireSession(request)
   if (!session) return unauthorized()
   if (session.server_id !== params.server_id) return unauthorized()
+  if (session.role !== "owner") return forbidden("Nur der Owner kann Presets ändern")
 
   let body: unknown
   try { body = await request.json() } catch { return badRequest() }
@@ -62,5 +64,13 @@ export async function POST(
   )
 
   if (error) return serverError()
+
+  await writeAuditLog({
+    server_id: params.server_id,
+    action: "preset_upsert",
+    who_uuid: session.sub,
+    details: { name: parsed.data.name.toLowerCase() },
+  })
+
   return ok({ success: true })
 }

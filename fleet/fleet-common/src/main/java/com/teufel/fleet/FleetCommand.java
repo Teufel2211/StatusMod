@@ -42,6 +42,11 @@ public final class FleetCommand {
 
     private static final String CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
     private static final java.security.SecureRandom CODE_RNG = new java.security.SecureRandom();
+    private static final java.net.http.HttpClient SHARED_HTTP = java.net.http.HttpClient.newBuilder()
+            .connectTimeout(java.time.Duration.ofSeconds(10))
+            .build();
+    private static volatile long lastOwnerCodeAtMs = 0L;
+    private static final long OWNER_CODE_COOLDOWN_MS = 30_000L;
 
     private static String generateCode(int length) {
         StringBuilder sb = new StringBuilder(length);
@@ -62,6 +67,12 @@ public final class FleetCommand {
             src.sendFailure(Component.literal("Du hast nicht genügend Rechte."));
             return;
         }
+        long now = System.currentTimeMillis();
+        if (now - lastOwnerCodeAtMs < OWNER_CODE_COOLDOWN_MS) {
+            src.sendFailure(Component.literal("Bitte warte kurz (max. 1 Code pro 30s)."));
+            return;
+        }
+        lastOwnerCodeAtMs = now;
         java.util.Map<String, Object> local = FleetManager.readStatusConfig();
         if (local == null) {
             src.sendFailure(Component.literal("StatusMod-Config nicht gefunden."));
@@ -102,10 +113,7 @@ public final class FleetCommand {
                         .POST(java.net.http.HttpRequest.BodyPublishers.ofString(payload.toString()))
                         .build();
                 java.net.http.HttpResponse<java.io.InputStream> response =
-                        java.net.http.HttpClient.newBuilder()
-                                .connectTimeout(java.time.Duration.ofSeconds(10))
-                                .build()
-                                .send(request, java.net.http.HttpResponse.BodyHandlers.ofInputStream());
+                        SHARED_HTTP.send(request, java.net.http.HttpResponse.BodyHandlers.ofInputStream());
                 int status;
                 try (java.io.InputStream in = response.body()) {
                     status = response.statusCode();

@@ -569,7 +569,7 @@ export default function FleetAdminPage() {
                       <div className="flex-1 min-w-0">
                         <div className="text-xs truncate" style={{ color: "var(--text-secondary)" }}>{h.dashboard_url || "(leere URL)"}</div>
                         <div className="font-mono text-[10px]" style={{ color: "var(--text-muted)" }}>
-                          {h.created_at ? new Date(h.created_at).toLocaleString() : "—"} · Secret gesetzt
+                          {h.created_at ? new Date(h.created_at).toLocaleString() : "—"} · {h.has_secret ? "Secret gesetzt" : "kein Secret"}
                         </div>
                       </div>
                       <button

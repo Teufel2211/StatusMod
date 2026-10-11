@@ -1,5 +1,5 @@
 import { ApiKeyCreateSchema } from "@/lib/validators"
-import { badRequest, ok, created, serverError, unauthorized, tooMany } from "@/lib/response"
+import { badRequest, ok, created, serverError, unauthorized, forbidden, tooMany } from "@/lib/response"
 import { getServiceClient } from "@/lib/supabase"
 import { requireSession } from "@/lib/auth"
 import { checkRateLimit, RATE_LIMITS, getRateLimitHeaders } from "@/lib/rate-limit"
@@ -28,6 +28,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = requireSession(request)
   if (!session) return unauthorized()
+  if (session.role !== "owner") return forbidden("Nur der Owner kann API-Keys erstellen")
 
   const ip = request.headers.get("x-forwarded-for") ?? "unknown"
   const rl = checkRateLimit(`key_create:${hashIp(ip)}`, { windowMs: 60_000, max: 3 })

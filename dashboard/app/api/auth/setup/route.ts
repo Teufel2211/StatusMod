@@ -133,7 +133,6 @@ export async function POST(request: Request) {
   return NextResponse.json(
     {
       access_token: accessToken,
-      refresh_token: refreshTokenRaw,
       expires_in: 900,
       server_id: matchedCode.server_id,
       api_key: rawApiKey,

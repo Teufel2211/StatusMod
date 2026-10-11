@@ -489,11 +489,11 @@ public class StatusCommand {
                 return 0;
             }
             ModConfig c = StatusMod.getConfig();
-            if (c == null || c.dashboardUrl == null || c.dashboardUrl.trim().isEmpty()) {
+            if (c == null || c.effectiveDashboardUrl().isEmpty()) {
                 src.sendFailure(Component.literal("Keine Dashboard-URL konfiguriert."));
                 return 0;
             }
-            String base = c.dashboardUrl.trim();
+            String base = c.effectiveDashboardUrl();
             while (base.endsWith("/")) base = base.substring(0, base.length() - 1);
             final String endpoint = base + "/api/players/" + sid;
             final net.minecraft.server.MinecraftServer server = src.getServer();
@@ -622,7 +622,7 @@ public class StatusCommand {
                 src.sendFailure(Component.literal("Keine Konfiguration geladen."));
                 return;
             }
-            String url = c.dashboardUrl == null ? "" : c.dashboardUrl.trim();
+            String url = c.effectiveDashboardUrl();
             String sid = c.serverId == null ? "" : c.serverId.trim();
             String key = c.apiKey == null ? "" : c.apiKey.trim();
             String keyInfo = key.isEmpty() ? "nein" : "ja (" + key.substring(0, Math.min(6, key.length())) + "…)";

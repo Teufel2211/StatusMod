@@ -7,7 +7,6 @@ import { setAccessToken } from "@/lib/client/auth"
 
 type SetupResult = {
   access_token: string
-  refresh_token: string
   api_key?: string
   key_prefix?: string
   server_id: string

@@ -131,7 +131,7 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json(
-    { access_token: accessToken, refresh_token: refreshTokenRaw, expires_in: 900, uuid: user.uuid, server_id: user.server_id },
+    { access_token: accessToken, expires_in: 900, uuid: user.uuid, server_id: user.server_id },
     {
       headers: {
         ...getRateLimitHeaders(rl),

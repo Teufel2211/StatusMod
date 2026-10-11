@@ -68,7 +68,7 @@ public final class SyncManager {
         ModConfig config = StatusMod.getConfig();
         if (config == null) return;
         if (!config.isEnabled("sync")) return;
-        if (config.dashboardUrl == null || config.dashboardUrl.trim().isEmpty()) return;
+        if (config.effectiveDashboardUrl().isEmpty()) return;
         if (config.serverId == null || config.serverId.isEmpty()) return;
         if (config.apiKey == null || config.apiKey.isEmpty()) return;
 
