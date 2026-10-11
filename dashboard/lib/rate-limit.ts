@@ -1,4 +1,16 @@
 const stores = new Map<string, { count: number; resetAt: number }>()
+const MAX_STORE_ENTRIES = 10_000
+
+function evictStores(now: number): void {
+  if (stores.size < MAX_STORE_ENTRIES) return
+  stores.forEach((v, k) => {
+    if (now > v.resetAt) stores.delete(k)
+  })
+  if (stores.size < MAX_STORE_ENTRIES) return
+  // Still full (active flood): drop oldest arbitrarily to bound memory.
+  const first = stores.keys().next()
+  if (!first.done) stores.delete(first.value)
+}
 
 export interface RateLimitConfig {
   windowMs: number
@@ -7,6 +19,7 @@ export interface RateLimitConfig {
 
 export function checkRateLimit(key: string, config: RateLimitConfig): { allowed: boolean; remaining: number; resetAt: number; max: number } {
   const now = Date.now()
+  evictStores(now)
   const entry = stores.get(key)
 
   if (!entry || now > entry.resetAt) {
@@ -44,8 +57,31 @@ const LOGIN_LOCKOUT = {
 
 const failureStore = new Map<string, { count: number; firstAt: number }>()
 const bannedStore = new Map<string, number>()
+const MAX_FAILURE_ENTRIES = 10_000
+
+function evictFailureStores(now: number): void {
+  if (failureStore.size >= MAX_FAILURE_ENTRIES) {
+    failureStore.forEach((v, k) => {
+      if (now > v.firstAt + LOGIN_LOCKOUT.windowMs) failureStore.delete(k)
+    })
+    if (failureStore.size >= MAX_FAILURE_ENTRIES) {
+      const first = failureStore.keys().next()
+      if (!first.done) failureStore.delete(first.value)
+    }
+  }
+  if (bannedStore.size >= MAX_FAILURE_ENTRIES) {
+    bannedStore.forEach((until, k) => {
+      if (now > until) bannedStore.delete(k)
+    })
+    if (bannedStore.size >= MAX_FAILURE_ENTRIES) {
+      const first = bannedStore.keys().next()
+      if (!first.done) bannedStore.delete(first.value)
+    }
+  }
+}
 
 export function isLockedOut(key: string): boolean {
+  evictFailureStores(Date.now())
   const until = bannedStore.get(key)
   if (!until) return false
   if (Date.now() > until) {
@@ -68,6 +104,7 @@ export function lockoutRemainingMs(key: string): number {
 
 export function recordLoginFailure(key: string): void {
   const now = Date.now()
+  evictFailureStores(now)
   const f = failureStore.get(key)
   if (!f || now > f.firstAt + LOGIN_LOCKOUT.windowMs) {
     failureStore.set(key, { count: 1, firstAt: now })
