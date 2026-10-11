@@ -137,6 +137,10 @@ public class SettingsStorage {
         while (ps.statusHistory.size() > maxHistory) { ps.statusHistory.remove(0); changed = true; }
         if (ps.statusByWorld == null) { ps.statusByWorld = new HashMap<>(); changed = true; }
         if (ps.colorByWorld == null) { ps.colorByWorld = new HashMap<>(); changed = true; }
+        if (ps.preAfkStatus == null) { ps.preAfkStatus = ""; changed = true; }
+        if (ps.preAfkColor == null) { ps.preAfkColor = "reset"; changed = true; }
+        if (ps.lastKnownName == null) { ps.lastKnownName = ""; changed = true; }
+        if (ps.avatar == null) { ps.avatar = ""; changed = true; }
         if (ps.lastActivityAtMs <= 0L) { ps.lastActivityAtMs = System.currentTimeMillis(); changed = true; }
         return changed;
     }

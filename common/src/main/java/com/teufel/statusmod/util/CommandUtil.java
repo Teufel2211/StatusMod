@@ -29,6 +29,10 @@ public final class CommandUtil {
         // Remapped runtimes (Fabric Intermediary, Forge/NeoForge renames) do not
         // expose Mojang method names via reflection, so every attempt above fails.
         // Fall back to the console so server operators still see command output.
-        System.out.println("[StatusMod] " + msg.getString());
+        // Mirror vanilla: only broadcast output (admin actions) lands in the log;
+        // private replies (broadcast=false) stay private (may contain PII).
+        if (broadcast) {
+            System.out.println("[StatusMod] " + msg.getString());
+        }
     }
 }
