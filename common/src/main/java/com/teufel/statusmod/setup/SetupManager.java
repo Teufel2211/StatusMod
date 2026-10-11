@@ -92,8 +92,13 @@ public final class SetupManager {
             try {
                 String apiKey = fetchPendingKey(CodeGenerator.trimTrailingSlash(config.effectiveDashboardUrl()), config.serverId, config.effectiveSetupSecret());
                 if (apiKey != null) {
-                    config.apiKey = apiKey;
-                    config.save();
+                    // Reload first: the static config may have been replaced
+                    // (config reload) while polling — never clobber it.
+                    com.teufel.statusmod.storage.ModConfig fresh =
+                        com.teufel.statusmod.storage.ModConfig.load();
+                    fresh.apiKey = apiKey;
+                    fresh.save();
+                    com.teufel.statusmod.StatusMod.config = fresh;
                     System.out.println("[StatusMod] API-Key automatically fetched. Server setup complete.");
                     SyncManager.retryStart();
                     return;
