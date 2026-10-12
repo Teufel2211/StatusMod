@@ -12,12 +12,13 @@ Abhaken der Reihe nach. Alles auf `development` vorbereiten, erst ganz am Ende n
 
 - [x] `.\scripts\local\build-multiversion.ps1 -Loaders fabric,forge,neoforge,quilt -ContinueOnError:$false` — 2026-10-11 alle ok
 - [x] Rebuild 2026-10-12 (forge+neoforge, logoFile-Fix; forge-26.3 Kopie, neoforge-26.3 plain) — alle ok
+- [x] Rebuild 2026-10-12 (alle Loader, HttpClient HTTP/1.1-Fix; fabric-26.3 + neoforge-26.3 plain, quilt-26.3 repack, fleet separat) — alle ok
 - [x] `.\scripts\ci\verify-jars.ps1` → 24/24 OK — verifiziert 2026-10-11 + erneut 2026-10-12
 - [x] `dist/multiversion` enthält 24 × `Statusmod-1.4.0-<loader>-<mc>.jar` — verifiziert 2026-10-11
 
 ## 3. Tests
 
-- [x] `.\scripts\ci\test-mod-matrix.ps1` (Server-Boot grün, mind. fabric × 1.21.11 + 26.2) — 2026-10-11: 2/2 PASS
+- [x] `.\scripts\ci\test-mod-matrix.ps1` (Server-Boot grün, mind. fabric × 1.21.11 + 26.2) — 2026-10-11: 2/2 PASS, 2026-10-12: 2/2 PASS (Ports ab 25665)
 - [x] Ingame-Foltertest Singleplayer (Klick/Shift/Q/Ziffern/F/Drag + ESC, Inventar prüfen) — **braucht dich**
 - [x] Dashboard-Build grün: `npm run build --prefix dashboard` — verifiziert 2026-10-11
 
