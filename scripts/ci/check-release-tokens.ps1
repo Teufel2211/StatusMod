@@ -80,7 +80,15 @@ if (-not [string]::IsNullOrWhiteSpace($cfToken) -and -not [string]::IsNullOrWhit
         $p = Invoke-RestMethod -Uri "https://minecraft.curseforge.com/api/projects/$cfProject" -Method Get `
             -Headers @{ "X-Api-Token" = $cfToken } -TimeoutSec 30 -ErrorAction Stop
         Write-Ok "Projekt lesbar: $($p.name) (id=$($p.id))"
-    } catch { Write-Fail "Projekt-Abfrage: $($_.Exception.Message)" }
+    } catch {
+        # Die Legacy-API hat keinen Projekt-GET-Endpunkt (nur game/versions +
+        # upload-file sind echt) - ein 404 hier beweist NICHTS. Echter Nachweis
+        # ist der Upload beim Publish. Die ID muss daher von der Projektseite
+        # stimmen (About Project -> Project ID).
+        $code = $null; try { $code = $_.Exception.Response.StatusCode.value__ } catch {}
+        if ("$code" -eq "404") { Write-Warn "Projekt-GET gibt 404 (Endpunkt existiert in Legacy nicht) - ID bitte mit Projektseite abgleichen, echter Test ist der Upload" }
+        else { Write-Fail "Projekt-Abfrage: $($_.Exception.Message)" }
+    }
 }
 
 Write-Host "=== GitHub (CI-Releases) ==="
