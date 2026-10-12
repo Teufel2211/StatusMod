@@ -138,6 +138,7 @@ def main():
             )
 
         # Alte Statusmod-Eintraege entfernen (nur unsere Dateien, nie fremde Mods).
+        # Verwaiste Eintraege (Datei-Zeile fehlt) bleiben unangetastet.
         for (eid, fid, rpath) in con.execute(
             "SELECT e.id, e.file_id, f.relative_path FROM instance_content_entries e"
             " JOIN instance_files f ON f.id=e.file_id"
