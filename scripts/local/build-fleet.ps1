@@ -37,6 +37,19 @@ $QuiltLoaderVersion = "0.30.0"
 $gradleCache = Join-Path $env:USERPROFILE ".gradle\caches\modules-2\files-2.1"
 $libDir = Join-Path $root ".plain-libs"
 function Test-FileExists([string]$p) { return [System.IO.File]::Exists($p) }
+# Downloads mit Retry: CI-Egress ist flaky (vereinzelte 404/Timeouts bei vielen Dateien).
+function Invoke-DownloadWithRetry([string]$url, [string]$dst, [int]$timeoutSec = 300, [int]$tries = 4) {
+    for ($i = 1; $i -le $tries; $i++) {
+        try {
+            Invoke-WebRequest -NoProxy $url -OutFile $dst -TimeoutSec $timeoutSec
+            if (Test-FileExists $dst) { return }
+            throw "download produced no file"
+        } catch {
+            if ($i -eq $tries) { throw }
+            Start-Sleep -Seconds (5 * $i)
+        }
+    }
+}
 function Test-DirExists([string]$p) { return [System.IO.Directory]::Exists($p) }
 
 function Get-CachedJar([string]$subPath, [string]$version) {
@@ -70,7 +83,7 @@ function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [str
     $dst = Join-Path $libDir "$artifact-$version.jar"
     if (-not (Test-FileExists $dst)) {
         Write-Host "Downloading $artifact $version ..."
-        Invoke-WebRequest -NoProxy $url -OutFile $dst -TimeoutSec 300
+        Invoke-DownloadWithRetry $url $dst 300
     }
     return $dst
 }
