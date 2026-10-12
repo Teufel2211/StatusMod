@@ -37,7 +37,7 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   const session = requireSession(request)
   if (!session) return unauthorized()
-  if (session.role !== "owner") return forbidden("Nur der Owner kann die Fleet-Config ändern")
+  if (session.role !== "owner") return forbidden("Nur der Owner kann die Config ändern")
 
   let body: unknown
   try { body = await request.json() } catch { return badRequest() }

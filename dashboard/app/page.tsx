@@ -3,7 +3,7 @@ import Footer from "@/components/footer"
 
 const features = [
   { icon: "◉", title: "Live Ops", text: "Systemstatus, Spieler live im Feed und Aktivitäts-Stream in Echtzeit.", stat: "SSE" },
-  { icon: "⬡", title: "Fleet Control", text: "Eine Config für alle Server: URL + Secret zentral verteilen.", stat: "60s" },
+  { icon: "⬡", title: "Zentral-Config", text: "Eine Config für alle Server: URL + Secret zentral verteilen.", stat: "60s" },
   { icon: "⌨", title: "Owner Access", text: "One-Time-Code aus der Konsole, Sitzung per Cookie.", stat: "10m" },
 ]
 
@@ -22,11 +22,11 @@ export default function LandingPage() {
           <h1 className="fade-up anim-d1 font-display font-bold leading-[0.98] text-glow mb-5" style={{ color: "var(--text-primary)", fontSize: "clamp(3rem, 8vw, 5.5rem)" }}>
             Command your
             <br />
-            <span className="text-gradient">Minecraft fleet.</span>
+            <span className="text-gradient">Minecraft servers.</span>
           </h1>
 
           <p className="fade-up anim-d2 text-lg mb-4 leading-relaxed max-w-xl mx-auto" style={{ color: "var(--text-secondary)" }}>
-            Player statuses, live ops and fleet config for all your servers — one console, zero file edits.
+            Player statuses, live ops and central config for all your servers — one console, zero file edits.
           </p>
 
           <div className="fade-up anim-d2 flex flex-wrap justify-center gap-2 mb-10">

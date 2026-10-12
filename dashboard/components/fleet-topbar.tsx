@@ -43,7 +43,7 @@ export default function FleetTopbar() {
             F
           </div>
           <div>
-            <div className="font-display font-bold text-sm leading-none" style={{ color: "var(--text-primary)" }}>Fleet Admin</div>
+            <div className="font-display font-bold text-sm leading-none" style={{ color: "var(--text-primary)" }}>Server Admin</div>
             <div className="text-[10px] tracking-widest mt-0.5 font-mono" style={{ color: "var(--text-muted)" }}>ADMIN-BEREICH</div>
           </div>
         </div>

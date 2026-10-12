@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic"
 export async function GET(request: Request) {
   const session = requireSession(request)
   if (!session) return unauthorized()
-  if (session.role !== "owner") return forbidden("Nur der Owner sieht die Fleet-Historie")
+  if (session.role !== "owner") return forbidden("Nur der Owner sieht die Historie")
 
   const sb = getServiceClient()
   const { data, error } = await (sb as any)

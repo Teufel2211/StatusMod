@@ -32,7 +32,7 @@ Abhaken der Reihe nach. Alles auf `development` vorbereiten, erst ganz am Ende n
 - [ ] `vercel deploy --prod` — **brauchst du** (CLI nicht eingeloggt)
 - [ ] `/api/health` → `healthy`, `previous_secret_active: false` — nach Deploy prüfen
 - [ ] Login + Owner-Login (`/fleet owner-code` → `/admin-dashboard`) einmal durchspielen — **brauchst du**
-- [ ] Fleet-Pull auf Testserver prüfen (`/fleet status` → Pull ok) — **brauchst du**
+- [ ] Config-Pull auf Testserver prüfen (`/fleet status` → Pull ok) — **brauchst du**
 
 ## 6. Offenlegung (Modrinth, vor Upload!)
 

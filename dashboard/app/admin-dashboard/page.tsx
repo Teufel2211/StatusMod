@@ -326,7 +326,7 @@ export default function FleetAdminPage() {
     alerts.push({ level: "warn", text: "Altes JWT-Secret noch aktiv – Rotation abschließen (JWT_SECRET_PREVIOUS entfernen)." })
   }
   if (loaded && !fleetActive) {
-    alerts.push({ level: "warn", text: "Fleet ist leer – keine Verteilung aktiv. Unten Werte setzen." })
+    alerts.push({ level: "warn", text: "Keine Verteilung aktiv. Unten Werte setzen." })
   }
   if (loaded && activeKeys.length === 0) {
     alerts.push({ level: "warn", text: "Kein aktiver API-Key – Mods können nicht synchronisieren." })
@@ -345,7 +345,7 @@ export default function FleetAdminPage() {
         <div className="mb-6 fade-up">
           <div className="kicker mb-2">Zentrale Steuerung · alle Server</div>
           <h1 className="font-display font-bold text-3xl sm:text-4xl fleet-phosphor">
-            FLEET<span className="fleet-blink">_</span>COMMAND
+            OPS<span className="fleet-blink">_</span>COMMAND
           </h1>
         </div>
 
@@ -418,7 +418,7 @@ export default function FleetAdminPage() {
         </section>
 
         <section className="mb-8">
-          <SectionHead id="server" kicker="Flotte" title="Fleet-Server & Details" sub={`${servers.length} Server`} />
+          <SectionHead id="server" kicker="Server" title="Server & Details" sub={`${servers.length} Server`} />
           {servers.length === 0 ? (
             <div className="card fade-up">
               <p className="text-sm" style={{ color: "var(--text-muted)" }}>Keine Server gefunden.</p>
@@ -525,7 +525,7 @@ export default function FleetAdminPage() {
         </section>
 
         <section className="mb-8">
-          <SectionHead id="verteilen" kicker="Fleet" title="Verteilung & Rollbacks" sub={fleetUpdatedAt ? `Stand ${ageString(fleetUpdatedAt)}` : "Noch nie verteilt"} />
+          <SectionHead id="verteilen" kicker="Zentral" title="Verteilung & Rollbacks" sub={fleetUpdatedAt ? `Stand ${ageString(fleetUpdatedAt)}` : "Noch nie verteilt"} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="card card-glow fade-up">
               <label className="label">Dashboard-URL</label>
