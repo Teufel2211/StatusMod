@@ -6,46 +6,46 @@
 
 @layer base {
   :root {
-    --bg-primary: #f6f4ee;
-    --bg-card: rgba(255, 255, 255, 0.82);
-    --bg-hover: #ece7d8;
+    --bg-primary: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-hover: #f1f5f9;
     --bg-input: #ffffff;
-    --border: #e2dac4;
-    --text-primary: #191817;
-    --text-secondary: #57534a;
-    --text-muted: #8d8776;
-    --accent: #6d28d9;
-    --accent-dim: #6d28d914;
-    --accent-hover: #5b21b6;
-    --accent-border: #6d28d940;
-    --cyan: #0891b2;
-    --glow-accent: rgba(109, 40, 217, 0.28);
-    --glow-cyan: rgba(8, 145, 178, 0.22);
-    --grid-opacity: 0.05;
-    --mesh-a: rgba(109, 40, 217, 0.14);
-    --mesh-b: rgba(8, 145, 178, 0.12);
+    --border: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --accent: #059669;
+    --accent-dim: #05966914;
+    --accent-hover: #047857;
+    --accent-border: #05966940;
+    --cyan: #34d399;
+    --glow-accent: rgba(5, 150, 105, 0.18);
+    --glow-cyan: rgba(52, 211, 153, 0.14);
+    --grid-opacity: 0.035;
+    --mesh-a: rgba(5, 150, 105, 0.08);
+    --mesh-b: rgba(52, 211, 153, 0.06);
     --glass-blur: 14px;
   }
 
   .dark {
-    --bg-primary: #070b14;
-    --bg-card: rgba(17, 24, 39, 0.72);
-    --bg-hover: #162032;
-    --bg-input: #0b1220;
-    --border: rgba(148, 163, 184, 0.16);
-    --text-primary: #f1f5fd;
-    --text-secondary: #a3adc2;
-    --text-muted: #5d6778;
-    --accent: #8b5cf6;
-    --accent-dim: #8b5cf61c;
-    --accent-hover: #a78bfa;
-    --accent-border: #8b5cf655;
-    --cyan: #38e1ff;
-    --glow-accent: rgba(139, 92, 246, 0.4);
-    --glow-cyan: rgba(56, 225, 255, 0.28);
-    --grid-opacity: 0.05;
-    --mesh-a: rgba(139, 92, 246, 0.16);
-    --mesh-b: rgba(56, 225, 255, 0.12);
+    --bg-primary: #09090b;
+    --bg-card: #131316;
+    --bg-hover: #1b1b1f;
+    --bg-input: #101013;
+    --border: #27272a;
+    --text-primary: #fafafa;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
+    --accent: #34d399;
+    --accent-dim: #34d3991c;
+    --accent-hover: #6ee7b7;
+    --accent-border: #34d39955;
+    --cyan: #6ee7b7;
+    --glow-accent: rgba(52, 211, 153, 0.25);
+    --glow-cyan: rgba(110, 231, 183, 0.16);
+    --grid-opacity: 0.04;
+    --mesh-a: rgba(52, 211, 153, 0.10);
+    --mesh-b: rgba(110, 231, 183, 0.07);
     --glass-blur: 16px;
   }
 
@@ -217,8 +217,8 @@
 @layer utilities {
   .bg-grid {
     background-image:
-      linear-gradient(rgba(139, 92, 246, var(--grid-opacity)) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(139, 92, 246, var(--grid-opacity)) 1px, transparent 1px);
+      linear-gradient(rgba(100, 116, 139, var(--grid-opacity)) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(100, 116, 139, var(--grid-opacity)) 1px, transparent 1px);
     background-size: 40px 40px;
   }
   .hero-mesh {
