@@ -61,7 +61,11 @@ function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [str
     $local = Get-CachedJar $groupPath $version
     if ($local) { return $local }
     $file = "$artifact-$version.jar"
-    $url = "$repo/$($groupPath.Replace('\','/'))/$artifact/$version/$file"
+    # groupPath ist Cache-Layout ("a.b.c\artifact"): Gruppe zu Maven-Pfad wandeln.
+    $gp = $groupPath.Replace('\','/')
+    $sep = $gp.LastIndexOf('/')
+    if ($sep -ge 0) { $groupUrl = $gp.Substring(0,$sep).Replace('.','/'); $artDir = $gp.Substring($sep+1) } else { $groupUrl = $gp.Replace('.','/'); $artDir = $artifact }
+    $url = "$repo/$groupUrl/$artDir/$artifact/$version/$file"
     $dst = Join-Path $libDir "$artifact-$version.jar"
     if (-not (Test-FileExists $dst)) {
         Write-Host "Downloading $artifact $version ..."
