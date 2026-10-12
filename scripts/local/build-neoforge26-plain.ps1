@@ -19,10 +19,14 @@ $McLibMap = @{
 }
 
 if ([string]::IsNullOrWhiteSpace($JavaHome)) {
-    $cand = Get-ChildItem "C:\Program Files\Java" -Directory -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -match "^jdk-25" } | Sort-Object Name -Descending | Select-Object -First 1
-    if (-not $cand) { throw "No JDK 25 found (pass -JavaHome)" }
-    $JavaHome = $cand.FullName
+    if (-not [string]::IsNullOrWhiteSpace($env:JAVA_25_HOME) -and (Test-Path -LiteralPath (Join-Path $env:JAVA_25_HOME "bin\javac.exe"))) {
+        $JavaHome = $env:JAVA_25_HOME
+    } else {
+        $cand = Get-ChildItem "C:\Program Files\Java" -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match "^jdk-25" } | Sort-Object Name -Descending | Select-Object -First 1
+        if (-not $cand) { throw "No JDK 25 found (pass -JavaHome)" }
+        $JavaHome = $cand.FullName
+    }
 }
 $javac = Join-Path $JavaHome "bin\javac.exe"
 $jarTool = Join-Path $JavaHome "bin\jar.exe"

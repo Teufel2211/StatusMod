@@ -496,7 +496,7 @@ try {
         Write-Host "Using isolated GRADLE_USER_HOME: $isolatedGradleHome"
     }
     $resolvedFabricJavaHome = Resolve-FirstExistingPath -Candidates @($FabricJavaHome, $env:JAVA_HOME, "C:\Program Files\Java\jdk-21", "C:\Program Files\Java\jdk-21.0.0", "C:\Program Files\Eclipse Adoptium\jdk-21*", "C:\Program Files\Microsoft\jdk-21")
-    $resolvedFabricJava25Home = Resolve-FirstExistingPath -Candidates @($FabricJava25Home, $env:JAVA_HOME, "C:\Program Files\Java\jdk-25", "C:\Program Files\Java\jdk-25.0.3", "C:\Program Files\Java\latest", "C:\Program Files\Eclipse Adoptium\jdk-25*", "C:\Program Files\Microsoft\jdk-25")
+    $resolvedFabricJava25Home = Resolve-FirstExistingPath -Candidates @($FabricJava25Home, $env:JAVA_25_HOME, $env:JAVA_HOME, "C:\Program Files\Java\jdk-25", "C:\Program Files\Java\jdk-25.0.3", "C:\Program Files\Java\latest", "C:\Program Files\Eclipse Adoptium\jdk-25*", "C:\Program Files\Microsoft\jdk-25")
     if ([string]::IsNullOrWhiteSpace($resolvedFabricJavaHome)) {
         throw "No usable Java 21 home found for Fabric base versions."
     }
@@ -971,7 +971,7 @@ try {
                 $prevEap = $ErrorActionPreference
                 $ErrorActionPreference = "Continue"
                 try {
-                    & $plainScript -McVersion $mc -ModVersion $modVersion
+                    & $plainScript -McVersion $mc -ModVersion $modVersion -JavaHome $resolvedFabricJava25Home
                 } finally {
                     $ErrorActionPreference = $prevEap
                 }
