@@ -13,7 +13,9 @@ export const dynamic = "force-dynamic"
 
 export async function POST(request: Request) {
   const ip = request.headers.get("x-forwarded-for") ?? "unknown"
-  const rl = checkRateLimit(`refresh:${hashIp(ip)}`, { windowMs: 60_000, max: 10 })
+  // Erhoehtes Limit: Browser-Session-Restore oeffnet viele Tabs parallel,
+  // jeder refresht einmal (Rotation mit Grace, s. unten).
+  const rl = checkRateLimit(`refresh:${hashIp(ip)}`, { windowMs: 60_000, max: 30 })
   if (!rl.allowed) {
     return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 429, headers: getRateLimitHeaders(rl) })
   }
@@ -62,7 +64,14 @@ export async function POST(request: Request) {
     return unauthorized()
   }
 
-  await (sb as any).from("refresh_tokens").update({ revoked: true }).eq("id", tokenData.id)
+  // Rotation mit Grace: Der alte Token bleibt 60s gueltig statt sofort revoked.
+  // Grund: Session-Restore oeffnet N Tabs parallel mit demselben Cookie —
+  // bei sofortigem Revoke wuerde der erste Tab alle anderen ausloggen (401 ->
+  // clearSession leert das geteilte localStorage). UA-Binding bleibt als
+  // Diebstahlschutz bestehen (Mismatch -> sofort revoke + 401).
+  await (sb as any).from("refresh_tokens").update({
+    expires_at: new Date(Date.now() + 60_000).toISOString(),
+  }).eq("id", tokenData.id)
 
   const { data: user, error: userError } = await (sb as any)
     .from("dashboard_users")
