@@ -8,6 +8,7 @@ version="${version}"
 displayName="Status Mod"
 description="Lightweight player status tags - Online, AFK, DND, Offline"
 logo="logo.png"
+logoFile="logo.png"
 
 [[dependencies.statusmod]]
 modId="minecraft"
