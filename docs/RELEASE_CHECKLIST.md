@@ -11,7 +11,8 @@ Abhaken der Reihe nach. Alles auf `development` vorbereiten, erst ganz am Ende n
 ## 2. Builds
 
 - [x] `.\scripts\local\build-multiversion.ps1 -Loaders fabric,forge,neoforge,quilt -ContinueOnError:$false` — 2026-10-11 alle ok
-- [x] `.\scripts\ci\verify-jars.ps1` → 24/24 OK — verifiziert 2026-10-11
+- [x] Rebuild 2026-10-12 (forge+neoforge, logoFile-Fix; forge-26.3 Kopie, neoforge-26.3 plain) — alle ok
+- [x] `.\scripts\ci\verify-jars.ps1` → 24/24 OK — verifiziert 2026-10-11 + erneut 2026-10-12
 - [x] `dist/multiversion` enthält 24 × `Statusmod-1.4.0-<loader>-<mc>.jar` — verifiziert 2026-10-11
 
 ## 3. Tests
@@ -22,7 +23,7 @@ Abhaken der Reihe nach. Alles auf `development` vorbereiten, erst ganz am Ende n
 
 ## 4. Tokens & Secrets
 
-- [ ] `.\scripts\ci\check-release-tokens.ps1` → Exit 0 (Stand 2026-10-11: 3 FAILs — **brauchst du**: `MODRINTH_PROJECT_ID`, `CURSEFORGE_TOKEN` neu von https://legacy.curseforge.com/account/api-tokens, `CURSEFORGE_PROJECT_ID`)
+- [x] `.\scripts\ci\check-release-tokens.ps1` → Exit 0 — grün seit 2026-10-12 (Fixes: CF-Header `X-Api-Token` e9303b8, Projekt-GET-404 ist kein FAIL bbe3f55). ACHTUNG: `$env:`-Tokens gelten nur pro PowerShell-Sitzung — vor Publish neu setzen + Check erneut laufen lassen!
 - [ ] CI-Secrets prüfen (GitHub → Settings → Secrets → Actions): `MODRINTH_TOKEN`, `MODRINTH_PROJECT_ID`, `CURSEFORGE_TOKEN`, `CURSEFORGE_PROJECT_ID` — **brauchst du**
 - [x] Keine *neuen* Secrets im Diff (Scan 2026-10-11: nur alte rotierte Defaults aus Aug-Commits + Suchbeispiel in dieser Datei) — sauber
 
@@ -55,9 +56,13 @@ Abhaken der Reihe nach. Alles auf `development` vorbereiten, erst ganz am Ende n
 - [x] 26.3-Warnung: Konsole immer + Admin-Join-Ping + /status version-Zeile (Texte gekuerzt, User-verifiziert ingame)
 - [x] BUILD-Tag aktuell: edrock263 (/status version meldet ihn)
 - [x] Modrinth-Profile: 24/24 gesynct + byte-identisch (inkl. 4x 26.3 mit Warnung)
+- [x] Em-Dash aus allen Mod-Metadaten entfernt (54491cd) — brach Forge-Icon in Modrinth-App
+- [x] `logoFile="logo.png"` in allen Forge/NeoForge-TOMLs (6e52c03) — App liest nur `logoFile`
+- [x] CurseForge-Duplikat-Reject geklärt ("Duplicate file", 1.3.0) — Gruppierung per SHA512 in publish-all.ps1 greift, verifiziert
+- [x] `register-modrinth-content.ps1` (36f597f): Sync + app.db-Registrierung (Content-Tab mit Icon) — 24/24 verifiziert, Blobs alle `ready`
 
 ## 8. Danach
 
 - [ ] Testserver + Nitrado auf 1.4.0-JARs aktualisieren + Neustart
-- [ ] Modrinth-Profile syncen (`scripts/local/sync-modrinth-profiles.ps1`)
+- [ ] Modrinth-Profile registrieren (`scripts/local/register-modrinth-content.ps1`, App vorher schließen!)
 - [ ] Diese Datei fürs nächste Release zurücksetzen (Haken raus)
