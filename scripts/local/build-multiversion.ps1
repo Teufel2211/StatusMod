@@ -27,7 +27,7 @@ function Get-FabricApiVersionsFromMaven {
     param([string]$MavenBase = "https://maven.fabricmc.net")
     $url = "$MavenBase/net/fabricmc/fabric-api/fabric-api/maven-metadata.xml"
     try {
-        $xmlText = (Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 30).Content
+        $xmlText = (Invoke-WebRequest -NoProxy -Uri $url -UseBasicParsing -TimeoutSec 30).Content
         if ([string]::IsNullOrWhiteSpace($xmlText)) { return @() }
         [xml]$doc = $xmlText
         $versions = @($doc.metadata.versioning.versions.version | ForEach-Object { [string]$_ })

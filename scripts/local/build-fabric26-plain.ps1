@@ -85,7 +85,7 @@ function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [str
     $dst = Join-Path $libDir "$artifact-$version.jar"
     if (-not (Test-FileExists $dst)) {
         Write-Host "Downloading $artifact $version ..."
-        Invoke-WebRequest $url -OutFile $dst -TimeoutSec 300
+        Invoke-WebRequest -NoProxy $url -OutFile $dst -TimeoutSec 300
     }
     return $dst
 }
@@ -95,10 +95,10 @@ $mcLibDir = Join-Path $libDir "mc-$McVersion"
 New-Item -ItemType Directory -Force -Path $mcLibDir | Out-Null
 $pkgFile = Join-Path $libDir "mc-$McVersion-package.json"
 if (-not (Test-FileExists $pkgFile)) {
-    $manifest = Invoke-RestMethod "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" -TimeoutSec 60
+    $manifest = Invoke-RestMethod -NoProxy "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" -TimeoutSec 60
     $entry = @($manifest.versions | Where-Object { $_.id -eq $McVersion })[0]
     if (-not $entry) { throw "MC $McVersion not in Mojang manifest" }
-    Invoke-WebRequest $entry.url -OutFile $pkgFile -TimeoutSec 60
+    Invoke-WebRequest -NoProxy $entry.url -OutFile $pkgFile -TimeoutSec 60
 }
 $pkg = Get-Content -LiteralPath $pkgFile -Raw | ConvertFrom-Json
 $mcLibCount = 0
@@ -112,7 +112,7 @@ foreach ($lib in $pkg.libraries) {
     $dst = Join-Path $mcLibDir $fname
     if (-not (Test-FileExists $dst)) {
         Write-Host "Downloading MC lib $fname ..."
-        Invoke-WebRequest $u -OutFile $dst -TimeoutSec 300
+        Invoke-WebRequest -NoProxy $u -OutFile $dst -TimeoutSec 300
     }
     $cpJars += $dst
     $mcLibCount++
@@ -126,11 +126,11 @@ if (-not (Test-FileExists $mcJar)) {
     $mcJar = Join-Path $libDir "minecraft-server-$McVersion.jar"
     if (-not (Test-Path $mcJar)) {
         Write-Host "MC jar not cached, downloading vanilla server $McVersion ..."
-        $manifest = Invoke-RestMethod "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" -TimeoutSec 60
+        $manifest = Invoke-RestMethod -NoProxy "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" -TimeoutSec 60
         $entry = @($manifest.versions | Where-Object { $_.id -eq $McVersion })[0]
         if (-not $entry) { throw "MC $McVersion not in Mojang manifest" }
-        $pkg = Invoke-RestMethod $entry.url -TimeoutSec 60
-        Invoke-WebRequest $pkg.downloads.server.url -OutFile $mcJar -TimeoutSec 300
+        $pkg = Invoke-RestMethod -NoProxy $entry.url -TimeoutSec 60
+        Invoke-WebRequest -NoProxy $pkg.downloads.server.url -OutFile $mcJar -TimeoutSec 300
     }
 }
 Write-Host "MC: $mcJar"
@@ -144,14 +144,14 @@ if (-not $fapiPom) {
         # Get-MavenJar returned a jar (bundle thin jar); fetch the pom explicitly.
         $pomUrl = "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$($FabricApiVersion.Replace('+','%2B'))/fabric-api-$($FabricApiVersion.Replace('+','%2B')).pom"
         $fapiPom = Join-Path $libDir "fabric-api-$FabricApiVersion.pom"
-        if (-not (Test-Path $fapiPom)) { Invoke-WebRequest $pomUrl -OutFile $fapiPom -TimeoutSec 120 }
+        if (-not (Test-Path $fapiPom)) { Invoke-WebRequest -NoProxy $pomUrl -OutFile $fapiPom -TimeoutSec 120 }
     }
 }
 if ($fapiPom -like "*.jar") {
     # bundle jar was returned instead of pom; locate/download pom
     $pomUrl = "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$($FabricApiVersion.Replace('+','%2B'))/fabric-api-$($FabricApiVersion.Replace('+','%2B')).pom"
     $fapiPom = Join-Path $libDir "fabric-api-$FabricApiVersion.pom"
-    if (-not (Test-Path $fapiPom)) { Invoke-WebRequest $pomUrl -OutFile $fapiPom -TimeoutSec 120 }
+    if (-not (Test-Path $fapiPom)) { Invoke-WebRequest -NoProxy $pomUrl -OutFile $fapiPom -TimeoutSec 120 }
 }
 $pomText = Get-Content -LiteralPath $fapiPom -Raw
 # Only the modules our sources import (keeps the classpath small and cache-friendly).

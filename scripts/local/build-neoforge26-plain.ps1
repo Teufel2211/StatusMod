@@ -71,7 +71,7 @@ function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [str
     $dst = Join-Path $libDir "$artifact-$version.jar"
     if (-not (Test-FileExists $dst)) {
         Write-Host "Downloading $artifact $version ..."
-        Invoke-WebRequest $url -OutFile $dst -TimeoutSec 300
+        Invoke-WebRequest -NoProxy $url -OutFile $dst -TimeoutSec 300
     }
     return $dst
 }
@@ -81,10 +81,10 @@ $mcLibDir = Join-Path $libDir "mc-$McVersion"
 New-Item -ItemType Directory -Force -Path $mcLibDir | Out-Null
 $pkgFile = Join-Path $libDir "mc-$McVersion-package.json"
 if (-not (Test-FileExists $pkgFile)) {
-    $manifest = Invoke-RestMethod "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" -TimeoutSec 60
+    $manifest = Invoke-RestMethod -NoProxy "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" -TimeoutSec 60
     $entry = @($manifest.versions | Where-Object { $_.id -eq $McVersion })[0]
     if (-not $entry) { throw "MC $McVersion not in Mojang manifest" }
-    Invoke-WebRequest $entry.url -OutFile $pkgFile -TimeoutSec 60
+    Invoke-WebRequest -NoProxy $entry.url -OutFile $pkgFile -TimeoutSec 60
 }
 $pkg = Get-Content -LiteralPath $pkgFile -Raw | ConvertFrom-Json
 $mcLibCount = 0
@@ -98,7 +98,7 @@ foreach ($lib in $pkg.libraries) {
     $dst = Join-Path $mcLibDir $fname
     if (-not (Test-FileExists $dst)) {
         Write-Host "Downloading MC lib $fname ..."
-        Invoke-WebRequest $u -OutFile $dst -TimeoutSec 300
+        Invoke-WebRequest -NoProxy $u -OutFile $dst -TimeoutSec 300
     }
     $cpJars += $dst
     $mcLibCount++
@@ -112,11 +112,11 @@ if (-not (Test-FileExists $mcJar)) {
     $mcJar = Join-Path $libDir "minecraft-server-$McVersion.jar"
     if (-not (Test-Path $mcJar)) {
         Write-Host "MC jar not cached, downloading vanilla server $McVersion ..."
-        $manifest = Invoke-RestMethod "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" -TimeoutSec 60
+        $manifest = Invoke-RestMethod -NoProxy "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" -TimeoutSec 60
         $entry = @($manifest.versions | Where-Object { $_.id -eq $McVersion })[0]
         if (-not $entry) { throw "MC $McVersion not in Mojang manifest" }
-        $pkg = Invoke-RestMethod $entry.url -TimeoutSec 60
-        Invoke-WebRequest $pkg.downloads.server.url -OutFile $mcJar -TimeoutSec 300
+        $pkg = Invoke-RestMethod -NoProxy $entry.url -TimeoutSec 60
+        Invoke-WebRequest -NoProxy $pkg.downloads.server.url -OutFile $mcJar -TimeoutSec 300
     }
 }
 Write-Host "MC: $mcJar"
@@ -137,19 +137,19 @@ if ([string]::IsNullOrWhiteSpace($NeoForgeVersion)) {
 $neoJar = Join-Path $libDir "neoforge-$NeoForgeVersion-universal.jar"
 if (-not (Test-FileExists $neoJar)) {
     Write-Host "Downloading NeoForge $NeoForgeVersion ..."
-    Invoke-WebRequest "https://maven.neoforged.net/releases/net/neoforged/neoforge/$NeoForgeVersion/neoforge-$NeoForgeVersion-universal.jar" -OutFile $neoJar -TimeoutSec 600
+    Invoke-WebRequest -NoProxy "https://maven.neoforged.net/releases/net/neoforged/neoforge/$NeoForgeVersion/neoforge-$NeoForgeVersion-universal.jar" -OutFile $neoJar -TimeoutSec 600
 }
 Write-Host "NeoForge: $neoJar"
 $cpJars += $neoJar
 # Event bus + FML launcher (compile-only; API stable across 26.x).
 $busJar = Join-Path $libDir "bus-8.0.5.jar"
 if (-not (Test-FileExists $busJar)) {
-    Invoke-WebRequest "https://maven.neoforged.net/releases/net/neoforged/bus/8.0.5/bus-8.0.5.jar" -OutFile $busJar -TimeoutSec 300
+    Invoke-WebRequest -NoProxy "https://maven.neoforged.net/releases/net/neoforged/bus/8.0.5/bus-8.0.5.jar" -OutFile $busJar -TimeoutSec 300
 }
 $cpJars += $busJar
 $fmlJar = Join-Path $libDir "fml-loader-11.0.16.jar"
 if (-not (Test-FileExists $fmlJar)) {
-    Invoke-WebRequest "https://maven.neoforged.net/releases/net/neoforged/fancymodloader/loader/11.0.16/loader-11.0.16.jar" -OutFile $fmlJar -TimeoutSec 300
+    Invoke-WebRequest -NoProxy "https://maven.neoforged.net/releases/net/neoforged/fancymodloader/loader/11.0.16/loader-11.0.16.jar" -OutFile $fmlJar -TimeoutSec 300
 }
 $cpJars += $fmlJar
 

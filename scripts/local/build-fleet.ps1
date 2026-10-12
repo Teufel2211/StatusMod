@@ -70,7 +70,7 @@ function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [str
     $dst = Join-Path $libDir "$artifact-$version.jar"
     if (-not (Test-FileExists $dst)) {
         Write-Host "Downloading $artifact $version ..."
-        Invoke-WebRequest $url -OutFile $dst -TimeoutSec 300
+        Invoke-WebRequest -NoProxy $url -OutFile $dst -TimeoutSec 300
     }
     return $dst
 }
