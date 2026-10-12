@@ -6,7 +6,7 @@ license="MIT"
 modId="statusmod"
 version="${version}"
 displayName="Status Mod"
-description="Lightweight player status tags — Online, AFK, DND, Offline"
+description="Lightweight player status tags - Online, AFK, DND, Offline"
 logo="logo.png"
 
 [[dependencies.statusmod]]
