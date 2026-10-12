@@ -60,7 +60,11 @@ function Invoke-DownloadWithRetry([string]$url, [string]$dst, [int]$timeoutSec =
             if (Test-FileExists $dst) { return }
             throw "download produced no file"
         } catch {
-            if ($i -eq $tries) { throw }
+            if ($i -eq $tries) {
+                $norm = ""
+                try { $norm = ([System.Uri]$url).AbsoluteUri } catch { $norm = "uri-parse-fehler" }
+                throw "download failed ${i}x: $url (norm: $norm): $($_.Exception.Message)"
+            }
             Start-Sleep -Seconds (5 * $i)
         }
     }
