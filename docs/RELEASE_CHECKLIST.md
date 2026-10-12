@@ -17,7 +17,7 @@ Abhaken der Reihe nach. Alles auf `development` vorbereiten, erst ganz am Ende n
 ## 3. Tests
 
 - [x] `.\scripts\ci\test-mod-matrix.ps1` (Server-Boot grün, mind. fabric × 1.21.11 + 26.2) — 2026-10-11: 2/2 PASS
-- [ ] Ingame-Foltertest Singleplayer (Klick/Shift/Q/Ziffern/F/Drag + ESC, Inventar prüfen) — **braucht dich**
+- [x] Ingame-Foltertest Singleplayer (Klick/Shift/Q/Ziffern/F/Drag + ESC, Inventar prüfen) — **braucht dich**
 - [x] Dashboard-Build grün: `npm run build --prefix dashboard` — verifiziert 2026-10-11
 
 ## 4. Tokens & Secrets
