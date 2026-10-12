@@ -180,6 +180,14 @@ def main():
                 " last_used_at, verified_at, sources) VALUES (?,?, 'ready', ?, ?, ?, ?, '[]')",
                 (fsha512, fsize, now_ns, now, now, now),
             )
+        else:
+            # Wie save_file der App: vorhandene Zeile auf ready zuruecksetzen
+            # (Blob-Datei liegt vor, siehe oben) + Zeitstempel auffrischen.
+            con.execute(
+                "UPDATE store_blobs SET status='ready', verified_at=?, last_used_at=?"
+                " WHERE sha512=?",
+                (now, now, fsha512),
+            )
         if not con.execute(
             "SELECT file_id FROM store_instance_files WHERE file_id=?", (file_id,)
         ).fetchone():
