@@ -64,7 +64,9 @@ function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [str
     $gp = $groupPath.Replace('\','/')
     $sep = $gp.LastIndexOf('/')
     if ($sep -ge 0) { $groupUrl = $gp.Substring(0,$sep).Replace('.','/'); $artDir = $gp.Substring($sep+1) } else { $groupUrl = $gp.Replace('.','/'); $artDir = $artifact }
-    $url = "$repo/$groupUrl/$artDir/$artifact/$version/$file"
+    # + als %2B: manche Egress-Proxies dekodieren + im Pfad zu Leerzeichen (404).
+    $versionEsc = $version.Replace('+','%2B')
+    $url = "$repo/$groupUrl/$artDir/$artifact/$versionEsc/$artifact-$versionEsc.jar"
     $dst = Join-Path $libDir "$artifact-$version.jar"
     if (-not (Test-FileExists $dst)) {
         Write-Host "Downloading $artifact $version ..."

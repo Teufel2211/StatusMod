@@ -79,7 +79,9 @@ function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [str
     $gp = $groupPath.Replace('\','/')
     $sep = $gp.LastIndexOf('/')
     if ($sep -ge 0) { $groupUrl = $gp.Substring(0,$sep).Replace('.','/'); $artDir = $gp.Substring($sep+1) } else { $groupUrl = $gp.Replace('.','/'); $artDir = $artifact }
-    $url = "$repo/$groupUrl/$artDir/$artifact/$version/$file"
+    # + als %2B: manche Egress-Proxies dekodieren + im Pfad zu Leerzeichen (404).
+    $versionEsc = $version.Replace('+','%2B')
+    $url = "$repo/$groupUrl/$artDir/$artifact/$versionEsc/$artifact-$versionEsc.jar"
     $dst = Join-Path $libDir "$artifact-$version.jar"
     if (-not (Test-FileExists $dst)) {
         Write-Host "Downloading $artifact $version ..."
@@ -140,14 +142,14 @@ if (-not $fapiPom) {
     $fapiPom = Get-MavenJar "https://maven.fabricmc.net" "net.fabricmc.fabric-api\fabric-api" "fabric-api" $FabricApiVersion
     if ($fapiPom -notlike "*.pom") {
         # Get-MavenJar returned a jar (bundle thin jar); fetch the pom explicitly.
-        $pomUrl = "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$FabricApiVersion/fabric-api-$FabricApiVersion.pom"
+        $pomUrl = "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$($FabricApiVersion.Replace('+','%2B'))/fabric-api-$($FabricApiVersion.Replace('+','%2B')).pom"
         $fapiPom = Join-Path $libDir "fabric-api-$FabricApiVersion.pom"
         if (-not (Test-Path $fapiPom)) { Invoke-WebRequest $pomUrl -OutFile $fapiPom -TimeoutSec 120 }
     }
 }
 if ($fapiPom -like "*.jar") {
     # bundle jar was returned instead of pom; locate/download pom
-    $pomUrl = "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$FabricApiVersion/fabric-api-$FabricApiVersion.pom"
+    $pomUrl = "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$($FabricApiVersion.Replace('+','%2B'))/fabric-api-$($FabricApiVersion.Replace('+','%2B')).pom"
     $fapiPom = Join-Path $libDir "fabric-api-$FabricApiVersion.pom"
     if (-not (Test-Path $fapiPom)) { Invoke-WebRequest $pomUrl -OutFile $fapiPom -TimeoutSec 120 }
 }
