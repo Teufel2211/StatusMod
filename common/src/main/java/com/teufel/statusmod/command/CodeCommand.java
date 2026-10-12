@@ -23,6 +23,7 @@ public final class CodeCommand {
     private static final int CODE_LENGTH = 8;
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
+            .version(HttpClient.Version.HTTP_1_1)
             .build();
 
     private CodeCommand() {}

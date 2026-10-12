@@ -35,6 +35,7 @@ public final class FleetManager {
     private static final Gson GSON = new Gson();
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
+            .version(HttpClient.Version.HTTP_1_1)
             .build();
     private static volatile boolean started = false;
     private static volatile boolean pullNow = false;

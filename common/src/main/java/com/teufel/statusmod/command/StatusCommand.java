@@ -385,6 +385,7 @@ public class StatusCommand {
 
     private static final HttpClient TRANSFER_HTTP = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(10))
+        .version(HttpClient.Version.HTTP_1_1)
         .build();
 
     /**

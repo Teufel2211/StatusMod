@@ -44,6 +44,7 @@ public final class FleetCommand {
     private static final java.security.SecureRandom CODE_RNG = new java.security.SecureRandom();
     private static final java.net.http.HttpClient SHARED_HTTP = java.net.http.HttpClient.newBuilder()
             .connectTimeout(java.time.Duration.ofSeconds(10))
+            .version(java.net.http.HttpClient.Version.HTTP_1_1)
             .build();
     private static volatile long lastOwnerCodeAtMs = 0L;
     private static final long OWNER_CODE_COOLDOWN_MS = 30_000L;

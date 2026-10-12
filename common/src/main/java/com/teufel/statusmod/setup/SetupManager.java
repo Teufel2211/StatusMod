@@ -20,6 +20,7 @@ public final class SetupManager {
     private static final long PENDING_POLL_TIMEOUT_MS = 24 * 60 * 60 * 1000;
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
+            .version(HttpClient.Version.HTTP_1_1)
             .build();
 
     private SetupManager() {}
