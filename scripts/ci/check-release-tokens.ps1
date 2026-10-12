@@ -73,12 +73,12 @@ if (-not [string]::IsNullOrWhiteSpace($cfToken) -and -not [string]::IsNullOrWhit
     Write-Host "  CURSEFORGE_TOKEN gesetzt ($(Mask $cfToken)), Projekt=$cfProject"
     try {
         $vers = Invoke-RestMethod -Uri "https://minecraft.curseforge.com/api/game/versions" -Method Get `
-            -Headers @{ "X-API-Key" = $cfToken } -TimeoutSec 30 -ErrorAction Stop
+            -Headers @{ "X-Api-Token" = $cfToken } -TimeoutSec 30 -ErrorAction Stop
         Write-Ok "Game-Versions lesbar ($($vers.Count) Eintraege)"
     } catch { Write-Fail "Game-Versions: $($_.Exception.Message)" }
     try {
         $p = Invoke-RestMethod -Uri "https://minecraft.curseforge.com/api/projects/$cfProject" -Method Get `
-            -Headers @{ "X-API-Key" = $cfToken } -TimeoutSec 30 -ErrorAction Stop
+            -Headers @{ "X-Api-Token" = $cfToken } -TimeoutSec 30 -ErrorAction Stop
         Write-Ok "Projekt lesbar: $($p.name) (id=$($p.id))"
     } catch { Write-Fail "Projekt-Abfrage: $($_.Exception.Message)" }
 }

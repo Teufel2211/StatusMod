@@ -80,7 +80,7 @@ if ($hasCurseForge) {
     try {
         Write-Host "Fetching CurseForge game versions..."
         $cfGameVersionCache = Invoke-RestMethod -Uri "https://minecraft.curseforge.com/api/game/versions" -Method Get `
-            -Headers @{ "X-API-Key" = $curseforgeToken } -ErrorAction Stop
+            -Headers @{ "X-Api-Token" = $curseforgeToken } -ErrorAction Stop
         Write-Host "   OK ($($cfGameVersionCache.Count) versions)"
     } catch {
         throw "CurseForge game versions unerreichbar (Pflicht): $($_.Exception.Message)"
@@ -197,7 +197,7 @@ foreach ($group in $jarGroups.Values) {
             gameVersions = @($cfGameVersions)
         }
         $null = Invoke-RestMethod -Uri "https://minecraft.curseforge.com/api/projects/$curseforgeProjectId/upload-file" -Method Post `
-            -Headers @{ "X-API-Key" = $curseforgeToken } `
+            -Headers @{ "X-Api-Token" = $curseforgeToken } `
             -Form @{
                 metadata = ($cfMetadata | ConvertTo-Json -Depth 4 -Compress)
                 file = $jar
