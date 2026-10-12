@@ -36,12 +36,6 @@ export const MutePlayerSchema = z.object({
   duration_minutes: z.number().int().positive().max(525600),
 })
 
-export const ServerConfigSchema = z.object({
-  config: z.record(z.unknown()).refine((v) => JSON.stringify(v).length < 102400, {
-    message: "Config too large (max 100KB)",
-  }),
-})
-
 export const FleetConfigSchema = z.object({
   dashboard_url: z.string().max(256).optional(),
   setup_secret: z.string().max(512).optional(),

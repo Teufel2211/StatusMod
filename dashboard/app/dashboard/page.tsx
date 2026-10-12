@@ -115,9 +115,8 @@ export default function DashboardOverview() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {[
             { href: "/dashboard/players", label: "Players", icon: "◎", hint: "roster" },
-            { href: "/dashboard/config", label: "Config", icon: "⚙", hint: "json" },
             { href: "/dashboard/keys", label: "Keys", icon: "⌨", hint: "access" },
-            { href: "/dashboard/audit", label: "Audit", icon: "◉", hint: "trail" },
+            { href: "/dashboard/audit", label: "Verlauf", icon: "◉", hint: "chronik" },
           ].map((link) => (
             <a
               key={link.href}

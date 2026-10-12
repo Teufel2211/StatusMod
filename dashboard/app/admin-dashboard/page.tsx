@@ -83,7 +83,7 @@ const SECTIONS: Array<[string, string]> = [
   ["uebersicht", "Übersicht"],
   ["server", "Server"],
   ["spieler", "Spieler"],
-  ["config", "Config & Presets"],
+  ["presets", "Presets"],
   ["verteilen", "Verteilung"],
   ["ids", "IDs & Keys"],
   ["protokoll", "Protokoll"],
@@ -483,13 +483,8 @@ export default function FleetAdminPage() {
         </section>
 
         <section className="mb-8">
-          <SectionHead id="config" kicker="Inhalte" title="Konfiguration & Presets" sub="Server-JSON + Status-Presets" />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="card fade-up">
-              <h3 className="font-display font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Server-Config</h3>
-              <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>JSON direkt editieren (Toggles, Farben, Cooldowns…).</p>
-              <a href="/dashboard/config" className="btn-secondary text-xs px-4 py-2">Config öffnen →</a>
-            </div>
+          <SectionHead id="presets" kicker="Inhalte" title="Presets" sub="Status-Presets" />
+          <div className="grid grid-cols-1 gap-4">
             <div className="card card-glow fade-up anim-d1">
               <h3 className="font-display font-semibold mb-3" style={{ color: "var(--text-primary)" }}>Presets ({presets.length})</h3>
               {presets.length > 0 && (

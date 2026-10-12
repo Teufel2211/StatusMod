@@ -16,9 +16,8 @@ const navSections = [
   {
     title: "Configure",
     items: [
-      { href: "/dashboard/config", label: "Config", icon: "⚙" },
       { href: "/dashboard/keys", label: "API Keys", icon: "⌨" },
-      { href: "/dashboard/audit", label: "Audit Log", icon: "◉" },
+      { href: "/dashboard/audit", label: "Verlauf", icon: "◉" },
     ],
   },
 ]
