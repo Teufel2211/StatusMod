@@ -39,7 +39,7 @@ Abhaken der Reihe nach. Alles auf `development` vorbereiten, erst ganz am Ende n
 
 - [ ] Projektseite: Icon aktuell, Beschreibung aktuell — **brauchst du**
 - [ ] Disclosure **"Contains AI-generated content"** (Code + Text) gesetzt — **brauchst du**
-- [ ] Disclosure **"Contains telemetry"** gesetzt (Sync ist drin seit 1.4.0!) — **brauchst du**
+- [x] Disclosure **"Contains telemetry"** gesetzt (Sync ist drin seit 1.4.0!) — erledigt 2026-10-12 (Opt-in + 4 Dateneinträge, User-verifiziert)
 - [x] README: kein "No telemetry"-Versprechen mehr (Privacy-Sektion beschreibt Opt-in-Sync korrekt) — verifiziert 2026-10-12, Modrinth-Seitentext **brauchst du**
 
 ## 7. Merge + Publish
