@@ -6,7 +6,7 @@ Abhaken der Reihe nach. Alles auf `development` vorbereiten, erst ganz am Ende n
 
 - [x] Alle Features/Fixes auf `development` committet, Baum sauber (`git status` leer) — verifiziert 2026-10-11
 - [x] `version.txt` = `1.4.0` — verifiziert 2026-10-11
-- [ ] `CHANGELOG.md` → `## Unreleased` in `## 1.4.0` umbenennen, Datum prüfen (erst beim Release!)
+- [x] `CHANGELOG.md` → `## Unreleased` in `## 1.4.0` umbenannt — erledigt 2026-10-12
 
 ## 2. Builds
 
@@ -39,7 +39,7 @@ Abhaken der Reihe nach. Alles auf `development` vorbereiten, erst ganz am Ende n
 - [ ] Projektseite: Icon aktuell, Beschreibung aktuell — **brauchst du**
 - [ ] Disclosure **"Contains AI-generated content"** (Code + Text) gesetzt — **brauchst du**
 - [ ] Disclosure **"Contains telemetry"** gesetzt (Sync ist drin seit 1.4.0!) — **brauchst du**
-- [ ] README/Modrinth: kein "No telemetry"-Versprechen mehr — **brauchst du**
+- [x] README: kein "No telemetry"-Versprechen mehr (Privacy-Sektion beschreibt Opt-in-Sync korrekt) — verifiziert 2026-10-12, Modrinth-Seitentext **brauchst du**
 
 ## 7. Merge + Publish
 

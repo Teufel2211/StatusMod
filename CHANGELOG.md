@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## Unreleased (1.4.0)
+## 1.4.0 - 2026-10-12
 
 - Self-status GUI: bare `/status` opens a beginner-friendly menu (colored wool presets including own customs, live status display, next/clear buttons).
 - Admin player GUI: `/status gui` with skinned heads, search and pages; clicking a head prepares the status/color command.
