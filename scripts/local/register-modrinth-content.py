@@ -11,6 +11,7 @@
 # im aufrufenden PS-Skript. Idempotent: erneutes Laufen aendert nichts.
 import hashlib
 import os
+import shutil
 import sqlite3
 import sys
 import time
@@ -165,6 +166,14 @@ def main():
             )
 
         # Store-Blob sicherstellen (wie beim UI-Upload: status ready, copy).
+        # WICHTIG: auch die Blob-DATEI unter store/content/objects/<2hex>/<sha512>
+        # ablegen - ohne sie markiert der App-Reconciler die Datei als missing.
+        blob_path = os.path.join(
+            app_dir, "store", "content", "objects", fsha512[:2], fsha512
+        )
+        if not os.path.isfile(blob_path):
+            os.makedirs(os.path.dirname(blob_path), exist_ok=True)
+            shutil.copyfile(fpath, blob_path)
         if not con.execute("SELECT sha512 FROM store_blobs WHERE sha512=?", (fsha512,)).fetchone():
             con.execute(
                 "INSERT INTO store_blobs (sha512, size, status, modified_as, created_at,"
