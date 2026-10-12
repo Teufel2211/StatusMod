@@ -44,6 +44,11 @@ function Parse-JarName {
 $jars = @(Get-ChildItem -Path $distDir -Recurse -File -Filter *.jar)
 if ($jars.Count -eq 0) { throw "No JARs found under $distDir" }
 
+# Fleet-Ausschluss (Release-Regel): Fleetmod-JARs duerfen NIE released werden.
+# Sie leben unter dist/fleet und haben hier nichts zu suchen — Abbruch statt Skip.
+$fleetStrays = @($jars | Where-Object { $_.Name -like "Fleetmod-*" })
+if ($fleetStrays.Count -gt 0) { throw "Release-Stop: Fleetmod-JAR(s) unter dist/multiversion gefunden: $($fleetStrays[0].FullName) — Fleet wird nicht released" }
+
 # Filter by Loaders parameter
 if ($Loaders) {
     $allowedLoaders = $Loaders.Split(',').Trim().ToLower()

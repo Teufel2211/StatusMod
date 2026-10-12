@@ -48,6 +48,7 @@ Abhaken der Reihe nach. Alles auf `development` vorbereiten, erst ganz am Ende n
 - [ ] Modrinth: 20 Uploads sichtbar (24 JARs, Duplikate gruppiert), Version `1.4.0`
 - [ ] CurseForge: Dateien da, Freigabe abwarten
 - [ ] GitHub Release angelegt (Changelog aus Git-Log seit letztem Tag)
+- [ ] Fleet NICHT im Release (Guard in `publish-all.ps1` bricht bei Fleetmod-JARs unter `dist/multiversion` ab)
 
 ## 7b. Neue Fixes seit Checklisten-Start (alle verifiziert 2026-10-11)
 
