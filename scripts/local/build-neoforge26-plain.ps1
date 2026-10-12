@@ -42,6 +42,12 @@ function Test-FileExists([string]$p) { return [System.IO.File]::Exists($p) }
 function Invoke-DownloadWithRetry([string]$url, [string]$dst, [int]$timeoutSec = 300, [int]$tries = 4) {
     for ($i = 1; $i -le $tries; $i++) {
         try {
+            $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
+            if ($curl) {
+                & curl.exe -fSL --retry 0 --max-time $timeoutSec -o $dst $url 2>$null
+                if (($LASTEXITCODE -eq 0) -and (Test-FileExists $dst)) { return }
+                throw "curl exit $LASTEXITCODE"
+            }
             Invoke-WebRequest -NoProxy $url -OutFile $dst -TimeoutSec $timeoutSec
             if (Test-FileExists $dst) { return }
             throw "download produced no file"

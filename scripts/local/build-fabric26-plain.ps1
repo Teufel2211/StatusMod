@@ -53,9 +53,16 @@ New-Item -ItemType Directory -Force -Path $libDir | Out-Null
 function Test-DirExists([string]$p) { return [System.IO.Directory]::Exists($p) }
 function Test-FileExists([string]$p) { return [System.IO.File]::Exists($p) }
 # Downloads mit Retry: CI-Egress ist flaky (vereinzelte 404/Timeouts bei ~130 Dateien).
+# curl.exe (libcurl) zuerst - PowerShell-IWR scheitert an manchen Hosts vom Runner aus.
 function Invoke-DownloadWithRetry([string]$url, [string]$dst, [int]$timeoutSec = 300, [int]$tries = 4) {
     for ($i = 1; $i -le $tries; $i++) {
         try {
+            $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
+            if ($curl) {
+                & curl.exe -fSL --retry 0 --max-time $timeoutSec -o $dst $url 2>$null
+                if (($LASTEXITCODE -eq 0) -and (Test-FileExists $dst)) { return }
+                throw "curl exit $LASTEXITCODE"
+            }
             Invoke-WebRequest -NoProxy $url -OutFile $dst -TimeoutSec $timeoutSec
             if (Test-FileExists $dst) { return }
             throw "download produced no file"
