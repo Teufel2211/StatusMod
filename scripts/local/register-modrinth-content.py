@@ -158,7 +158,8 @@ def main():
                 "INSERT INTO instance_content_entries (id, instance_id, content_set_id, file_id,"
                 " project_type, project_id, version_id, source_kind, server_requirement,"
                 " client_requirement, enabled, added_at, modified_at)"
-                " VALUES (?,?,?,?, 'mod', NULL, NULL, 'local', NULL, NULL, 1, ?, ?)",
+                " VALUES (?,?,?,?, 'mod', NULL, NULL, 'local', 'required',"
+                " 'required', 1, ?, ?)",
                 ("content-entry:%s" % uuid.uuid4(), iid, set_id, file_id, now, now),
             )
 
