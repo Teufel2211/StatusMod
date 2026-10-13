@@ -255,6 +255,20 @@ function Get-LastLogLines {
     return @(Get-Content -LiteralPath $LogFile -Tail $Count -ErrorAction SilentlyContinue)
 }
 
+function Send-ServerCommand {
+    param($Process, [string]$Command, [string]$ExpectPattern, [string]$LogFile, [int]$TimeoutSec = 30, [int]$MaxAttempts = 3)
+    # Die erste Konsolen-Zeile nach dem Boot kann geschluckt werden (1.21.11
+    # Console-Reader). Deshalb Senden mit Wiederholung; alle Befehle hier
+    # sind read-only (modinfo/preset list/config show).
+    $slice = [Math]::Max(5, [int]($TimeoutSec / $MaxAttempts))
+    for ($a = 1; $a -le $MaxAttempts; $a++) {
+        $Process.StandardInput.WriteLine($Command)
+        $Process.StandardInput.Flush()
+        if (Wait-LogContains -LogFile $LogFile -Pattern $ExpectPattern -TimeoutSec $slice) { return $true }
+    }
+    return $false
+}
+
 function Stop-MinecraftProcess {
     param($Process)
     if ($null -eq $Process) { return }
@@ -794,12 +808,10 @@ try {
     Start-Sleep -Seconds 3
 
     # Send /modinfo via console stdin, wait for the mod response.
-    $serverProc.StandardInput.WriteLine("modinfo")
-    $serverProc.StandardInput.Flush()
     # 'StatusMod — Informationen' -- the em-dash is non-ASCII and gets mangled
     # by the stdout decode chain (varies per run), so allow a generous number
     # of arbitrary characters between the two words.
-    $infoOk = Wait-LogContains -LogFile $stdoutFile -Pattern "StatusMod.{0,20}Informationen" -TimeoutSec 30
+    $infoOk = Send-ServerCommand -Process $serverProc -Command "modinfo" -ExpectPattern "StatusMod.{0,20}Informationen" -LogFile $stdoutFile -TimeoutSec 30
     if (-not $infoOk) {
         throw "No /modinfo response in server log. Last lines:`n" + ((Get-LastLogLines $stdoutFile) -join "`n")
     }
@@ -807,17 +819,13 @@ try {
 
     # /status command tests (console source has admin permission; player-only
     # subcommands like /status <text> are skipped on a dedicated server).
-    $serverProc.StandardInput.WriteLine("status preset list")
-    $serverProc.StandardInput.Flush()
-    $presetOk = Wait-LogContains -LogFile $stdoutFile -Pattern "Presets:" -TimeoutSec 30
+    $presetOk = Send-ServerCommand -Process $serverProc -Command "status preset list" -ExpectPattern "Presets:" -LogFile $stdoutFile -TimeoutSec 30
     if (-not $presetOk) {
         throw "No /status preset list response in server log. Last lines:`n" + ((Get-LastLogLines $stdoutFile) -join "`n")
     }
     Write-Host "status preset list responded."
 
-    $serverProc.StandardInput.WriteLine("status config show")
-    $serverProc.StandardInput.Flush()
-    $configOk = Wait-LogContains -LogFile $stdoutFile -Pattern "StatusMod configuration:" -TimeoutSec 30
+    $configOk = Send-ServerCommand -Process $serverProc -Command "status config show" -ExpectPattern "StatusMod configuration:" -LogFile $stdoutFile -TimeoutSec 30
     if (-not $configOk) {
         throw "No /status config show response in server log. Last lines:`n" + ((Get-LastLogLines $stdoutFile) -join "`n")
     }
