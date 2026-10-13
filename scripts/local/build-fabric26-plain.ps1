@@ -94,9 +94,10 @@ function Get-CachedJar([string]$subPath, [string]$version) {
     if ($j) { return $j.FullName } else { return $null }
 }
 
-function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [string]$version) {
+function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [string]$version, [switch]$NoCache) {
     # NOTE: groupPath must already include the artifact directory.
-    $local = Get-CachedJar $groupPath $version
+    $local = $null
+    if (-not $NoCache) { $local = Get-CachedJar $groupPath $version }
     if ($local) { return $local }
     $file = "$artifact-$version.jar"
     # groupPath ist Cache-Layout ("a.b.c\artifact"): Gruppe zu Maven-Pfad wandeln.
@@ -211,21 +212,14 @@ Write-Host "MC: $mcJar"
 $cpJars += $mcJar
 
 # 2. FAPI modules from the bundle POM (exact versions for this FAPI release).
-$fapiPom = Get-CachedJar "net.fabricmc.fabric-api\fabric-api" $FabricApiVersion
-if (-not $fapiPom) {
-    $fapiPom = Get-MavenJar "https://maven.fabricmc.net" "net.fabricmc.fabric-api\fabric-api" "fabric-api" $FabricApiVersion
-    if ($fapiPom -notlike "*.pom") {
-        # Get-MavenJar returned a jar (bundle thin jar); fetch the pom explicitly.
-        $pomUrl = "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$($FabricApiVersion.Replace('+','%2B'))/fabric-api-$($FabricApiVersion.Replace('+','%2B')).pom"
-        $fapiPom = Join-Path $libDir "fabric-api-$FabricApiVersion.pom"
-        if (-not (Test-Path $fapiPom)) { Invoke-DownloadWithRetry $pomUrl $fapiPom 120 }
-    }
-}
-if ($fapiPom -like "*.jar") {
-    # bundle jar was returned instead of pom; locate/download pom
-    $pomUrl = "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$($FabricApiVersion.Replace('+','%2B'))/fabric-api-$($FabricApiVersion.Replace('+','%2B')).pom"
-    $fapiPom = Join-Path $libDir "fabric-api-$FabricApiVersion.pom"
-    if (-not (Test-Path $fapiPom)) { Invoke-DownloadWithRetry $pomUrl $fapiPom 120 }
+# Hinweis: POM + Module IMMER frisch von Maven (kein Gradle-Cache) — alte
+# Cache-Staende enthalten intermediary-benannte Module, frische sind Mojang-benannt.
+$pomEsc = $FabricApiVersion.Replace('+','%2B')
+$fapiPom = Join-Path $libDir "fabric-api-$FabricApiVersion.pom"
+if (-not (Test-FileExists $fapiPom)) {
+    $pomUrl = "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$pomEsc/fabric-api-$pomEsc.pom"
+    Write-Host "Downloading fabric-api POM $FabricApiVersion ..."
+    Invoke-DownloadWithRetry $pomUrl $fapiPom 120
 }
 $pomText = Get-Content -LiteralPath $fapiPom -Raw
 # Only the modules our sources import (keeps the classpath small and cache-friendly).
@@ -240,7 +234,7 @@ $modules = [regex]::Matches($pomText, "<dependency>.*?</dependency>", "Singlelin
 if ($modules.Count -eq 0) { throw "No needed FAPI modules found in POM" }
 Write-Host "FAPI modules: $($modules.Count)"
 foreach ($m in $modules) {
-    $j = Get-MavenJar "https://maven.fabricmc.net" "net.fabricmc.fabric-api\$($m.artifact)" $m.artifact $m.version
+    $j = Get-MavenJar "https://maven.fabricmc.net" "net.fabricmc.fabric-api\$($m.artifact)" $m.artifact $m.version -NoCache
     $cpJars += $j
 }
 

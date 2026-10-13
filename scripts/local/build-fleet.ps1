@@ -75,8 +75,9 @@ function Get-CachedJar([string]$subPath, [string]$version) {
     if ($j) { return $j.FullName } else { return $null }
 }
 
-function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [string]$version) {
-    $local = Get-CachedJar $groupPath $version
+function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [string]$version, [switch]$NoCache) {
+    $local = $null
+    if (-not $NoCache) { $local = Get-CachedJar $groupPath $version }
     if ($local) { return $local }
     $file = "$artifact-$version.jar"
     # groupPath ist Cache-Layout ("a.b.c\artifact"): Gruppe zu Maven-Pfad wandeln.
