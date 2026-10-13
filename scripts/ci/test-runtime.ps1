@@ -50,9 +50,9 @@ function Get-LoaderVersionConfig {
     return $prop.Value
 }
 
-# Quilt 26.x JARs target MC 1.21.11 (byte-identical to the 1.21.11 build).
-# They are tested against a MC 1.21.11 environment, not against MC 26.x.
-$testMc = if ($Loader -eq "quilt") { "1.21.11" } else { $McVersion }
+# Quilt-JARs sind repackagte Fabric-JARs (echte 26.x-Builds, keine Umbenennungen
+# mehr) und werden gegen ihre echte MC-Version getestet, nicht 1.21.11.
+$testMc = $McVersion
 Write-Host "Test environment: loader=$Loader jarMc=$McVersion envMc=$testMc"
 
 if ([string]::IsNullOrWhiteSpace($JavaHome) -or -not (Test-Path $JavaHome)) {
