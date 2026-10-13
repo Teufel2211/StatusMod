@@ -115,6 +115,19 @@ function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [str
     return $dst
 }
 
+function Test-MojangNamedJar([string]$path) {
+    # True, wenn das Jar Mojang-benannte MC-Klassen enthaelt. Schuetzt vor
+    # Loom-Cache-Kontamination (anderer Loader legte intermediary/SRG-jar ab).
+    if (-not (Test-FileExists $path)) { return $false }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+    $z = $null
+    try {
+        $z = [System.IO.Compression.ZipFile]::OpenRead($path)
+        return (@($z.Entries | Where-Object { $_.FullName -eq "net/minecraft/commands/CommandSourceStack.class" }).Count -gt 0)
+    } catch { return $false }
+    finally { if ($z) { $z.Dispose() } }
+}
+
 function Resolve-BundledServerJar([string]$bundleJar, [string]$mcVersion) {
     # Mojangs server.jar ist ein Bundler: die echten Klassen liegen in
     # META-INF/versions/<mc>/server-<mc>.jar (26.x bereits Mojang-benannt).
@@ -177,10 +190,12 @@ foreach ($lib in $pkg.libraries) {
 }
 Write-Host "MC libraries: $mcLibCount"
 $mcJar = Join-Path $env:USERPROFILE ".gradle\caches\fabric-loom\minecraftMaven\net\minecraft\minecraft-merged-deobf\$McVersion\minecraft-merged-deobf-$McVersion.jar"
-if (-not (Test-FileExists $mcJar)) {
+if ((-not (Test-FileExists $mcJar)) -or (-not (Test-MojangNamedJar $mcJar))) {
+    if ((Test-FileExists $mcJar)) { Write-Host "Loom deobf jar ist nicht Mojang-benannt, ignoriere Cache: $mcJar" }
     $mcJar = Join-Path $env:USERPROFILE ".gradle\caches\fabric-loom\$McVersion\minecraft-merged.jar"
 }
-if (-not (Test-FileExists $mcJar)) {
+if ((-not (Test-FileExists $mcJar)) -or (-not (Test-MojangNamedJar $mcJar))) {
+    if ((Test-FileExists $mcJar)) { Write-Host "Loom merged jar ist nicht Mojang-benannt, ignoriere Cache: $mcJar" }
     $mcJar = Join-Path $libDir "minecraft-server-$McVersion.jar"
     if (-not (Test-Path $mcJar)) {
         Write-Host "MC jar not cached, downloading vanilla server $McVersion ..."
