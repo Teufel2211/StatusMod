@@ -30,6 +30,14 @@ public final class CommandUtil {
         // Reflection above fails on intermediary/SRG runtimes (Fabric/Quilt
         // 1.21.11, Forge SRG), which would otherwise swallow private replies.
         try {
+            // Console source has no player: vanilla logs console feedback, so
+            // print it. Without this, console replies with broadcast=false
+            // vanish silently (getPlayer() == null -> NPE -> swallowed, and
+            // the broadcast fallback below is skipped).
+            if (src.getPlayer() == null) {
+                System.out.println("[StatusMod] " + msg.getString());
+                return;
+            }
             src.getPlayer().sendSystemMessage(msg);
             return;
         } catch (Throwable ignored) {}
