@@ -223,7 +223,10 @@ foreach ($group in $jarGroups.Values) {
 
     $cfGameVersions = New-Object System.Collections.Generic.List[int]
     foreach ($mcVersion in $mcList) {
+        # Diagnose: alle Treffer pro Name zeigen (CF-Liste hat Dubletten).
+        $hits = @($cfGameVersionCache | Where-Object { $_ -is [pscustomobject] -and $_.name -eq $mcVersion } | ForEach-Object { $_.id })
         $mcId = Get-CfVersionId -Name $mcVersion
+        Write-Host "   CF mc '$mcVersion': $($hits.Count) Treffer [$($hits -join ',')], nutze $mcId"
         if ($mcId) { $cfGameVersions.Add($mcId) }
     }
     $loaderId = Get-CfVersionId -Name ($loader.Substring(0,1).ToUpper() + $loader.Substring(1))
@@ -231,7 +234,7 @@ foreach ($group in $jarGroups.Values) {
         $cfAliases = @{ "fabric" = "Fabric"; "forge" = "Forge"; "neoforge" = "NeoForge"; "quilt" = "Quilt" }
         $loaderId = Get-CfVersionId -Name $cfAliases[$loader]
     }
-    if ($loaderId) { $cfGameVersions.Add($loaderId) }
+    if ($loaderId) { $cfGameVersions.Add($loaderId); Write-Host "   CF loader '$loader': id $loaderId" }
     # Env-Eintrag: exakter Name variiert ("Client and Server" existiert nicht
     # in der CF-Liste) -> erst Kombi-Namen, sonst Client+Server einzeln
     # (Superset-Deklaration). Fehlt alles, wirft der Code unten mit
