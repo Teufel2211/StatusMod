@@ -130,7 +130,9 @@ foreach ($group in $jarGroups.Values) {
     $mcList = @($group.mcs | Sort-Object { [version]($_ -replace '[^\d.]', '') })
     $mcLabel = if ($mcList.Count -eq 1) { $mcList[0] } else { ($mcList -join ",") }
     $versionName = "StatusMod $modVersion ($loader $mcLabel)"
-    $versionNumber = "$modVersion+$loader+$mcLabel"
+    # version_number ist URL-Identifier: keine Kommas (Modrinth 400 bei
+    # gemergten Gruppen). Name bleibt lesbar mit Kommas.
+    $versionNumber = "$modVersion+$loader+$($mcLabel -replace ',', '_')"
     $vType = if ($modVersion -match '-') { "beta" } else { "release" }
 
     # Skip if already published on Modrinth
@@ -246,6 +248,12 @@ foreach ($group in $jarGroups.Values) {
                 $detail = "HTTP $([int]$resp.StatusCode): $rbody"
             }
         } catch { }
+        # Datei steht bereits auf CF (Retry nach Teilerfolg) -> Skip statt Fail.
+        if ($detail -match '(?i)duplicat') {
+            Write-Host "   CurseForge: bereits vorhanden, skipping"
+            $skipped++
+            continue
+        }
         $fail++
         Write-Warning "   CurseForge FAILED: $detail"
         continue
