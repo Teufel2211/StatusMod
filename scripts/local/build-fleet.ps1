@@ -80,12 +80,13 @@ function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [str
     if ($local) { return $local }
     $file = "$artifact-$version.jar"
     # groupPath ist Cache-Layout ("a.b.c\artifact"): Gruppe zu Maven-Pfad wandeln.
+    # artDir (letztes Segment) IST bereits das artifact-Verzeichnis -> nicht doppelt anhaengen.
     $gp = $groupPath.Replace('\','/')
     $sep = $gp.LastIndexOf('/')
     if ($sep -ge 0) { $groupUrl = $gp.Substring(0,$sep).Replace('.','/'); $artDir = $gp.Substring($sep+1) } else { $groupUrl = $gp.Replace('.','/'); $artDir = $artifact }
     # + als %2B: manche Egress-Proxies dekodieren + im Pfad zu Leerzeichen (404).
     $versionEsc = $version.Replace('+','%2B')
-    $url = "$repo/$groupUrl/$artDir/$artifact/$versionEsc/$artifact-$versionEsc.jar"
+    $url = "$repo/$groupUrl/$artDir/$versionEsc/$artifact-$versionEsc.jar"
     $dst = Join-Path $libDir "$artifact-$version.jar"
     if (-not (Test-FileExists $dst)) {
         Write-Host "Downloading $artifact $version ..."

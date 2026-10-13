@@ -100,12 +100,13 @@ function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [str
     if ($local) { return $local }
     $file = "$artifact-$version.jar"
     # groupPath ist Cache-Layout ("a.b.c\artifact"): Gruppe zu Maven-Pfad wandeln.
+    # artDir (letztes Segment) IST bereits das artifact-Verzeichnis -> nicht doppelt anhaengen.
     $gp = $groupPath.Replace('\','/')
     $sep = $gp.LastIndexOf('/')
     if ($sep -ge 0) { $groupUrl = $gp.Substring(0,$sep).Replace('.','/'); $artDir = $gp.Substring($sep+1) } else { $groupUrl = $gp.Replace('.','/'); $artDir = $artifact }
     # + als %2B: manche Egress-Proxies dekodieren + im Pfad zu Leerzeichen (404).
     $versionEsc = $version.Replace('+','%2B')
-    $url = "$repo/$groupUrl/$artDir/$artifact/$versionEsc/$artifact-$versionEsc.jar"
+    $url = "$repo/$groupUrl/$artDir/$versionEsc/$artifact-$versionEsc.jar"
     $dst = Join-Path $libDir "$artifact-$version.jar"
     if (-not (Test-FileExists $dst)) {
         Write-Host "Downloading $artifact $version ..."
@@ -160,32 +161,9 @@ if (-not (Test-FileExists $mcJar)) {
 Write-Host "MC: $mcJar"
 $cpJars += $mcJar
 
-# 2. FAPI: in CI (GITHUB_ACTIONS) via Modrinth-CDN als Fat-Jar — maven.fabricmc.net
-# antwortet Runner-Egress reproduzierbar mit 404. Lokal weiter Cache/Maven.
-function Get-ModrinthFabricApiJar([string]$mc, [string]$ver) {
-    $q = [uri]::EscapeDataString('["' + $mc + '"]')
-    $l = [uri]::EscapeDataString('["fabric"]')
-    $v = Invoke-RestMethod -NoProxy -Uri "https://api.modrinth.com/v2/project/fabric-api/version?game_versions=$q&loaders=$l&limit=20" -TimeoutSec 60 |
-        Where-Object { $_.version_number -eq $ver } | Select-Object -First 1
-    if (-not $v) { throw "FAPI $ver fuer $mc nicht auf Modrinth" }
-    $file = @($v.files | Where-Object { $_.primary })[0]
-    if (-not $file) { $file = $v.files[0] }
-    if (-not $file) { throw "FAPI $ver ohne Dateien auf Modrinth" }
-    $dst = Join-Path $libDir "fabric-api-$ver.jar"
-    if (-not (Test-FileExists $dst)) {
-        Write-Host "Downloading FAPI $ver from Modrinth ..."
-        Invoke-DownloadWithRetry $file.url $dst 600
-    }
-    return $dst
-}
+# 2. FAPI modules from the bundle POM (exact versions for this FAPI release).
 $fapiPom = Get-CachedJar "net.fabricmc.fabric-api\fabric-api" $FabricApiVersion
-$fapiFromModrinth = $false
-if (($env:GITHUB_ACTIONS -eq "true") -and (-not $fapiPom)) {
-    $fatJar = Get-ModrinthFabricApiJar $McVersion $FabricApiVersion
-    $cpJars += $fatJar
-    $fapiFromModrinth = $true
-    Write-Host "FAPI: fat jar from Modrinth on classpath"
-} elseif (-not $fapiPom) {
+if (-not $fapiPom) {
     $fapiPom = Get-MavenJar "https://maven.fabricmc.net" "net.fabricmc.fabric-api\fabric-api" "fabric-api" $FabricApiVersion
     if ($fapiPom -notlike "*.pom") {
         # Get-MavenJar returned a jar (bundle thin jar); fetch the pom explicitly.
@@ -194,7 +172,6 @@ if (($env:GITHUB_ACTIONS -eq "true") -and (-not $fapiPom)) {
         if (-not (Test-Path $fapiPom)) { Invoke-DownloadWithRetry $pomUrl $fapiPom 120 }
     }
 }
-if (-not $fapiFromModrinth) {
 if ($fapiPom -like "*.jar") {
     # bundle jar was returned instead of pom; locate/download pom
     $pomUrl = "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$($FabricApiVersion.Replace('+','%2B'))/fabric-api-$($FabricApiVersion.Replace('+','%2B')).pom"
@@ -216,7 +193,6 @@ Write-Host "FAPI modules: $($modules.Count)"
 foreach ($m in $modules) {
     $j = Get-MavenJar "https://maven.fabricmc.net" "net.fabricmc.fabric-api\$($m.artifact)" $m.artifact $m.version
     $cpJars += $j
-}
 }
 
 # 3. Loader + vanilla libs.
