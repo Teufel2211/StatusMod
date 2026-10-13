@@ -44,7 +44,7 @@ function Invoke-DownloadWithRetry([string]$url, [string]$dst, [int]$timeoutSec =
         try {
             $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
             if ($curl) {
-                & curl.exe -fSL --retry 0 --max-time $timeoutSec -o $dst $url 2>$null
+                & curl.exe -fsSL --retry 0 --max-time $timeoutSec -o $dst $url 2>$null
                 if (($LASTEXITCODE -eq 0) -and (Test-FileExists $dst)) { return }
                 throw "curl exit $LASTEXITCODE"
             }
