@@ -83,12 +83,14 @@ switch ($Loader) {
     "fabric" {
         $resolved.loader_version = Get-StableFabricLoaderVersion -Mc $testMc
         $resolved.installer_url = "https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.2/fabric-installer-1.1.2.jar"
-        if (-not [string]::IsNullOrWhiteSpace($FabricApiUrl)) {
+        if ((-not [string]::IsNullOrWhiteSpace($FabricApiUrl)) -and ($FabricApiUrl -match '^https?://')) {
             $resolved.fabric_api_url = $FabricApiUrl
             $resolved.fabric_api_version = [System.IO.Path]::GetFileNameWithoutExtension($FabricApiUrl) -replace '^fabric-api-', ''
         } else {
+            if (-not [string]::IsNullOrWhiteSpace($FabricApiUrl)) { Write-Host "WARNING: ignoring invalid -FabricApiUrl '$FabricApiUrl', resolving latest from Modrinth" }
             $apiVer = Get-LatestFabricApiForMc -Mc $testMc
-            $resolved.fabric_api_url = "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$apiVer/fabric-api-$apiVer.jar"
+            $apiEsc = $apiVer.Replace('+', '%2B')
+            $resolved.fabric_api_url = "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$apiEsc/fabric-api-$apiEsc.jar"
             $resolved.fabric_api_version = $apiVer
         }
     }
@@ -96,12 +98,14 @@ switch ($Loader) {
         $cfg = Get-LoaderVersionConfig -Loader "quilt" -Mc $testMc -Map $loaderVersionMap
         $resolved.loader_version = if ($cfg) { $cfg.quilt_loader_version } else { "0.30.0" }
         $resolved.installer_url = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-installer/0.15.0/quilt-installer-0.15.0.jar"
-        if (-not [string]::IsNullOrWhiteSpace($FabricApiUrl)) {
+        if ((-not [string]::IsNullOrWhiteSpace($FabricApiUrl)) -and ($FabricApiUrl -match '^https?://')) {
             $resolved.fabric_api_url = $FabricApiUrl
             $resolved.fabric_api_version = [System.IO.Path]::GetFileNameWithoutExtension($FabricApiUrl) -replace '^fabric-api-', ''
         } else {
+            if (-not [string]::IsNullOrWhiteSpace($FabricApiUrl)) { Write-Host "WARNING: ignoring invalid -FabricApiUrl '$FabricApiUrl', resolving latest from Modrinth" }
             $apiVer = Get-LatestFabricApiForMc -Mc $testMc
-            $resolved.fabric_api_url = "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$apiVer/fabric-api-$apiVer.jar"
+            $apiEsc = $apiVer.Replace('+', '%2B')
+            $resolved.fabric_api_url = "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$apiEsc/fabric-api-$apiEsc.jar"
             $resolved.fabric_api_version = $apiVer
         }
     }

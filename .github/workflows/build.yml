@@ -176,9 +176,10 @@ jobs:
           $jar = Get-ChildItem -Path dist/multiversion -Recurse -Filter "${{ matrix.jar }}" -File | Select-Object -First 1
           if (-not $jar) { throw "JAR not found: ${{ matrix.jar }}" }
           Write-Host "Runtime-testing $($jar.FullName)"
-          $extra = @()
-          if ("${{ inputs.runtime_sp }}" -ne "true") { $extra += "-SkipSinglePlayer" }
-          & .\scripts\ci\test-runtime.ps1 -JarPath $jar.FullName -Loader "${{ matrix.loader }}" -McVersion "${{ matrix.mc }}" -JavaHome "$env:JAVA_HOME" -WorkDir "${{ runner.temp }}\rt" @extra
+          # Push-Events haben keine Inputs (""), GPU-lose Runner koennen SP nicht:
+          # SP nur bei explizitem runtime_sp=true (Dispatch-Default), sonst MP-only.
+          $skipSp = "${{ inputs.runtime_sp }}" -ne "true"
+          & .\scripts\ci\test-runtime.ps1 -JarPath $jar.FullName -Loader "${{ matrix.loader }}" -McVersion "${{ matrix.mc }}" -JavaHome "$env:JAVA_HOME" -WorkDir "${{ runner.temp }}\rt" -SkipSinglePlayer:$skipSp
 
       - name: Upload runtime logs
         if: always()
