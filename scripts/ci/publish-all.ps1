@@ -9,14 +9,23 @@ $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $modVersion = (Get-Content (Join-Path $root "version.txt") -Raw).Trim()
 $distDir = Join-Path $root "dist\multiversion"
 
-# --- changelog from git since last tag ---
-$lastTag = git describe --tags --abbrev=0 2>$null
-$changelog = if ($lastTag) {
-    $lines = git log "$lastTag..HEAD" --oneline 2>$null
-    if ($lines) { "Changes since $lastTag`n`n$($lines -join "`n")" } else { "" }
-} else {
-    $lines = git log --oneline -20 2>$null
-    if ($lines) { "Changes`n`n$($lines -join "`n")" } else { "" }
+# --- changelog: kuratierter CHANGELOG.md-Abschnitt, Fallback git-log ---
+$changelog = ""
+$clPath = Join-Path $root "CHANGELOG.md"
+if (Test-Path -LiteralPath $clPath) {
+    $clText = Get-Content -LiteralPath $clPath -Raw
+    $cm = [regex]::Match($clText, "(?ms)^## " + [regex]::Escape($modVersion) + "\b.*?\r?\n([\s\S]*?)(?=^## |\z)")
+    if ($cm.Success) { $changelog = $cm.Groups[1].Value.Trim() }
+}
+if ([string]::IsNullOrWhiteSpace($changelog)) {
+    $lastTag = git describe --tags --abbrev=0 2>$null
+    $changelog = if ($lastTag) {
+        $lines = git log "$lastTag..HEAD" --oneline 2>$null
+        if ($lines) { "Changes since $lastTag`n`n$($lines -join "`n")" } else { "" }
+    } else {
+        $lines = git log --oneline -20 2>$null
+        if ($lines) { "Changes`n`n$($lines -join "`n")" } else { "" }
+    }
 }
 if ([string]::IsNullOrWhiteSpace($changelog)) { $changelog = "No changelog available" }
 

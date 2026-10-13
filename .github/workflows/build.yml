@@ -222,12 +222,21 @@ jobs:
           $tag = "v$ver"
           $lastTag = git describe --tags --abbrev=0 2>$null
           $changelogFile = "$env:RUNNER_TEMP\changelog.md"
-          $changelog = if ($lastTag) {
-            $lines = git log "$lastTag..HEAD" --oneline 2>$null
-            if ($lines) { "Changes since $lastTag`n`n$($lines -join "`n")" } else { "" }
-          } else {
-            $lines = git log --oneline -20 2>$null
-            if ($lines) { "Changes`n`n$($lines -join "`n")" } else { "" }
+          # Kuratierter CHANGELOG.md-Abschnitt zuerst, Fallback git-log.
+          $changelog = ""
+          if (Test-Path -LiteralPath "CHANGELOG.md") {
+            $clText = Get-Content -LiteralPath "CHANGELOG.md" -Raw
+            $cm = [regex]::Match($clText, "(?ms)^## " + [regex]::Escape($ver) + "\b.*?\r?\n([\s\S]*?)(?=^## |\z)")
+            if ($cm.Success) { $changelog = "# StatusMod $ver`n`n" + $cm.Groups[1].Value.Trim() + "`n" }
+          }
+          if ([string]::IsNullOrWhiteSpace($changelog)) {
+            $changelog = if ($lastTag) {
+              $lines = git log "$lastTag..HEAD" --oneline 2>$null
+              if ($lines) { "Changes since $lastTag`n`n$($lines -join "`n")" } else { "" }
+            } else {
+              $lines = git log --oneline -20 2>$null
+              if ($lines) { "Changes`n`n$($lines -join "`n")" } else { "" }
+            }
           }
           if ([string]::IsNullOrWhiteSpace($changelog)) { $changelog = "No changelog available" }
           Set-Content -Path $changelogFile -Value $changelog
