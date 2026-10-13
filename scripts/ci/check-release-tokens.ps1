@@ -50,6 +50,11 @@ if ([string]::IsNullOrWhiteSpace($mrProject)) { Write-Fail "MODRINTH_PROJECT_ID 
 else { Write-Host "  MODRINTH_PROJECT_ID=$mrProject" }
 if (-not [string]::IsNullOrWhiteSpace($mrToken) -and -not [string]::IsNullOrWhiteSpace($mrProject)) {
     try {
+        $me = Invoke-RestMethod -Uri "https://api.modrinth.com/v2/user" -Method Get `
+            -Headers @{ "Authorization" = $mrToken } -TimeoutSec 30 -ErrorAction Stop
+        Write-Ok "Token gueltig (User: $($me.username))"
+    } catch { Write-Fail "Token-Auth (GET /user): $($_.Exception.Message) - falscher/abgelaufener Token oder Scope?" }
+    try {
         $proj = Invoke-RestMethod -Uri "https://api.modrinth.com/v2/project/$mrProject" -Method Get `
             -Headers @{ "Authorization" = $mrToken } -TimeoutSec 30 -ErrorAction Stop
         Write-Ok "Projekt lesbar: $($proj.title) (id=$($proj.id))"
