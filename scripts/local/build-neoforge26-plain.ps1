@@ -96,6 +96,39 @@ function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [str
     return $dst
 }
 
+function Resolve-BundledServerJar([string]$bundleJar, [string]$mcVersion) {
+    # Mojangs server.jar ist ein Bundler: die echten Klassen liegen in
+    # META-INF/versions/<mc>/server-<mc>.jar (26.x bereits Mojang-benannt).
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+    $probe = "net/minecraft/server/MinecraftServer.class"
+    $z = [System.IO.Compression.ZipFile]::OpenRead($bundleJar)
+    try {
+        $top = @($z.Entries | Where-Object { $_.FullName -eq $probe }).Count
+        if ($top -gt 0) { return $bundleJar }
+        $inner = $z.Entries | Where-Object { $_.FullName -like "META-INF/versions/*/server-*.jar" } | Select-Object -First 1
+        if (-not $inner) { throw "kein Bundler-Inhalt in $bundleJar" }
+        $dst = Join-Path $libDir "minecraft-server-inner-$mcVersion.jar"
+        $needExtract = $true
+        if (Test-FileExists $dst) {
+            $zi = [System.IO.Compression.ZipFile]::OpenRead($dst)
+            try { $needExtract = (@($zi.Entries | Where-Object { $_.FullName -eq "net/minecraft/commands/CommandSourceStack.class" }).Count -eq 0) }
+            finally { $zi.Dispose() }
+        }
+        if ($needExtract) {
+            Write-Host "Extracting bundled server jar ($($inner.FullName)) ..."
+            [System.IO.Compression.ZipFileExtensions]::ExtractToFile($inner, $dst, $true)
+        }
+        $zi = [System.IO.Compression.ZipFile]::OpenRead($dst)
+        try {
+            $ok = (@($zi.Entries | Where-Object { $_.FullName -eq "net/minecraft/commands/CommandSourceStack.class" }).Count -gt 0)
+            if (-not $ok) { throw "MC $mcVersion braucht Mappings/Remap - Vanilla-Jar ist obfuskiert" }
+        } finally { $zi.Dispose() }
+        return $dst
+    } finally {
+        $z.Dispose()
+    }
+}
+
 # 1. Minecraft jar: loom deobf cache first, else vanilla server jar (unobfuscated).
 $mcLibDir = Join-Path $libDir "mc-$McVersion"
 New-Item -ItemType Directory -Force -Path $mcLibDir | Out-Null
@@ -138,6 +171,7 @@ if (-not (Test-FileExists $mcJar)) {
         $pkg = Invoke-RestMethod -NoProxy $entry.url -TimeoutSec 60
         Invoke-DownloadWithRetry $pkg.downloads.server.url $mcJar 300
     }
+    $mcJar = Resolve-BundledServerJar $mcJar $McVersion
 }
 Write-Host "MC: $mcJar"
 $cpJars += $mcJar
