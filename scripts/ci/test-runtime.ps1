@@ -551,7 +551,9 @@ function Invoke-SinglePlayerTest {
         $clientMods = Join-Path $ClientDir "mods"
         New-Item -ItemType Directory -Force -Path $clientMods | Out-Null
         Copy-Item -LiteralPath $JarPath -Destination (Join-Path $clientMods $JarName) -Force
-        if ($Resolved.PSObject.Properties["fabric_api_url"]) {
+        # OrderedDictionary: direkter Key-Zugriff wirft unter StrictMode bei
+        # fehlendem Key, PSObject.Properties sieht Dict-Eintraege gar nicht.
+        if ($Resolved.Contains("fabric_api_url") -and (-not [string]::IsNullOrWhiteSpace($Resolved.fabric_api_url))) {
             $apiFile = Join-Path $clientMods ("fabric-api-" + $Resolved.fabric_api_version + ".jar")
             if (-not (Test-Path $apiFile)) {
                 Invoke-Download -Url $Resolved.fabric_api_url -OutFile $apiFile
@@ -724,7 +726,9 @@ try {
     $modsDir = Join-Path $serverDir "mods"
     New-Item -ItemType Directory -Force -Path $modsDir | Out-Null
     Copy-Item -LiteralPath $jarPath -Destination (Join-Path $modsDir $jarName) -Force
-    if ($resolved.PSObject.Properties["fabric_api_url"]) {
+    # OrderedDictionary: direkter Key-Zugriff wirft unter StrictMode bei
+    # fehlendem Key, PSObject.Properties sieht Dict-Eintraege gar nicht.
+    if ($resolved.Contains("fabric_api_url") -and (-not [string]::IsNullOrWhiteSpace($resolved.fabric_api_url))) {
         $apiFile = Join-Path $modsDir ("fabric-api-" + $resolved.fabric_api_version + ".jar")
         if (-not (Test-Path $apiFile)) {
             Invoke-Download -Url $resolved.fabric_api_url -OutFile $apiFile
