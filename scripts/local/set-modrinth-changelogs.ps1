@@ -7,10 +7,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$token = [string]$env:MODRINTH_TOKEN
-$projectId = [string]$env:MODRINTH_PROJECT_ID
+$token = ([string]$env:MODRINTH_TOKEN).Trim().Trim('"').Trim("'")
+$projectId = ([string]$env:MODRINTH_PROJECT_ID).Trim()
 if ([string]::IsNullOrWhiteSpace($token)) { throw "MODRINTH_TOKEN nicht gesetzt" }
 if ([string]::IsNullOrWhiteSpace($projectId)) { throw "MODRINTH_PROJECT_ID nicht gesetzt" }
+Write-Host ("Token: " + $token.Substring(0, [Math]::Min(7, $token.Length)) + "... (" + $token.Length + " Zeichen)")
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 if ([string]::IsNullOrWhiteSpace($ModVersion)) { $ModVersion = (Get-Content (Join-Path $root "version.txt") -Raw).Trim() }
