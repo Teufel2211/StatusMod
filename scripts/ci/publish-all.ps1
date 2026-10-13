@@ -76,9 +76,11 @@ $cfGameVersionCache = $null
 function Get-CfVersionId {
     param([string]$Name)
     if ($null -eq $cfGameVersionCache) { return $null }
-    $entry = $cfGameVersionCache | Where-Object { $_ -is [pscustomobject] -and $_.name -eq $Name }
+    # Die CF-Liste enthaelt doppelte Namen -> genau EINEN Eintrag nehmen,
+    # sonst liefert $entry.id ein Array und List[int].Add() bricht ab.
+    $entry = @($cfGameVersionCache | Where-Object { $_ -is [pscustomobject] -and $_.name -eq $Name }) | Select-Object -First 1
     if ($null -eq $entry) { return $null }
-    return $entry.id
+    return [int]$entry.id
 }
 
 if ($hasCurseForge) {
