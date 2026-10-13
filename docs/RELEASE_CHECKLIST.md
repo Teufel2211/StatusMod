@@ -1,70 +1,57 @@
-# Release-Checkliste 1.4.0
+# Release-Checkliste 1.4.1
 
 Abhaken der Reihe nach. Alles auf `development` vorbereiten, erst ganz am Ende nach `main` mergen (CI feuert nur dort).
 
 ## 1. Code fertig
 
-- [x] Alle Features/Fixes auf `development` committet, Baum sauber (`git status` leer) — verifiziert 2026-10-11
-- [x] `version.txt` = `1.4.0` — verifiziert 2026-10-11
-- [x] `CHANGELOG.md` → `## Unreleased` in `## 1.4.0` umbenannt — erledigt 2026-10-12
+- [ ] Alle Features/Fixes auf `development` committet, Baum sauber (`git status` leer)
+- [ ] `version.txt` = `1.4.1`
+- [ ] `CHANGELOG.md` → `## Unreleased` in `## 1.4.1` umbenannt (kein Fleet in sichtbaren Texten!)
 
 ## 2. Builds
 
-- [x] `.\scripts\local\build-multiversion.ps1 -Loaders fabric,forge,neoforge,quilt -ContinueOnError:$false` — 2026-10-11 alle ok
-- [x] Rebuild 2026-10-12 (forge+neoforge, logoFile-Fix; forge-26.3 Kopie, neoforge-26.3 plain) — alle ok
-- [x] Rebuild 2026-10-12 (alle Loader, HttpClient HTTP/1.1-Fix; fabric-26.3 + neoforge-26.3 plain, quilt-26.3 repack, fleet separat) — alle ok
-- [x] `.\scripts\ci\verify-jars.ps1` → 24/24 OK — verifiziert 2026-10-11 + erneut 2026-10-12
-- [x] `dist/multiversion` enthält 24 × `Statusmod-1.4.0-<loader>-<mc>.jar` — verifiziert 2026-10-11
+- [ ] `.\scripts\local\build-multiversion.ps1 -Loaders fabric,forge,neoforge,quilt -ContinueOnError:$false`
+- [ ] `.\scripts\ci\verify-jars.ps1` → 24/24 OK
+- [ ] `dist/multiversion` enthält 24 × `Statusmod-<version>-<loader>-<mc>.jar`
 
 ## 3. Tests
 
-- [x] `.\scripts\ci\test-mod-matrix.ps1` (Server-Boot grün, mind. fabric × 1.21.11 + 26.2) — 2026-10-11: 2/2 PASS, 2026-10-12: 2/2 PASS (Ports ab 25665)
-- [x] Ingame-Foltertest Singleplayer (Klick/Shift/Q/Ziffern/F/Drag + ESC, Inventar prüfen) — **braucht dich**
-- [x] Dashboard-Build grün: `npm run build --prefix dashboard` — verifiziert 2026-10-11
+- [ ] CI-Runtime-Matrix grün (alle Loader × alle MCs, MP-only auf Push)
+- [ ] Ingame-Test (Befehle, GUI-Klicks, Inventar prüfen) — **brauchst du**
+- [ ] Dashboard-Build grün: `npm run build --prefix dashboard`
 
 ## 4. Tokens & Secrets
 
-- [x] `.\scripts\ci\check-release-tokens.ps1` → Exit 0 — grün seit 2026-10-12 (Fixes: CF-Header `X-Api-Token` e9303b8, Projekt-GET-404 ist kein FAIL bbe3f55). ACHTUNG: `$env:`-Tokens gelten nur pro PowerShell-Sitzung — vor Publish neu setzen + Check erneut laufen lassen!
+- [ ] `.\scripts\ci\check-release-tokens.ps1` → Exit 0 (inkl. Modrinth-Auth via GET /user). ACHTUNG: `$env:`-Tokens gelten nur pro PowerShell-Sitzung — vor Publish neu setzen + Check erneut laufen lassen!
 - [ ] CI-Secrets prüfen (GitHub → Settings → Secrets → Actions): `MODRINTH_TOKEN`, `MODRINTH_PROJECT_ID`, `CURSEFORGE_TOKEN`, `CURSEFORGE_PROJECT_ID` — **brauchst du**
-- [x] Keine *neuen* Secrets im Diff (Scan 2026-10-11: nur alte rotierte Defaults aus Aug-Commits + Suchbeispiel in dieser Datei) — sauber
+- [ ] Keine *neuen* Secrets im Diff
 
 ## 5. Dashboard live
 
 - [ ] `vercel deploy --prod` — **brauchst du** (CLI nicht eingeloggt)
 - [ ] `/api/health` → `healthy`, `previous_secret_active: false` — nach Deploy prüfen
-- [ ] Login + Owner-Login (`/fleet owner-code` → `/admin-dashboard`) einmal durchspielen — **brauchst du**
-- [ ] Config-Pull auf Testserver prüfen (`/fleet status` → Pull ok) — **brauchst du**
+- [ ] Login + Owner-Login einmal durchspielen — **brauchst du**
+- [ ] Config-Pull auf Testserver prüfen — **brauchst du**
 
 ## 6. Offenlegung (Modrinth, vor Upload!)
 
 - [ ] Projektseite: Icon aktuell, Beschreibung aktuell — **brauchst du**
-- [ ] Disclosure **"Contains AI-generated content"** (Code + Text) gesetzt — **brauchst du**
-- [x] Disclosure **"Contains telemetry"** gesetzt (Sync ist drin seit 1.4.0!) — erledigt 2026-10-12 (Opt-in + 4 Dateneinträge, User-verifiziert)
-- [x] README: kein "No telemetry"-Versprechen mehr (Privacy-Sektion beschreibt Opt-in-Sync korrekt) — verifiziert 2026-10-12, Modrinth-Seitentext **brauchst du**
+- [ ] Disclosure **"Contains AI-generated content"** gesetzt — **brauchst du**
+- [ ] Disclosure **"Contains telemetry"** gesetzt (bleibt seit 1.4.0 bestehen, trotzdem verifizieren)
+- [ ] README/Modrinth-Seitentext ohne "No telemetry"-Versprechen — **brauchst du**
 
 ## 7. Merge + Publish
 
 - [ ] `development` → `main` mergen (kein Push ohne Go!)
-- [ ] CI-Workflow grün (Build + Verify + Publish)
-- [ ] Modrinth: 20 Uploads sichtbar (24 JARs, Duplikate gruppiert), Version `1.4.0`
+- [ ] CI-Workflow grün (Build + Verify + Runtime-Tests)
+- [ ] Publish per `force_publish`-Dispatch anstoßen (nötig, da version.txt oft unverändert bleibt)
+- [ ] Modrinth: Uploads sichtbar (15 Gruppen), Version freigegeben
 - [ ] CurseForge: Dateien da, Freigabe abwarten
-- [ ] GitHub Release angelegt (Changelog aus Git-Log seit letztem Tag)
+- [ ] GitHub Release angelegt (Changelog aus CHANGELOG.md, alle 24 JARs)
 - [ ] Fleet NICHT im Release (Guard in `publish-all.ps1` bricht bei Fleetmod-JARs unter `dist/multiversion` ab)
-
-## 7b. Neue Fixes seit Checklisten-Start (alle verifiziert 2026-10-11)
-
-- [x] /status version antwortet (greedy-Arg frass ersion/history/list/clear als Statustext; Literale stehen jetzt zuerst)
-- [x] Private Antworten kommen auf Remap-Runtimes an (direkter sendSystemMessage-Fallback in CommandUtil)
-- [x] 26.3-Warnung: Konsole immer + Admin-Join-Ping + /status version-Zeile (Texte gekuerzt, User-verifiziert ingame)
-- [x] BUILD-Tag aktuell: edrock263 (/status version meldet ihn)
-- [x] Modrinth-Profile: 24/24 gesynct + byte-identisch (inkl. 4x 26.3 mit Warnung)
-- [x] Em-Dash aus allen Mod-Metadaten entfernt (54491cd) — brach Forge-Icon in Modrinth-App
-- [x] `logoFile="logo.png"` in allen Forge/NeoForge-TOMLs (6e52c03) — App liest nur `logoFile`
-- [x] CurseForge-Duplikat-Reject geklärt ("Duplicate file", 1.3.0) — Gruppierung per SHA512 in publish-all.ps1 greift, verifiziert
-- [x] `register-modrinth-content.ps1` (36f597f): Sync + app.db-Registrierung (Content-Tab mit Icon) — 24/24 verifiziert, Blobs alle `ready`
 
 ## 8. Danach
 
-- [ ] Testserver + Nitrado auf 1.4.0-JARs aktualisieren + Neustart
+- [ ] Testserver + Nitrado auf neue JARs aktualisieren + Neustart
 - [ ] Modrinth-Profile registrieren (`scripts/local/register-modrinth-content.ps1`, App vorher schließen!)
 - [ ] Diese Datei fürs nächste Release zurücksetzen (Haken raus)
