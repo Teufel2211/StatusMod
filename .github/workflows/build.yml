@@ -14,13 +14,13 @@ on:
         type: string
         default: ""
       mc_versions:
-        description: "MC versions to publish (comma-separated: 1.21.11,26.2). Empty = all"
+        description: "MC versions to publish (comma-separated: 1.21.11,26.1,26.1.1,26.1.2,26.2,26.3). Empty = all"
         type: string
         default: ""
       runtime_sp:
-        description: "Run singleplayer (client) runtime test. Default true (needs GPU-capable runner; disable on GPU-less CI)"
+        description: "Run singleplayer (client) runtime test. Needs GPU-capable runner; GitHub-hosted runners are GPU-less, so default is skip (false)"
         type: boolean
-        default: true
+        default: false
 
 concurrency:
   group: build-${{ github.ref }}
@@ -132,7 +132,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          find jars -name '*.jar' | sort | while read -r f; do
+          find jars -name '*.jar' ! -name '*-sources.jar' | sort | while read -r f; do
             base=$(basename "$f")
             stem=${base%.jar}
             stem=${stem#Statusmod-}
@@ -192,6 +192,8 @@ jobs:
     needs: [build-and-verify, runtime-test]
     if: needs.build-and-verify.outputs.changed == 'true'
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -239,6 +241,11 @@ jobs:
           git tag $tag
           git push origin $tag
 
+          gh release view $tag 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $tag exists — deleting to recreate"
+            gh release delete $tag --yes
+          }
           gh release create $tag `
             --title "StatusMod $ver" `
             --notes-file $changelogFile `
