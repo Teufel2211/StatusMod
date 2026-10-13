@@ -195,8 +195,27 @@ foreach ($group in $jarGroups.Values) {
         $loaderId = Get-CfVersionId -Name $cfAliases[$loader]
     }
     if ($loaderId) { $cfGameVersions.Add($loaderId) }
-    $envId = Get-CfVersionId -Name "Client and Server"  # environment: both
-    if ($envId) { $cfGameVersions.Add($envId) }
+    # Env-Eintrag: exakter Name variiert ("Client and Server" existiert nicht
+    # in der CF-Liste) -> erst Kombi-Namen, sonst Client+Server einzeln
+    # (Superset-Deklaration). Fehlt alles, wirft der Code unten mit
+    # aehnlichen Namen zur Selbstdiagnose.
+    $envIds = @()
+    foreach ($cand in @("Client and Server", "Client & Server", "Server and Client")) {
+        $eid = Get-CfVersionId -Name $cand
+        if ($eid) { Write-Host "   CF env: '$cand' (id $eid)"; $envIds = @($eid); break }
+    }
+    if ($envIds.Count -eq 0) {
+        foreach ($cand in @("Client", "Server")) {
+            $eid = Get-CfVersionId -Name $cand
+            if ($eid) { Write-Host "   CF env: '$cand' (id $eid)"; $envIds += $eid }
+        }
+    }
+    if ($envIds.Count -eq 0) {
+        $similar = @($cfGameVersionCache | Where-Object { $_ -is [pscustomobject] -and ($_.name -match 'client|server') } | ForEach-Object { "$($_.name)=$($_.id)" } | Select-Object -Unique | Sort-Object | Select-Object -First 20) -join ', '
+        throw "CurseForge: keine Env-Version gefunden (Kandidaten probiert). Aehnliche Eintraege: $similar"
+    }
+    foreach ($eid in $envIds) { $cfGameVersions.Add([int]$eid) }
+    if ($null -eq $envId) { $envId = ($envIds -join ',') }
 
     if ($cfGameVersions.Count -lt 3) {
         throw "CurseForge: game version IDs unvollstaendig (gefunden $($cfGameVersions.Count)/3; MC=$mcId, Loader=$loaderId, Env=$envId)"
