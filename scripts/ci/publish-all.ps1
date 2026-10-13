@@ -166,10 +166,18 @@ foreach ($group in $jarGroups.Values) {
             }
         Write-Host "   OK id=$($response.id)"
     } catch {
-        Write-Warning "   Modrinth FAILED: $($_.Exception.Message)"
-        if ($_.Exception.Response) {
-            try { $err = $_.Exception.Response.GetResponseStream(); $reader = New-Object System.IO.StreamReader($err); $errBody = $reader.ReadToEnd(); Write-Warning "   Response: $errBody" } catch {}
-        }
+        # pwsh7 wirft HttpResponseException (mit .Response); das alte
+        # WebException-Muster (.GetResponseStream) liefert hier immer $null.
+        $detail = $_.Exception.Message
+        try {
+            $resp = $_.Exception.Response
+            if ($resp -is [System.Net.Http.HttpResponseMessage]) {
+                $rbody = $resp.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                $detail = "HTTP $([int]$resp.StatusCode): $rbody"
+            }
+        } catch { }
+        Write-Warning "   Modrinth FAILED: $detail"
+        Write-Warning "   Request war: version_number=$versionNumber loaders=$loader game_versions=$($mcList -join ',') datei=$($jar.Name) ($([int]($jar.Length/1KB))KB)"
         $fail++
         continue
     }
@@ -211,8 +219,16 @@ foreach ($group in $jarGroups.Values) {
             }
         Write-Host "   CurseForge OK"
     } catch {
+        $detail = $_.Exception.Message
+        try {
+            $resp = $_.Exception.Response
+            if ($resp -is [System.Net.Http.HttpResponseMessage]) {
+                $rbody = $resp.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                $detail = "HTTP $([int]$resp.StatusCode): $rbody"
+            }
+        } catch { }
         $fail++
-        Write-Warning "   CurseForge FAILED: $($_.Exception.Message)"
+        Write-Warning "   CurseForge FAILED: $detail"
         continue
     }
     $ok++
