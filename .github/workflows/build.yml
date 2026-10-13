@@ -246,7 +246,11 @@ jobs:
             Write-Host "Release $tag exists — deleting to recreate"
             gh release delete $tag --yes
           }
+          # Dateien explizit aufzählen: ** wird an native Befehle nicht
+          # rekursiv expandiert (fabric-JARs liegen eine Ebene tiefer).
+          $assetFiles = @(Get-ChildItem -Path dist/multiversion -Recurse -Filter *.jar -File | ForEach-Object { $_.FullName })
+          if ($assetFiles.Count -eq 0) { throw "No JARs found for release $tag" }
           gh release create $tag `
             --title "StatusMod $ver" `
             --notes-file $changelogFile `
-            dist/multiversion/**/*.jar
+            $assetFiles
