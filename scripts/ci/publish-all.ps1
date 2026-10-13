@@ -124,24 +124,50 @@ foreach ($jar in @($jars | Sort-Object Name)) {
     if ($jarGroups[$h].mcs -notcontains $parsed[1]) { $jarGroups[$h].mcs += $parsed[1] }
 }
 
+# Komprimiert sortierte MC-Liste zu exakten Ranges ("26.1-26.3",
+# "1.21.11_26.1-26.3"). Modrinth begrenzt version_number auf 32 Zeichen
+# (labrinth InitialVersionData), ausgeschriebene Merge-Listen sprengen das.
+function Get-CompressedMcLabel([string[]]$sorted) {
+    # Benachbarte Versionen (Patch+1 oder Minor+1 bei Patch 0) werden zu
+    # Ranges ("26.1-26.3"), Luecken trennen mit "_" ("1.21.11_26.1-26.3").
+    $parts = New-Object System.Collections.Generic.List[string]
+    $start = $null; $prev = $null; $pr = $null
+    foreach ($v in $sorted) {
+        $m = [regex]::Match($v, '^(\d+)\.(\d+)(?:\.(\d+))?$')
+        $cur = @([int]$m.Groups[1].Value, [int]$m.Groups[2].Value, $(if ($m.Groups[3].Success) { [int]$m.Groups[3].Value } else { 0 }))
+        $cont = $false
+        if ($null -ne $prev) {
+            if (($cur[0] -eq $pr[0] -and $cur[1] -eq $pr[1] -and $cur[2] -eq ($pr[2] + 1)) -or
+                ($cur[0] -eq $pr[0] -and $cur[1] -eq ($pr[1] + 1) -and $cur[2] -eq 0)) { $cont = $true }
+        }
+        if ($null -eq $start) { $start = $v }
+        elseif (-not $cont) {
+            if ($start -eq $prev) { $parts.Add($start) } else { $parts.Add($start + "-" + $prev) }
+            $start = $v
+        }
+        $prev = $v; $pr = $cur
+    }
+    if ($null -ne $start) {
+        if ($start -eq $prev) { $parts.Add($start) } else { $parts.Add($start + "-" + $prev) }
+    }
+    return ($parts -join "_")
+}
+
 foreach ($group in $jarGroups.Values) {
     $jar = $group.file
     $loader = $group.loader
     $mcList = @($group.mcs | Sort-Object { [version]($_ -replace '[^\d.]', '') })
     $mcLabel = if ($mcList.Count -eq 1) { $mcList[0] } else { ($mcList -join ",") }
     $versionName = "StatusMod $modVersion ($loader $mcLabel)"
-    # Modrinth mappt neue LoaderxMC-Kombis verzoegert (forge/neoforge x 26.3
-    # -> 400, leeres Body). Bewiesen: alle 1.3.0-Paare + fabric/quilt x 26.3
-    # laden oben; nur forge/neoforge x 26.3 scheitern. Diese MCs daher nur
-    # auf CF/GitHub releasen, nicht auf Modrinth (TODO entfernen sobald
-    # gemappt; 26.3-File liegt trotzdem auf CF + im GH-Release).
-    $modrinthMcExclusions = @{
-        "forge" = @("26.3")
-        "neoforge" = @("26.3")
+    # version_number <= 32 Zeichen (Modrinth-Limit, labrinth InitialVersionData):
+    # exakte Range-Kompression ("26.1-26.3", "1.21.11_26.1-26.3").
+    $versionNumber = "$modVersion+$loader+$(Get-CompressedMcLabel $mcList)"
+    if ($versionNumber.Length -gt 32) {
+        # Fallback: reine Spanne first-last (wie mods.toml-Ranges).
+        $span = "$($mcList[0])-$($mcList[-1])"
+        $versionNumber = "$modVersion+$loader+$span"
     }
-    $mrMcList = @($mcList | Where-Object { ($modrinthMcExclusions[$loader] -notcontains $_) })
-    $mrMcLabel = if ($mrMcList.Count -eq 1) { $mrMcList[0] } else { ($mrMcList -join ",") }
-    $versionNumber = "$modVersion+$loader+$($mrMcLabel -replace ',', '_')"
+    if ($versionNumber.Length -gt 32) { throw "version_number zu lang ($($versionNumber.Length)): $versionNumber" }
     $vType = if ($modVersion -match '-') { "beta" } else { "release" }
 
     # Skip if already published on Modrinth
@@ -154,17 +180,13 @@ foreach ($group in $jarGroups.Values) {
     Write-Host "==> $versionName"
 
     # --- Modrinth (v2 API: POST /v2/version) ---
-    if ($mrMcList.Count -eq 0) {
-        Write-Host "   Modrinth: alle MCs exkludiert, nur CF/GitHub"
-    } else {
-    $mrVersionName = "StatusMod $modVersion ($loader $mrMcLabel)"
     $body = @{
         project_id = $modrinthProjectId
         file_parts = @("file")
-        name = $mrVersionName
+        name = $versionName
         version_number = $versionNumber
         changelog = $changelog
-        game_versions = @($mrMcList)
+        game_versions = @($mcList)
         version_type = $vType
         loaders = @($loader)
         featured = $false
@@ -172,7 +194,7 @@ foreach ($group in $jarGroups.Values) {
         primary_file = "file"
     }
     try {
-        Write-Host "   Modrinth... ($mrMcLabel)"
+        Write-Host "   Modrinth... ($mcLabel)"
         $response = Invoke-RestMethod -Uri "https://api.modrinth.com/v2/version" -Method Post `
             -Headers @{ "Authorization" = $modrinthToken } `
             -Form @{
@@ -192,10 +214,9 @@ foreach ($group in $jarGroups.Values) {
             }
         } catch { }
         Write-Warning "   Modrinth FAILED: $detail"
-        Write-Warning "   Request war: version_number=$versionNumber loaders=$loader game_versions=$($mrMcList -join ',') datei=$($jar.Name) ($([int]($jar.Length/1KB))KB)"
+        Write-Warning "   Request war: version_number=$versionNumber loaders=$loader game_versions=$($mcList -join ',') datei=$($jar.Name) ($([int]($jar.Length/1KB))KB)"
         $fail++
         continue
-    }
     }
 
     # --- CurseForge (Pflicht seit 1.4.0) ---
