@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
   if (!user) return badRequest()
 
-  if (typeof recovery_code === "string" && recovery_code.length >= 6) {
+  if (typeof recovery_code === "string" && recovery_code.length >= 6 && recovery_code.length <= 128) {
     const hashes: string[] = user.recovery_code_hashes ?? []
     let matched = false
     for (let i = 0; i < hashes.length; i++) {
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, used_recovery: true })
   }
 
-  if (typeof token !== "string" || token.length < 6) return badRequest()
+  if (typeof token !== "string" || token.length < 6 || token.length > 12) return badRequest()
 
   if (!user.totp_secret) return badRequest()
 

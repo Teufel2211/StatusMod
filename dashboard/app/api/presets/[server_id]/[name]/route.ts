@@ -20,10 +20,12 @@ export async function DELETE(
   if (session.role !== "owner") return forbidden("Nur der Owner kann Presets löschen")
 
   const sb = getServiceClient()
+  // Namen werden kleingeschrieben gespeichert (s. POST) -> hier auch.
+  const name = params.name.toLowerCase()
   const { error } = await (sb as any)
     .from("custom_presets")
     .delete()
-    .eq("name", params.name)
+    .eq("name", name)
     .eq("server_id", params.server_id)
 
   if (error) return serverError()
@@ -32,7 +34,7 @@ export async function DELETE(
     server_id: params.server_id,
     action: "preset_delete",
     who_uuid: session.sub,
-    details: { name: params.name },
+    details: { name },
   })
 
   return ok({ success: true })

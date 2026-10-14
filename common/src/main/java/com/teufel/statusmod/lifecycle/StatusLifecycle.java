@@ -63,11 +63,14 @@ public final class StatusLifecycle {
                 arr.add(o);
             }
             com.google.gson.JsonObject root = new com.google.gson.JsonObject();
-            root.addProperty("updatedAt", System.currentTimeMillis());
             root.add("players", arr);
+            // Vergleich OHNE updatedAt (sonst waere der Skip tot und die
+            // Datei wuerde bei jedem Tick neu geschrieben).
+            String fingerprint = new com.google.gson.Gson().toJson(root);
+            if (fingerprint.equals(lastOverviewJson)) return;
+            lastOverviewJson = fingerprint;
+            root.addProperty("updatedAt", System.currentTimeMillis());
             String json = new com.google.gson.Gson().toJson(root);
-            if (json.equals(lastOverviewJson)) return;
-            lastOverviewJson = json;
             java.nio.file.Path dir = java.nio.file.Paths.get("config/statusmod");
             java.nio.file.Files.createDirectories(dir);
             java.nio.file.Path tmp = dir.resolve("statuses.json.tmp");

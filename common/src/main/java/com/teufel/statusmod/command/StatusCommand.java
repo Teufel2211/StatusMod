@@ -837,11 +837,13 @@ private static void adminSetStatus(CommandSourceStack src, String targetName, St
                 CommandUtil.sendSuccess(src, Component.literal("Audit-Log ist leer."), false);
                 return;
             }
-            List<String> lines = Files.readAllLines(path);
-            int start = Math.max(0, lines.size() - 25);
+            java.util.Deque<String> tail = new java.util.ArrayDeque<>();
+            try (java.util.stream.Stream<String> s = Files.lines(path)) {
+                s.forEach(line -> { tail.addLast(line); if (tail.size() > 25) tail.removeFirst(); });
+            }
             CommandUtil.sendSuccess(src, Component.literal("--- Letzte Einträge (max 25) ---"), false);
-            for (int i = start; i < lines.size(); i++) {
-                CommandUtil.sendSuccess(src, Component.literal(lines.get(i)), false);
+            for (String line : tail) {
+                CommandUtil.sendSuccess(src, Component.literal(line), false);
             }
         } catch (IOException e) {
             src.sendFailure(Component.literal("Fehler beim Lesen des Audit-Logs."));

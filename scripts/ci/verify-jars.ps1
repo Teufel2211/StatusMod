@@ -36,7 +36,7 @@ foreach ($jar in $jars) {
 
     $m = [regex]::Match($jar.Name, $pattern)
     if ($m.Success) {
-        $loader = $m.Groups[1].Value
+        $loader = $m.Groups[1].Value.ToLowerInvariant()
         $mc = $m.Groups[2].Value
         $foundKeys.Add("$loader-$mc") | Out-Null
     }

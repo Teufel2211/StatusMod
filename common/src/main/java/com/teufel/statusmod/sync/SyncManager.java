@@ -101,6 +101,12 @@ public final class SyncManager {
                 return;
             }
             long now = System.currentTimeMillis();
+            // Feature-Toggle live beachten (kein Restart noetig).
+            ModConfig loopCfg = StatusMod.getConfig();
+            if (loopCfg == null || !loopCfg.isEnabled("sync")) {
+                started = false;
+                return;
+            }
             if (pushDirty || (now - lastPush) >= SYNC_INTERVAL_MS) {
                 pushDirty = false;
                 lastPush = now;

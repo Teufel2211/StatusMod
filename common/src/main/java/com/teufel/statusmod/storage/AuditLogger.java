@@ -10,6 +10,7 @@ import java.time.format.DateTimeFormatter;
 
 public class AuditLogger {
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final long MAX_BYTES = 1_000_000L;
     private static File logFile;
 
     public static synchronized void init() {
@@ -21,6 +22,15 @@ public class AuditLogger {
     public static synchronized void log(String who, String action, String target, String detail) {
         if (logFile == null) init();
         try {
+            // Rotation: alte Datei aufheben, neu anfangen (wächst sonst ewig).
+            if (logFile.exists() && logFile.length() > MAX_BYTES) {
+                File prev = new File(logFile.getParentFile(), "audit.log.1");
+                if (prev.exists() && !prev.delete()) {
+                    try { Files.writeString(logFile.toPath(), "", StandardOpenOption.TRUNCATE_EXISTING); } catch (IOException ignored) {}
+                } else {
+                    try { Files.move(logFile.toPath(), prev.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING); } catch (IOException ignored) {}
+                }
+            }
             String line = String.format("[%s] %s | %s | %s | %s%n",
                 LocalDateTime.now().format(FMT),
                 safe(who), safe(action), safe(target), safe(detail));

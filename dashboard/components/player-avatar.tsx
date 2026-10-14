@@ -13,13 +13,13 @@ export function PlayerAvatar({
 }) {
   const style = { width: sizePx, height: sizePx }
 
-  if (avatar && /^https:\/\/[^"\s()<>]+$/i.test(avatar)) {
+  if (avatar && /^https:\/\/[^"\s()<>\\]+$/i.test(avatar)) {
     return (
       <div
         className="rounded-sm shrink-0"
         style={{
           ...style,
-          backgroundImage: `url(${avatar})`,
+          backgroundImage: `url("${avatar}")`,
           backgroundSize: `${sizePx * 8}px ${sizePx * 8}px`,
           backgroundPosition: "0 0",
           imageRendering: "pixelated",

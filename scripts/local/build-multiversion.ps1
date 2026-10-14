@@ -459,10 +459,19 @@ function Get-LoaderVersionConfig {
         return $null
     }
     $loaderObj = $Map.$Loader
-    if ($null -eq $loaderObj) { return $null }
-    $prop = $loaderObj.PSObject.Properties | Where-Object { $_.Name -eq $MinecraftVersion } | Select-Object -First 1
+    if ($null -eq $loaderObj) { return $null }    $prop = $loaderObj.PSObject.Properties | Where-Object { $_.Name -eq $MinecraftVersion } | Select-Object -First 1
     if ($null -eq $prop) { return $null }
     return $prop.Value
+}
+
+function Get-CfgValue {
+    # StrictMode-sicherer Zugriff auf Loader-Config-Keys (direktes $cfg.xxx
+    # wirft bei fehlendem Key statt $null -> Gesamt-Abbruch statt Skip).
+    param($Cfg, [string]$Name)
+    if ($null -eq $Cfg) { return "" }
+    $p = $Cfg.PSObject.Properties[$Name]
+    if ($null -eq $p -or $null -eq $p.Value) { return "" }
+    return [string]$p.Value
 }
 
 function Get-TargetMinecraftVersion {
@@ -640,7 +649,7 @@ try {
                 }
 
                 if ($loader -eq "forge") {
-                    if ([string]::IsNullOrWhiteSpace($cfg.forge_version)) {
+                    if ([string]::IsNullOrWhiteSpace((Get-CfgValue $cfg "forge_version"))) {
                         $results.Add([pscustomobject]@{
                             loader = $loader
                             minecraft = $mc
@@ -734,7 +743,7 @@ try {
                     }
                 }
                 if ($loader -eq "neoforge") {
-                    if ([string]::IsNullOrWhiteSpace($cfg.neoforge_version) -or [string]::IsNullOrWhiteSpace($cfg.neogradle_version)) {
+                    if ([string]::IsNullOrWhiteSpace((Get-CfgValue $cfg "neoforge_version")) -or [string]::IsNullOrWhiteSpace((Get-CfgValue $cfg "neogradle_version"))) {
                         $results.Add([pscustomobject]@{
                             loader = $loader
                             minecraft = $mc
@@ -746,9 +755,9 @@ try {
                     }
                 }
                 if ($loader -eq "quilt") {
-                    if ([string]::IsNullOrWhiteSpace($cfg.quilt_loader_version) -or
-                        [string]::IsNullOrWhiteSpace($cfg.quilt_mappings) -or
-                        [string]::IsNullOrWhiteSpace($cfg.quilt_loom_version)) {
+                    if ([string]::IsNullOrWhiteSpace((Get-CfgValue $cfg "quilt_loader_version")) -or
+                        [string]::IsNullOrWhiteSpace((Get-CfgValue $cfg "quilt_mappings")) -or
+                        [string]::IsNullOrWhiteSpace((Get-CfgValue $cfg "quilt_loom_version"))) {
                         $results.Add([pscustomobject]@{
                             loader = $loader
                             minecraft = $mc
@@ -777,17 +786,17 @@ try {
                 }
 
                 if ($loader -eq "forge") {
-                    Set-GradlePropertyValue -FilePath $gradleProps -Key "forge_version" -Value ([string]$cfg.forge_version)
+                    Set-GradlePropertyValue -FilePath $gradleProps -Key "forge_version" -Value (Get-CfgValue $cfg "forge_version")
                 } elseif ($loader -eq "neoforge") {
-                    Set-GradlePropertyValue -FilePath $gradleProps -Key "neoforge_version" -Value ([string]$cfg.neoforge_version)
-                    Set-GradlePropertyValue -FilePath $gradleProps -Key "neogradle_version" -Value ([string]$cfg.neogradle_version)
+                    Set-GradlePropertyValue -FilePath $gradleProps -Key "neoforge_version" -Value (Get-CfgValue $cfg "neoforge_version")
+                    Set-GradlePropertyValue -FilePath $gradleProps -Key "neogradle_version" -Value (Get-CfgValue $cfg "neogradle_version")
                 } elseif ($loader -eq "quilt") {
-                    Set-GradlePropertyValue -FilePath $gradleProps -Key "quilt_loader_version" -Value ([string]$cfg.quilt_loader_version)
-                    Set-GradlePropertyValue -FilePath $gradleProps -Key "quilt_mappings" -Value ([string]$cfg.quilt_mappings)
+                    Set-GradlePropertyValue -FilePath $gradleProps -Key "quilt_loader_version" -Value (Get-CfgValue $cfg "quilt_loader_version")
+                    Set-GradlePropertyValue -FilePath $gradleProps -Key "quilt_mappings" -Value (Get-CfgValue $cfg "quilt_mappings")
                     if ($null -ne $cfg.PSObject.Properties["qsl_version"]) {
                         Set-GradlePropertyValue -FilePath $gradleProps -Key "qsl_version" -Value ([string]$cfg.qsl_version)
                     }
-                    Set-GradlePropertyValue -FilePath $gradleProps -Key "quilt_loom_version" -Value ([string]$cfg.quilt_loom_version)
+                    Set-GradlePropertyValue -FilePath $gradleProps -Key "quilt_loom_version" -Value (Get-CfgValue $cfg "quilt_loom_version")
                 }
                 # Tell settings.gradle to only include this loader's subproject,
                 # preventing cross-loader Loom config failures (e.g. Quilt blocking NeoForge).
@@ -810,6 +819,9 @@ try {
                             note = "no Fabric JAR found at $fabricJarDir for mc $mc"
                             artifact = ""
                         }) | Out-Null
+                        if (-not $ContinueOnError) {
+                            throw "Build failed for loader=$loader mc=$mc (no Fabric JAR to repackage)"
+                        }
                         continue
                     }
                     $quiltJsonSrc = Join-Path $root "quilt\src\main\resources\quilt.mod.json"
