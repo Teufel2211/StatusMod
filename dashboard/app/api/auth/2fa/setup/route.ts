@@ -1,7 +1,8 @@
-import { ok, serverError, unauthorized } from "@/lib/response"
+import { ok, serverError, unauthorized, badRequest } from "@/lib/response"
 import { getServiceClient } from "@/lib/supabase"
 import { requireSession } from "@/lib/auth"
-import { encryptSecret, hashArgon2id } from "@/lib/hash"
+import { encryptSecret, hashArgon2id, hashIp } from "@/lib/hash"
+import { verifySecondFactor } from "@/lib/second-factor"
 import { generateSecret } from "otplib"
 import crypto from "crypto"
 
@@ -12,6 +13,24 @@ export async function POST(request: Request) {
   const session = requireSession(request)
   if (!session) return unauthorized()
 
+  const sb = getServiceClient()
+
+  // Rotation nur mit Nachweis: Wer bereits 2FA hat, muss aktuelles TOTP
+  // oder einen Recovery-Code vorzeigen (sonst sperrt ein Session-Dieb per
+  // eigenem Secret das Opfer dauerhaft aus). Ersteinrichtung ohne Nachweis.
+  const { data: existing } = await (sb as any)
+    .from("dashboard_users")
+    .select("totp_secret")
+    .eq("uuid", session.sub)
+    .maybeSingle()
+  if (existing?.totp_secret) {
+    let rawBody: Record<string, unknown> = {}
+    try { rawBody = (await request.json()) as Record<string, unknown> } catch { return badRequest() }
+    const ip = request.headers.get("x-forwarded-for") ?? "unknown"
+    const sf = await verifySecondFactor(sb, session.sub, rawBody, `totp-setup:${hashIp(ip)}`)
+    if (!sf.ok) return unauthorized()
+  }
+
   const secret = generateSecret()
 
   const otpauth = `otpauth://totp/StatusMod:${encodeURIComponent(session.sub)}?secret=${secret}&issuer=StatusMod&algorithm=SHA1&digits=6&period=30`
@@ -21,7 +40,6 @@ export async function POST(request: Request) {
   const recoveryCodes = Array.from({ length: 10 }, () => crypto.randomBytes(4).toString("hex"))
   const recoveryCodeHashes = await Promise.all(recoveryCodes.map((rc) => hashArgon2id(rc)))
 
-  const sb = getServiceClient()
   const { error } = await (sb as any)
     .from("dashboard_users")
     .update({

@@ -66,13 +66,16 @@ export async function POST(request: Request) {
     return conflict("Server bereits registriert")
   }
 
-  const { error: useError } = await (sb as any)
+  const { error: useError, data: burned } = await (sb as any)
     .from("dashboard_codes")
-    .delete()
+    .update({ used: true })
     .eq("server_id", matchedCode.server_id)
     .eq("code_hash", matchedCode.code_hash)
+    .is("used", false)
+    .select("code_hash")
 
-  if (useError) {
+  if (useError || !burned || burned.length === 0) {
+    // Bereits eingelöst (Race) -> kein zweiter Claim.
     return serverError()
   }
 

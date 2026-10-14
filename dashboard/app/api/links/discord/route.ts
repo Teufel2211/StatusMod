@@ -21,6 +21,7 @@ export async function POST(request: Request) {
     .from("discord_links")
     .select("id")
     .eq("discord_id", discord_id)
+    .eq("server_id", session.server_id)
     .maybeSingle()
 
   if (existing) return badRequest()

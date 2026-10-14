@@ -704,7 +704,7 @@ private static void adminSetStatus(CommandSourceStack src, String targetName, St
         try {
             if (!StatusMod.getConfig().isEnabled("presets")) { src.sendFailure(Component.literal("Das Preset-Feature ist auf diesem Server deaktiviert.")); return; }
             if (!PermissionUtil.hasStatusPermission(src)) { src.sendFailure(Component.literal("Du hast keine Berechtigung.")); return; }
-            String key = (name == null ? "" : name).toLowerCase();
+            String key = (name == null ? "" : name).toLowerCase(java.util.Locale.ROOT);
             Preset preset = PRESETS.get(key);
             if (preset == null) {
                 var custom = StatusMod.getCustomPresets().get(name);
@@ -758,7 +758,7 @@ private static void adminSetStatus(CommandSourceStack src, String targetName, St
             if (!PermissionUtil.hasStatusPermission(src)) { src.sendFailure(Component.literal("Du hast keine Berechtigung.")); return; }
             ServerPlayer player = src.getPlayer();
             if (player == null) { src.sendFailure(Component.literal("Nur Spieler können Presets speichern.")); return; }
-            if (PRESETS.containsKey(name.toLowerCase())) { src.sendFailure(Component.literal("Ein eingebautes Preset mit dem Namen '" + name + "' existiert bereits.")); return; }
+            if (PRESETS.containsKey(name.toLowerCase(java.util.Locale.ROOT))) { src.sendFailure(Component.literal("Ein eingebautes Preset mit dem Namen '" + name + "' existiert bereits.")); return; }
             String resolvedColor = (colorKey != null && !colorKey.isEmpty()) ? colorKey : "reset";
             if (!ColorMapper.isValidColorInput(resolvedColor)) { src.sendFailure(Component.literal("Ungültige Farbe: " + resolvedColor)); return; }
             if (StatusMod.getCustomPresets().add(name, status, resolvedColor, player.getUUID().toString())) {
@@ -864,7 +864,7 @@ private static void adminSetStatus(CommandSourceStack src, String targetName, St
             boolean bracketsSet = false;
 
             for (String t : tokens) {
-                String lower = t.toLowerCase();
+                String lower = t.toLowerCase(java.util.Locale.ROOT);
                 if (lower.startsWith("brackets:")) {
                     String val = lower.substring(9);
                     brackets = switch (val) {

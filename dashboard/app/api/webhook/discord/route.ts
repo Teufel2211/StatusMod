@@ -37,9 +37,14 @@ export async function POST(request: Request) {
 
   switch (type) {
     case "sync": {
+      const nextRole = (payload as Record<string, unknown>)?.role
+      const roleUpdate =
+        typeof nextRole === "string" && nextRole.length >= 1 && nextRole.length <= 32
+          ? { role: nextRole }
+          : {}
       const { error } = await (sb as any)
         .from("discord_links")
-        .update({ role: (payload as Record<string, unknown>)?.role ?? linkRecord.role })
+        .update(roleUpdate)
         .eq("id", linkRecord.id)
       if (error) return serverError()
       break
