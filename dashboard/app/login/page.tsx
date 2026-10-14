@@ -8,6 +8,8 @@ import { setAccessToken } from "@/lib/client/auth"
 export default function LoginPage() {
   const router = useRouter()
   const [code, setCode] = useState("")
+  const [totp, setTotp] = useState("")
+  const [need2fa, setNeed2fa] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [ownerMode, setOwnerMode] = useState(false)
@@ -22,7 +24,7 @@ export default function LoginPage() {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify(need2fa ? { code, token: totp } : { code }),
       })
 
       if (!res.ok) {
@@ -31,6 +33,11 @@ export default function LoginPage() {
       }
 
       const data = await res.json()
+      if (data.need_2fa) {
+        setNeed2fa(true)
+        setError("")
+        return
+      }
       setAccessToken(data.access_token)
       router.push(ownerMode ? "/admin-dashboard" : "/dashboard")
     } catch {
@@ -76,21 +83,35 @@ export default function LoginPage() {
                 />
               </div>
 
+              {need2fa && (
+                <div>
+                  <label className="label font-mono text-xs uppercase tracking-widest">Authenticator code</label>
+                  <input
+                    className="input tracking-widest text-center text-lg"
+                    placeholder="123456"
+                    value={totp}
+                    onChange={(e) => setTotp(e.target.value.replace(/\D/g, ""))}
+                    maxLength={8}
+                    autoFocus
+                  />
+                </div>
+              )}
+
               {error && (
                 <div className="text-sm rounded-xl px-3 py-2 font-mono" style={{ color: "#ef4444", backgroundColor: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}>
                   [!] {error}
                 </div>
               )}
 
-              <button type="submit" className="btn-primary w-full" disabled={code.length !== codeLength || loading}>
-                {loading ? "Verifying..." : ownerMode ? "Sign In as Owner" : "Sign In"}
+              <button type="submit" className="btn-primary w-full" disabled={code.length !== codeLength || loading || (need2fa && totp.length < 6)}>
+                {loading ? "Verifying..." : need2fa ? "Verify code" : ownerMode ? "Sign In as Owner" : "Sign In"}
               </button>
 
               <button
                 type="button"
                 className="w-full text-xs underline underline-offset-2 font-mono"
                 style={{ color: "var(--text-muted)" }}
-                onClick={() => { setOwnerMode(!ownerMode); setCode(""); setError("") }}
+                onClick={() => { setOwnerMode(!ownerMode); setCode(""); setTotp(""); setNeed2fa(false); setError("") }}
               >
                 {ownerMode ? "> Use player login code instead" : "> Log in as owner with one-time code"}
               </button>

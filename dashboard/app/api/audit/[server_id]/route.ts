@@ -16,9 +16,12 @@ export async function GET(
   if (!auth) return unauthorized()
 
   const url = new URL(request.url)
-  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "50", 10), 1), 200)
-  const offset = Math.max(parseInt(url.searchParams.get("offset") ?? "0", 10), 0)
-  const since = url.searchParams.get("since")
+  const rawLimit = parseInt(url.searchParams.get("limit") ?? "50", 10)
+  const rawOffset = parseInt(url.searchParams.get("offset") ?? "0", 10)
+  const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 50, 1), 200)
+  const offset = Math.max(Number.isFinite(rawOffset) ? rawOffset : 0, 0)
+  const sinceRaw = url.searchParams.get("since")
+  const since = sinceRaw && !isNaN(Date.parse(sinceRaw)) ? sinceRaw : null
 
   const sb = getServiceClient()
   let query = (sb as any)

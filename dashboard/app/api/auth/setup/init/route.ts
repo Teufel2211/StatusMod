@@ -1,5 +1,5 @@
 import { SetupInitSchema } from "@/lib/validators"
-import { badRequest, unauthorized, serverError, ok } from "@/lib/response"
+import { badRequest, unauthorized, serverError, ok, conflict } from "@/lib/response"
 import { getServiceClient } from "@/lib/supabase"
 import { getEnv } from "@/lib/env"
 import { hashArgon2id } from "@/lib/hash"
@@ -40,11 +40,17 @@ export async function POST(request: Request) {
 
   const { data: existing, error: existingError } = await (sb as any)
     .from("servers")
-    .select("id")
+    .select("id, owner_uuid")
     .eq("id", server_id)
     .maybeSingle()
 
   if (existingError) return serverError()
+
+  // Bereits geclaimte Server bekommen keine neuen Codes (sonst könnte jeder
+  // Server-Betreiber mit dem geteilten Setup-Secret fremde Server claimen).
+  if (existing?.owner_uuid) {
+    return conflict("Server bereits registriert")
+  }
 
   if (!existing) {
     const { error: insertServerError } = await (sb as any).from("servers").insert({

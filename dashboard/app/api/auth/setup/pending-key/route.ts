@@ -29,23 +29,22 @@ export async function GET(request: Request) {
 
   const sb = getServiceClient()
 
-  const { data: pending, error: pendingError } = await (sb as any)
+  // Atomar per Delete-Returning: zwei parallele Polls liefern den Key nur
+  // einmal aus (statt read→decrypt→delete mit Doppel-Lieferung).
+  const { data: deleted, error: deleteError } = await (sb as any)
     .from("setup_pending_keys")
-    .select("key_encrypted")
+    .delete()
     .eq("server_id", serverId)
-    .maybeSingle()
+    .select("key_encrypted")
 
-  if (pendingError) return serverError()
+  if (deleteError) return serverError()
 
-  if (!pending) {
+  if (!deleted || deleted.length === 0) {
     return ok({ pending: false })
   }
 
-  const apiKey = decryptSecret(pending.key_encrypted)
+  const apiKey = decryptSecret(deleted[0].key_encrypted)
   if (!apiKey) return serverError()
-
-  const { error: deleteError } = await (sb as any).from("setup_pending_keys").delete().eq("server_id", serverId)
-  if (deleteError) return serverError()
 
   return ok({ pending: true, api_key: apiKey })
 }

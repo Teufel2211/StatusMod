@@ -1,4 +1,4 @@
-import { ok, serverError, unauthorized, badRequest } from "@/lib/response"
+import { ok, serverError, unauthorized, badRequest, forbidden } from "@/lib/response"
 import { getServiceClient } from "@/lib/supabase"
 import { authorizeData, requireSession } from "@/lib/auth"
 import { validatePathUuid, PlayerStatusFieldSchema } from "@/lib/validators"
@@ -38,6 +38,7 @@ export async function PUT(
   if (!session) return unauthorized()
 
   if (session.server_id !== params.server_id) return unauthorized()
+  if (session.role !== "owner" && session.role !== "admin") return forbidden("Nur Owner/Admin können Status ändern")
 
   let body: unknown
   try { body = await request.json() } catch { return badRequest() }
@@ -59,6 +60,8 @@ export async function PUT(
   const updateData: Record<string, unknown> = {}
   if (parsed.data.status !== undefined) updateData.status = parsed.data.status
   if (parsed.data.color !== undefined) updateData.color = parsed.data.color
+  // updated_at pflegen, sonst verpasst der Mod-Pull (updated_at >= since) PUT-Edits.
+  updateData.updated_at = new Date().toISOString()
 
   if (existing) {
     const { error } = await (sb as any)
@@ -86,7 +89,7 @@ export async function DELETE(
   if (!session) return unauthorized()
 
   if (session.server_id !== params.server_id) return unauthorized()
-  if (session.sub !== params.uuid) return unauthorized()
+  if (session.role !== "owner" && session.role !== "admin") return forbidden("Nur Owner/Admin können Daten löschen")
 
   const sb = getServiceClient()
 
@@ -109,15 +112,19 @@ export async function DELETE(
       status: null,
       color: null,
       settings: null,
+      avatar: null,
+      is_online: false,
+      last_seen: null,
       uuid: anonymizedUuid,
     })
+    .eq("server_id", params.server_id)
     .eq("uuid", params.uuid)
 
   if (playerError) return serverError()
 
   await Promise.all([
-    (sb as any).from("blocked_players").delete().eq("uuid", params.uuid),
-    (sb as any).from("muted_players").delete().eq("uuid", params.uuid),
+    (sb as any).from("blocked_players").delete().eq("server_id", params.server_id).eq("uuid", params.uuid),
+    (sb as any).from("muted_players").delete().eq("server_id", params.server_id).eq("uuid", params.uuid),
   ])
 
   return ok({ success: true, message: "Data anonymized. Full deletion in 24h." })

@@ -1,9 +1,9 @@
 import { SetupCodeSchema } from "@/lib/validators"
-import { badRequest, unauthorized, serverError } from "@/lib/response"
+import { badRequest, unauthorized, serverError, conflict } from "@/lib/response"
 import { NextResponse } from "next/server"
 import { getServiceClient } from "@/lib/supabase"
 import { signJwt } from "@/lib/jwt"
-import { hashIp, hashArgon2id, verifyArgon2id, encryptSecret } from "@/lib/hash"
+import { hashIp, hashUserAgent, hashArgon2id, verifyArgon2id, encryptSecret } from "@/lib/hash"
 import { checkRateLimit, RATE_LIMITS, getRateLimitHeaders } from "@/lib/rate-limit"
 import { refreshCookieHeader } from "@/lib/cookies"
 import crypto from "crypto"
@@ -56,6 +56,16 @@ export async function POST(request: Request) {
     return unauthorized()
   }
 
+  // Kein Re-Claim: ein bereits vergebener Server behält seinen Owner.
+  const { data: claimedServer } = await (sb as any)
+    .from("servers")
+    .select("owner_uuid")
+    .eq("id", matchedCode.server_id)
+    .maybeSingle()
+  if (claimedServer?.owner_uuid) {
+    return conflict("Server bereits registriert")
+  }
+
   const { error: useError } = await (sb as any)
     .from("dashboard_codes")
     .delete()
@@ -104,10 +114,10 @@ export async function POST(request: Request) {
     return serverError()
   }
 
-  const { error: pendingKeyError } = await (sb as any).from("setup_pending_keys").insert({
+  const { error: pendingKeyError } = await (sb as any).from("setup_pending_keys").upsert({
     server_id: matchedCode.server_id,
     key_encrypted: encryptSecret(rawApiKey),
-  })
+  }, { onConflict: "server_id" })
 
   if (pendingKeyError) {
     return serverError()
@@ -123,7 +133,7 @@ export async function POST(request: Request) {
     token_hash: refreshTokenHash,
     expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     ip_hash: hashIp(ip),
-    user_agent_hash: crypto.createHash("sha256").update(request.headers.get("user-agent") ?? "unknown").digest("hex"),
+    user_agent_hash: hashUserAgent(request.headers.get("user-agent") ?? "unknown"),
   })
 
   if (rtError) {

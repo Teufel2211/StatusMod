@@ -1,6 +1,8 @@
 import { z } from "zod"
 
-const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+// Version 1-5 (nicht nur v4): Offline-Mode-Server erzeugen v3-UUIDs,
+// die sonst auf allen Lesewegen mit 400 abgewiesen wuerden.
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
 export const SetupCodeSchema = z.object({
   code: z.string().length(16).regex(/^[A-Za-z0-9]+$/),

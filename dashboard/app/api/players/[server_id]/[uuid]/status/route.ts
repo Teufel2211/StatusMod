@@ -1,4 +1,4 @@
-import { ok, serverError, unauthorized, badRequest } from "@/lib/response"
+import { ok, serverError, unauthorized, badRequest, forbidden } from "@/lib/response"
 import { getServiceClient } from "@/lib/supabase"
 import { requireSession } from "@/lib/auth"
 import { validatePathUuid, PlayerStatusFieldSchema } from "@/lib/validators"
@@ -17,6 +17,7 @@ export async function PATCH(
   if (!session) return unauthorized()
 
   if (session.server_id !== params.server_id) return unauthorized()
+  if (session.role !== "owner" && session.role !== "admin") return forbidden("Nur Owner/Admin können Status ändern")
 
   let body: unknown
   try { body = await request.json() } catch { return badRequest() }

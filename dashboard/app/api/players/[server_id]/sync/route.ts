@@ -16,7 +16,8 @@ const PlayerSyncSchema = z.object({
 
 const MutedSyncSchema = z.object({
   uuid: z.string().min(1).max(64),
-  muted_until: z.number().int().nonnegative(),
+  // Max = gueltiger Date-Bereich, sonst wirft toISOString RangeError (500).
+  muted_until: z.number().int().nonnegative().max(8640000000000000),
 })
 
 const BlockedSyncSchema = z.object({
@@ -144,7 +145,8 @@ export async function GET(
   if (!authed) return unauthorized()
 
   const { searchParams } = new URL(request.url)
-  const since = searchParams.get("since")
+  const sinceRaw = searchParams.get("since")
+  const since = sinceRaw && !isNaN(Date.parse(sinceRaw)) ? sinceRaw : null
 
   const sb = getServiceClient()
 
@@ -174,7 +176,6 @@ export async function GET(
     .from("audit_log")
     .select("id, action, who_uuid_hash, target_uuid_hash, detail, created_at")
     .eq("server_id", params.server_id)
-    .eq("who_uuid_hash", "dashboard")
     .limit(200)
   if (since) adminQuery = adminQuery.gte("created_at", since)
   const { data: adminActions, error: adminError } = await adminQuery

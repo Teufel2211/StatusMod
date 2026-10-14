@@ -44,6 +44,12 @@ public final class SyncManager {
     public static volatile String lastPullInfo = "-";
     private static volatile Map<String, String> onlineNames = new HashMap<>();
     private static volatile MinecraftServer serverRef = null;
+    // UUIDs des letzten erfolgreichen Pushs: nur diese darf der Pull bei
+    // Fehlen im Dashboard-Report lokal entfernen. Schuetzt frische lokale
+    // Aktionen (noch nicht gepusht) vor sofortigem Zuruecksetzen.
+    // Nur Sync-Thread nutzt sie (kein Lock noetig).
+    private static final java.util.Set<String> lastPushedMuted = new java.util.HashSet<>();
+    private static final java.util.Set<String> lastPushedBlocked = new java.util.HashSet<>();
 
     /** Marks local state changed: next loop iteration pushes immediately (<=2s). */
     public static void requestPush() {
@@ -209,6 +215,11 @@ public final class SyncManager {
                 System.out.println("[StatusMod] Sync push status " + code);
             } else {
                 lastPushInfo = "ok";
+                // Erfolgreich uebertragener Stand merken (fuer Pull-Reconcile).
+                lastPushedMuted.clear();
+                if (StatusMod.mutedPlayers != null) lastPushedMuted.addAll(StatusMod.mutedPlayers.getAllMuted().keySet());
+                lastPushedBlocked.clear();
+                if (StatusMod.blockedPlayers != null) lastPushedBlocked.addAll(StatusMod.blockedPlayers.getBlockedPlayers());
             }
         } catch (java.io.IOException | InterruptedException e) {
             lastPushInfo = "ex: " + e.getMessage();
@@ -263,6 +274,7 @@ public final class SyncManager {
         }
         if (!json.has("muted") || !json.has("blocked") || !json.has("server_time")) return;
 
+        java.util.Set<String> reportedMuted = new java.util.HashSet<>();
         for (JsonElement el : json.getAsJsonArray("muted")) {
             try {
                 JsonObject m = el.getAsJsonObject();
@@ -270,18 +282,35 @@ public final class SyncManager {
                 if (!isValidUuid(uuid)) continue;
                 long until = java.time.Instant.parse(m.get("muted_until").getAsString()).toEpochMilli();
                 StatusMod.mutedPlayers.muteUntil(uuid, until);
+                reportedMuted.add(uuid);
             } catch (Exception ignored) {}
         }
+        // Dashboard-Unmute uebernehmen: Bekannte (gepushte) Mutes, die nicht
+        // mehr gemeldet werden, lokal entfernen - sonst legt der naechste
+        // Push sie wieder an.
+        for (String uuid : new java.util.HashSet<>(lastPushedMuted)) {
+            if (!reportedMuted.contains(uuid) && StatusMod.mutedPlayers != null) {
+                StatusMod.mutedPlayers.unmute(uuid);
+            }
+        }
 
+        java.util.Set<String> reportedBlocked = new java.util.HashSet<>();
         for (JsonElement el : json.getAsJsonArray("blocked")) {
             try {
                 JsonObject b = el.getAsJsonObject();
                 String uuid = b.get("uuid").getAsString();
                 if (!isValidUuid(uuid)) continue;
                 StatusMod.blockedPlayers.block(uuid);
+                reportedBlocked.add(uuid);
             } catch (Exception ignored) {}
         }
+        for (String uuid : new java.util.HashSet<>(lastPushedBlocked)) {
+            if (!reportedBlocked.contains(uuid) && StatusMod.blockedPlayers != null) {
+                StatusMod.blockedPlayers.unblock(uuid);
+            }
+        }
 
+        if (json.has("players") && json.get("players").isJsonArray()) {
         for (JsonElement el : json.getAsJsonArray("players")) {
             try {
                 JsonObject p = el.getAsJsonObject();
@@ -317,6 +346,7 @@ public final class SyncManager {
                     applyOnline(serverRef, uuid, ps);
                 }
             } catch (Exception ignored) {}
+        }
         }
 
         try {

@@ -6,6 +6,7 @@ import { NextResponse } from "next/server"
 import { getServiceClient } from "@/lib/supabase"
 import { signJwt } from "@/lib/jwt"
 import { hashIp, hashUserAgent, verifyArgon2id } from "@/lib/hash"
+import { verifySecondFactor } from "@/lib/second-factor"
 import { refreshCookieHeader } from "@/lib/cookies"
 
 // Redeems an owner one-time login code (issued via /status owner-code).
@@ -66,27 +67,13 @@ export async function POST(request: Request) {
       matchedCode = oc
       break
     }
-    await (sb as any)
-      .from("owner_login_codes")
-      .update({ attempt_count: (oc.attempt_count ?? 0) + 1 })
-      .eq("id", oc.id)
+    // Hinweis: kein Verbrennen fremder Codes (DoS wie in auth/code).
   }
 
   if (!matchedCode) {
     recordLoginFailure(lockoutKey)
     return unauthorized()
   }
-
-  const { error: useError } = await (sb as any)
-    .from("owner_login_codes")
-    .update({ used: true })
-    .eq("id", matchedCode.id)
-
-  if (useError) {
-    return unauthorized()
-  }
-
-  clearLoginFailures(lockoutKey)
 
   const { data: server, error: serverError1 } = await (sb as any)
     .from("servers")
@@ -100,13 +87,38 @@ export async function POST(request: Request) {
 
   const { data: user, error: userError } = await (sb as any)
     .from("dashboard_users")
-    .select("uuid, role, server_id")
+    .select("uuid, role, server_id, totp_secret")
     .eq("uuid", server.owner_uuid)
     .maybeSingle()
 
   if (userError || !user) {
     return unauthorized()
   }
+
+  // 2FA-Pflicht wie in auth/code (Code bleibt bis Erfolg unverbraucht).
+  if (user.totp_secret) {
+    const sf = await verifySecondFactor(sb, user.uuid, body as Record<string, unknown>, `totp-owner-login:${ipHash}`)
+    if (sf.rateLimited) {
+      return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 429 })
+    }
+    if (!sf.ok) {
+      return NextResponse.json({ need_2fa: true })
+    }
+  }
+
+  const { error: useError, data: burned } = await (sb as any)
+    .from("owner_login_codes")
+    .update({ used: true })
+    .eq("id", matchedCode.id)
+    .is("used", false)
+    .select("id")
+
+  if (useError || !burned || burned.length === 0) {
+    // Bereits eingelöst (Race) -> kein zweites Login.
+    return unauthorized()
+  }
+
+  clearLoginFailures(lockoutKey)
 
   const accessToken = signJwt({
     sub: user.uuid,

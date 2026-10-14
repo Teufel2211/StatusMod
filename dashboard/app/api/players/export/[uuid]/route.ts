@@ -1,4 +1,4 @@
-import { ok, serverError, unauthorized, badRequest } from "@/lib/response"
+import { ok, serverError, unauthorized, badRequest, forbidden } from "@/lib/response"
 import { getServiceClient } from "@/lib/supabase"
 import { requireSession } from "@/lib/auth"
 import { validatePathUuid } from "@/lib/validators"
@@ -14,6 +14,7 @@ export async function GET(
 
   const session = requireSession(request)
   if (!session) return unauthorized()
+  if (session.role !== "owner" && session.role !== "admin") return forbidden("Nur Owner/Admin können exportieren")
 
   const sb = getServiceClient()
   const serverId = session.server_id

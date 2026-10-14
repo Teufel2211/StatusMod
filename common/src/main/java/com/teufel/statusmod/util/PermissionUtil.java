@@ -37,9 +37,31 @@ public class PermissionUtil {
         }
     }
 
+    // Laedt LP nach, falls es erst nach StatusMod startet (sonst faellt
+    // die Erkennung dauerhaft auf OP-Fallback zurueck). Retry max. 1x/Min,
+    // da hasAdminPermission auch pro Tick laeuft (teure Miss-Exceptions).
+    private static volatile long lastLpRetryMs = 0L;
+    private static void ensureLuckyPerms() {
+        if (luckypermsAvailable && luckypermsApi != null) return;
+        long now = System.currentTimeMillis();
+        if (now - lastLpRetryMs < 60_000L) return;
+        lastLpRetryMs = now;
+        try {
+            Class<?> providerClass = Class.forName("net.luckperms.api.LuckPermsProvider");
+            java.lang.reflect.Method getMethod = providerClass.getMethod("get");
+            Object api = getMethod.invoke(null);
+            if (api != null) {
+                luckypermsApi = api;
+                luckypermsAvailable = true;
+                System.out.println("[StatusMod] LuckyPerms detected (late) - using LP permissions");
+            }
+        } catch (Exception ignored) {}
+    }
+
     public static boolean hasStatusPermission(CommandSourceStack src) {
         ServerPlayer player = null;
         try { player = src.getPlayer(); } catch (Exception ignored) {}
+        ensureLuckyPerms();
         if (player != null && luckypermsAvailable && luckypermsApi != null) {
             return checkLuckyPermsPermission(player, StatusMod.getConfig().statusPermissionNode);
         }
@@ -49,6 +71,7 @@ public class PermissionUtil {
     public static boolean hasAdminPermission(CommandSourceStack src) {
         ServerPlayer player = null;
         try { player = src.getPlayer(); } catch (Exception ignored) {}
+        ensureLuckyPerms();
         if (player != null && luckypermsAvailable && luckypermsApi != null) {
             try {
                 if (checkLuckyPermsPermission(player, StatusMod.getConfig().adminPermissionNode)) return true;
@@ -60,6 +83,7 @@ public class PermissionUtil {
     public static boolean hasAdminPermission(ServerPlayer player) {
         if (player == null) return false;
         try {
+            ensureLuckyPerms();
             if (luckypermsAvailable && luckypermsApi != null) {
                 if (checkLuckyPermsPermission(player, StatusMod.getConfig().adminPermissionNode)) return true;
             }

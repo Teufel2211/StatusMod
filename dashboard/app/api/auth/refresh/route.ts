@@ -69,9 +69,15 @@ export async function POST(request: Request) {
   // bei sofortigem Revoke wuerde der erste Tab alle anderen ausloggen (401 ->
   // clearSession leert das geteilte localStorage). UA-Binding bleibt als
   // Diebstahlschutz bestehen (Mismatch -> sofort revoke + 401).
-  await (sb as any).from("refresh_tokens").update({
-    expires_at: new Date(Date.now() + 60_000).toISOString(),
-  }).eq("id", tokenData.id)
+  // Grace nur EINMAL vergeben: ein bereits verkürzter Token wird nicht erneut
+  // verlängert, sonst lebt ein gestohlener Token bei Nutzung alle <60s ewig
+  // (Sliding Window). Restlaufzeit >60s = noch nie rotiert.
+  const remainingMs = new Date(tokenData.expires_at).getTime() - Date.now()
+  if (remainingMs > 60_000) {
+    await (sb as any).from("refresh_tokens").update({
+      expires_at: new Date(Date.now() + 60_000).toISOString(),
+    }).eq("id", tokenData.id)
+  }
 
   const { data: user, error: userError } = await (sb as any)
     .from("dashboard_users")

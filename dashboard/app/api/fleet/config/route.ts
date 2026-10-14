@@ -3,11 +3,15 @@ import { getServiceClient } from "@/lib/supabase"
 import { requireSession, resolveApiKeyServer } from "@/lib/auth"
 import { FleetConfigSchema } from "@/lib/validators"
 import { writeAuditLog } from "@/lib/audit"
+import { encryptSecret, decryptSecret } from "@/lib/hash"
 
 // Fleet config: global dashboard_url + setup_secret pulled by the Fleet mod
 // on every server (secret rotation without file access). Reading requires any
 // valid server API key (same trust as the player sync); writing requires an
 // owner dashboard session.
+//
+// setup_secret liegt verschlüsselt ("enc:"-Präfix); GET entschlüsselt für
+// Mods, Alt-Zeilen ohne Präfix bleiben lesbar (Rollback-Kompatibilität).
 
 export const dynamic = "force-dynamic"
 
@@ -27,9 +31,12 @@ export async function GET(request: Request) {
     .maybeSingle()
 
   if (error) return serverError()
+  const stored = data?.setup_secret ?? ""
+  // "enc:" = verschlüsselt ablegen (s. PUT); Alt-Zeilen ohne Präfix roh lesen.
+  const setupSecret = stored.startsWith("enc:") ? (decryptSecret(stored.slice(4)) ?? "") : stored
   return ok({
     dashboard_url: data?.dashboard_url ?? "",
-    setup_secret: data?.setup_secret ?? "",
+    setup_secret: setupSecret,
     updated_at: data?.updated_at ?? null,
   })
 }
@@ -48,8 +55,10 @@ export async function PUT(request: Request) {
   let dashboardUrl = parsed.data.dashboard_url
   let setupSecret = parsed.data.setup_secret
   let restoredFrom: number | null = null
+  let secretIsEncrypted = false
 
-  // Rollback: Werte aus einem Historien-Eintrag übernehmen.
+  // Rollback: Werte aus einem Historien-Eintrag übernehmen (dort bereits
+  // verschlüsselt abgelegt -> nicht doppelt verschlüsseln).
   if (parsed.data.restore_id !== undefined) {
     const sb = getServiceClient()
     const { data: hist, error: histError } = await (sb as any)
@@ -60,18 +69,21 @@ export async function PUT(request: Request) {
     if (histError || !hist) return badRequest()
     dashboardUrl = typeof hist.dashboard_url === "string" ? hist.dashboard_url : ""
     setupSecret = typeof hist.setup_secret === "string" ? hist.setup_secret : ""
+    secretIsEncrypted = true
     restoredFrom = parsed.data.restore_id
   }
 
   const sb = getServiceClient()
+  if (dashboardUrl === undefined && setupSecret === undefined) return badRequest()
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (dashboardUrl !== undefined) patch.dashboard_url = dashboardUrl
-  if (setupSecret !== undefined) patch.setup_secret = setupSecret
+  if (setupSecret !== undefined) {
+    patch.setup_secret = secretIsEncrypted ? setupSecret : "enc:" + encryptSecret(setupSecret)
+  }
 
   const { error } = await (sb as any)
     .from("fleet_config")
-    .update(patch)
-    .eq("id", 1)
+    .upsert({ ...patch, id: 1 }, { onConflict: "id" })
 
   if (error) return serverError()
 

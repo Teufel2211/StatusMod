@@ -20,6 +20,10 @@ export function forbidden(message = "Ungültige Anfrage") {
   return NextResponse.json({ error: message }, { status: 403 })
 }
 
+export function conflict(message = "Ungültige Anfrage") {
+  return NextResponse.json({ error: message }, { status: 409 })
+}
+
 export function tooMany(message = "Ungültige Anfrage") {
   return NextResponse.json({ error: message }, { status: 429 })
 }

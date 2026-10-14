@@ -499,6 +499,10 @@ public class StatusCommand {
             }
             String base = c.effectiveDashboardUrl();
             while (base.endsWith("/")) base = base.substring(0, base.length() - 1);
+            if (!CodeGenerator.isSecureHttpUrl(base)) {
+                src.sendFailure(Component.literal("Dashboard-URL muss HTTPS oder Loopback sein (API-Key-Schutz)."));
+                return 0;
+            }
             final String endpoint = base + "/api/players/" + sid;
             final net.minecraft.server.MinecraftServer server = src.getServer();
             CommandUtil.sendSuccess(src, Component.literal("Transfer gestartet (Hintergrund)..."), false);
@@ -532,6 +536,9 @@ public class StatusCommand {
                         return;
                     }
                     int count = 0;
+                    // Scoreboard-Aenderungen duerfen nur im Server-Thread
+                    // passieren -> hier sammeln, unten via server.execute().
+                    java.util.List<Runnable> applies = new java.util.ArrayList<>();
                     for (com.google.gson.JsonElement el : parsed.getAsJsonArray()) {
                         if (count >= 5000) break;
                         if (!el.isJsonObject()) continue;
@@ -565,13 +572,29 @@ public class StatusCommand {
                             if (server != null) {
                                 ServerPlayer online = server.getPlayerList().getPlayer(UUID.fromString(uuid));
                                 if (online != null) {
-                                    String st = StatusTextUtil.resolveStatusForPlayer(s, online);
-                                    String ck = StatusTextUtil.resolveColorForPlayer(s, online);
-                                    StatusTeamUtil.applyStatus(server.getScoreboard(), online, s, st, ck,
-                                        PermissionUtil.hasAdminPermission(online));
+                                    final PlayerSettings fs = s;
+                                    final ServerPlayer fo = online;
+                                    final net.minecraft.server.MinecraftServer fserver = server;
+                                    applies.add(() -> {
+                                        try {
+                                            String st = StatusTextUtil.resolveStatusForPlayer(fs, fo);
+                                            String ck = StatusTextUtil.resolveColorForPlayer(fs, fo);
+                                            StatusTeamUtil.applyStatus(fserver.getScoreboard(), fo, fs, st, ck,
+                                                PermissionUtil.hasAdminPermission(fo));
+                                        } catch (Throwable ignored) {}
+                                    });
                                 }
                             }
                             count++;
+                        } catch (Throwable ignored) {}
+                    }
+                    if (server != null && !applies.isEmpty()) {
+                        try {
+                            server.execute(() -> {
+                                for (Runnable r : applies) {
+                                    try { r.run(); } catch (Throwable ignored) {}
+                                }
+                            });
                         } catch (Throwable ignored) {}
                     }
                     reply(src, server, true, count + " Spieler von " + sid + " übertragen.");
