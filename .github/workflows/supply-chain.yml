@@ -1,0 +1,41 @@
+name: Supply Chain
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Dependency review (block CVEs)
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high

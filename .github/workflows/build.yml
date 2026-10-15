@@ -26,9 +26,16 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege: jeder Job bekommt nur was er braucht (Publish-Job weiter unten: contents:write).
+permissions:
+  contents: read
+
 jobs:
   build-and-verify:
     runs-on: windows-latest
+    permissions:
+      contents: read
+      actions: write  # upload-artifact
     outputs:
       changed: ${{ steps.version_check.outputs.changed }}
       version: ${{ steps.version_check.outputs.version }}
@@ -37,6 +44,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 2
+          persist-credentials: false  # kein Push aus diesem Job: Token nicht im Git-Config ablegen
 
       - name: Setup Java 21
         uses: actions/setup-java@v5
@@ -119,6 +127,9 @@ jobs:
   matrix-prep:
     needs: build-and-verify
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read  # download-artifact
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
@@ -153,11 +164,16 @@ jobs:
   runtime-test:
     needs: matrix-prep
     runs-on: windows-latest
+    permissions:
+      contents: read
+      actions: read  # download-artifact
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.matrix-prep.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Setup Java 25
         uses: actions/setup-java@v5
@@ -193,9 +209,10 @@ jobs:
     if: needs.build-and-verify.outputs.changed == 'true'
     runs-on: windows-latest
     permissions:
-      contents: write
+      contents: write  # Tags + Release erzeugen
+      actions: read  # download-artifact
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5  # Credentials bleiben: Job pusht Tag
         with:
           fetch-depth: 0
 
@@ -259,7 +276,13 @@ jobs:
           # rekursiv expandiert (fabric-JARs liegen eine Ebene tiefer).
           $assetFiles = @(Get-ChildItem -Path dist/multiversion -Recurse -Filter *.jar -File | ForEach-Object { $_.FullName })
           if ($assetFiles.Count -eq 0) { throw "No JARs found for release $tag" }
+          # Pruefsummen: beweist, dass Release-Assets == CI-gebaute JARs sind.
+          $sumsFile = Join-Path $env:RUNNER_TEMP "SHA256SUMS.txt"
+          $assetFiles | Sort-Object | ForEach-Object {
+            $h = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$h  $(Split-Path $_ -Leaf)"
+          } | Set-Content -LiteralPath $sumsFile
           gh release create $tag `
             --title "StatusMod $ver" `
             --notes-file $changelogFile `
-            $assetFiles
+            $assetFiles $sumsFile
