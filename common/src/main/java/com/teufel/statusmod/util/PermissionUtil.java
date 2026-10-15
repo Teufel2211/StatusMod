@@ -18,8 +18,8 @@ import net.minecraft.server.players.ServerOpListEntry;
  * with vanilla's UUID-based op list).
  */
 public class PermissionUtil {
-    private static boolean luckypermsAvailable = false;
-    private static Object luckypermsApi = null;
+    private static volatile boolean luckypermsAvailable = false;
+    private static volatile Object luckypermsApi = null;
 
     static {
         try {

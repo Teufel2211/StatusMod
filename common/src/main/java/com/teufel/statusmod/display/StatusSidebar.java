@@ -133,7 +133,7 @@ public final class StatusSidebar {
                 String st = StatusTextUtil.resolveStatusForPlayer(s, p);
                 if (st != null && !st.isEmpty()) {
                     String ck = StatusTextUtil.resolveColorForPlayer(s, p);
-                    String code = SECTION_BY_COLOR.getOrDefault(ck == null ? "" : ck.toLowerCase(), "");
+                    String code = SECTION_BY_COLOR.getOrDefault(ck == null ? "" : ck.toLowerCase(java.util.Locale.ROOT), "");
                     String brackets = "";
                     String close = "";
                     if (s != null && s.brackets == 1) {
@@ -151,8 +151,12 @@ public final class StatusSidebar {
                 }
             }
         } catch (Throwable ignored) {}
-        if (entry.length() > MAX_ENTRY_LENGTH) {
-            entry = entry.substring(0, MAX_ENTRY_LENGTH);
+        // Codepoint-sicher kuerzen (keine halben Emojis) und nicht mitten in
+        // einer §X-Farbsequenz schneiden (kein haengendes §).
+        if (entry.codePointCount(0, entry.length()) > MAX_ENTRY_LENGTH) {
+            int cut = entry.offsetByCodePoints(0, MAX_ENTRY_LENGTH);
+            if (cut > 0 && entry.charAt(cut - 1) == '§') cut--;
+            entry = entry.substring(0, cut);
         }
         return entry;
     }

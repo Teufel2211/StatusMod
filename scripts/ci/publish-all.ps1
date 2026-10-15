@@ -176,7 +176,12 @@ foreach ($group in $jarGroups.Values) {
         $span = "$($mcList[0])-$($mcList[-1])"
         $versionNumber = "$modVersion+$loader+$span"
     }
-    if ($versionNumber.Length -gt 32) { throw "version_number zu lang ($($versionNumber.Length)): $versionNumber" }
+    if ($versionNumber.Length -gt 32) {
+        # Kein throw (wuergt alle restlichen Gruppen ab): pro Gruppe melden.
+        Write-Warning "   version_number zu lang ($($versionNumber.Length)): $versionNumber"
+        $fail++
+        continue
+    }
     $vType = if ($modVersion -match '-') { "beta" } else { "release" }
 
     # Skip if already published on Modrinth (CF wird trotzdem versucht,
@@ -184,7 +189,6 @@ foreach ($group in $jarGroups.Values) {
     $mrSkipped = $false
     if ($existingVersionNumbers.Contains($versionNumber)) {
         Write-Host "==> $versionName (already published, skipping)"
-        $skipped++
         $mrSkipped = $true
     }
 
@@ -281,13 +285,17 @@ foreach ($group in $jarGroups.Values) {
     }
     if ($envIds.Count -eq 0) {
         $similar = @($cfGameVersionCache | Where-Object { $_ -is [pscustomobject] -and ($_.name -match 'client|server') } | ForEach-Object { "$($_.name)=$($_.id)" } | Select-Object -Unique | Sort-Object | Select-Object -First 20) -join ', '
-        throw "CurseForge: keine Env-Version gefunden (Kandidaten probiert). Aehnliche Eintraege: $similar"
+        Write-Warning "CurseForge: keine Env-Version gefunden (Kandidaten probiert). Aehnliche Eintraege: $similar - Gruppe uebersprungen"
+        $fail++
+        continue
     }
     foreach ($eid in $envIds) { $cfGameVersions.Add([int]$eid) }
     if ($null -eq $envId) { $envId = ($envIds -join ',') }
 
     if ($cfGameVersions.Count -lt 3) {
-        throw "CurseForge: game version IDs unvollstaendig (gefunden $($cfGameVersions.Count)/3; MC=$mcId, Loader=$loaderId, Env=$envId)"
+        Write-Warning "CurseForge: game version IDs unvollstaendig (gefunden $($cfGameVersions.Count)/3; MC=$mcId, Loader=$loaderId, Env=$envId) - Gruppe uebersprungen"
+        $fail++
+        continue
     }
 
     try {
@@ -328,9 +336,10 @@ foreach ($group in $jarGroups.Values) {
             if (-not [string]::IsNullOrWhiteSpace($errBody)) { $detail = $errBody }
         } catch { }
         # Datei steht bereits auf CF (Retry nach Teilerfolg) -> Skip statt Fail.
+        # War Modrinth in DIESEM Lauf neu oben, zaehlt die Gruppe als ok.
         if ($detail -match '(?i)duplicat') {
             Write-Host "   CurseForge: bereits vorhanden, skipping"
-            $skipped++
+            if ($mrOk) { $ok++ } else { $skipped++ }
             continue
         }
         $fail++

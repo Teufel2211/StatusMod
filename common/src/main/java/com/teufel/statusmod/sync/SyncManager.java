@@ -38,7 +38,7 @@ public final class SyncManager {
             .connectTimeout(Duration.ofSeconds(10))
             .version(HttpClient.Version.HTTP_1_1)
             .build();
-    private static volatile boolean started = false;
+    private static final java.util.concurrent.atomic.AtomicBoolean started = new java.util.concurrent.atomic.AtomicBoolean(false);
     private static volatile boolean pushDirty = false;
     public static volatile String lastPushInfo = "-";
     public static volatile String lastPullInfo = "-";
@@ -71,15 +71,13 @@ public final class SyncManager {
     }
 
     public static void start() {
-        if (started) return;
         ModConfig config = StatusMod.getConfig();
         if (config == null) return;
         if (!config.isEnabled("sync")) return;
         if (config.effectiveDashboardUrl().isEmpty()) return;
         if (config.serverId == null || config.serverId.isEmpty()) return;
         if (config.apiKey == null || config.apiKey.isEmpty()) return;
-
-        started = true;
+        if (!started.compareAndSet(false, true)) return;
         Thread thread = new Thread(SyncManager::loop, "statusmod-sync");
         thread.setDaemon(true);
         thread.start();
@@ -87,7 +85,7 @@ public final class SyncManager {
     }
 
     public static void retryStart() {
-        if (started) return;
+        if (started.get()) return;
         start();
     }
 
@@ -104,7 +102,7 @@ public final class SyncManager {
             // Feature-Toggle live beachten (kein Restart noetig).
             ModConfig loopCfg = StatusMod.getConfig();
             if (loopCfg == null || !loopCfg.isEnabled("sync")) {
-                started = false;
+                started.set(false);
                 return;
             }
             if (pushDirty || (now - lastPush) >= SYNC_INTERVAL_MS) {

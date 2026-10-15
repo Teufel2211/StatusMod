@@ -62,6 +62,10 @@ export async function POST(request: Request) {
 
   const codeHash = await hashArgon2id(code)
 
+  // Alte ungenutzte Codes desselben Servers räumen (kein Code-Stau, der das
+  // Claim-Fenster für jeden mit dem Setup-Secret vergroessert).
+  await (sb as any).from("dashboard_codes").delete().eq("server_id", server_id).is("used", false)
+
   const { error: insertCodeError } = await (sb as any).from("dashboard_codes").insert({
     code_hash: codeHash,
     server_id,

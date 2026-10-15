@@ -106,3 +106,7 @@ dist/multiversion/.gradle-user-home/
 # Internal agent docs (not for public repo)
 AGENTS.md
 
+# Brainstorm scratch (mockups, session files)
+.superpowers/
+
+__pycache__/

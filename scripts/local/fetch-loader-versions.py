@@ -5,7 +5,7 @@ Sources:
   - Forge:      https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml
   - ForgeGradle:https://maven.minecraftforge.net/net/minecraftforge/gradle/ForgeGradle/maven-metadata.xml
   - NeoForge:   https://maven.neoforged.net/releases/net/neoforged/neoforge/ (HTML index)
-  - NeoGradle:  https://maven.neoforged.net/releases/net/neoforged/gradle/NeoGradle/maven-metadata.xml
+  - NeoGradle:  https://maven.neoforged.net/releases/net/neoforged/NeoGradle/maven-metadata.xml (ohne /gradle/ - URL verifiziert 200)
   - Quilt:      https://maven.quiltmc.org/repository/release/org/quiltmc/...
   - GitHub fallback: https://github.com/QuiltMC/*
 """
@@ -26,7 +26,7 @@ except Exception:
 
 
 ROOT = Path(__file__).resolve().parents[2]
-MATRIX = ROOT / "scripts" / "local" / "mc-matrix-1.21.json"
+MATRIX = ROOT / "scripts" / "local" / "mc-matrix-26.json"
 OUT = ROOT / "scripts" / "local" / "loader-versions.json"
 
 FORGE_META = "https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml"
@@ -41,7 +41,7 @@ QSL_META = "https://maven.quiltmc.org/repository/release/org/quiltmc/qsl/maven-m
 QUILT_MAPPINGS_META = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-mappings/maven-metadata.xml"
 GITHUB_API = "https://api.github.com/repos/"
 MC_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
-QUILT_LOOM_MAX = "1.8.5"
+QUILT_LOOM_MAX = "1.15.1"
 
 
 def fetch_text(url: str) -> str:
@@ -140,7 +140,13 @@ def parse_neoforge_versions(index_html: str) -> dict[str, str]:
         parts = d.split(".")
         if len(parts) < 3:
             continue
-        mc = f"1.{parts[0]}.{parts[1]}"
+        # Neues Schema ab MC 26: "26.3.0.80" -> MC 26.3 (kein 1.-Prefix!).
+        # Hinweis: Die 21.11.x-Linie laeuft unified ueber mehrere MCs und muss
+        # ggf. manuell zugeordnet werden (s. loader-versions.json).
+        if parts[0].isdigit() and int(parts[0]) >= 26:
+            mc = f"{parts[0]}.{parts[1]}"
+        else:
+            mc = f"1.{parts[0]}.{parts[1]}"
         # pick latest per mc
         if mc not in out or version_key(d) > version_key(out[mc]):
             out[mc] = d
@@ -148,13 +154,16 @@ def parse_neoforge_versions(index_html: str) -> dict[str, str]:
 
 
 def parse_neoforge_versions_from_meta(versions: Iterable[str]) -> dict[str, str]:
-    # NeoForge versions like "21.1.90" (MC 1.21.1)
+    # NeoForge versions like "21.1.90" (MC 1.21.1); new scheme "26.3.0.80" (MC 26.3).
     out: dict[str, str] = {}
     for v in versions:
         m = re.match(r"^(\d+)\.(\d+)\.(\d+).*$", v)
         if not m:
             continue
-        mc = f"1.{m.group(1)}.{m.group(2)}"
+        if int(m.group(1)) >= 26:
+            mc = f"{m.group(1)}.{m.group(2)}"
+        else:
+            mc = f"1.{m.group(1)}.{m.group(2)}"
         if mc not in out or version_key(v) > version_key(out[mc]):
             out[mc] = v
     return out

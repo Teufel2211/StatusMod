@@ -1,12 +1,14 @@
 name: Fabric Multi-Version Release
 
+# Gehaertet 2026-10: nur noch manuell. Alte Auto-Trigger (master-Push, v*-Tags)
+# sind raus: Jeder Tag-Push aus dem Build-&-Verify-Publish haette sonst einen
+# zweiten, ungeprueften Build + Publish-Versuch ausgeloest (Dead Path).
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-    tags:
-      - "v*"
+
+# Least privilege: kein Job hier pusht oder releast.
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -37,6 +39,9 @@ jobs:
   publish:
     needs: build
     runs-on: windows-latest
+    # ACHTUNG Namens-Falle: Hier heisst das Secret CURSEFORGE_API_KEY, im
+    # Haupt-Workflow (build.yml) CURSEFORGE_TOKEN. Falsch befuellt = stiller
+    # Skip. Releases laufen ueber build.yml; dieser Job nur als Fallback.
     if: ${{ secrets.MODRINTH_PROJECT_ID != '' && secrets.MODRINTH_TOKEN != '' && secrets.CURSEFORGE_PROJECT_ID != '' && secrets.CURSEFORGE_API_KEY != '' }}
     steps:
       - name: Checkout

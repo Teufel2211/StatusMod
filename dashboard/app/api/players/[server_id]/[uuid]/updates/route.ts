@@ -16,7 +16,8 @@ export async function GET(
   if (!authed) return unauthorized()
 
   const { searchParams } = new URL(request.url)
-  const since = searchParams.get("since")
+  const sinceRaw = searchParams.get("since")
+  const since = sinceRaw && !isNaN(Date.parse(sinceRaw)) ? sinceRaw : null
 
   const sb = getServiceClient()
   let query = (sb as any)

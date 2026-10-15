@@ -168,7 +168,9 @@ public class ModConfig {
             if (b == null) { it.remove(); continue; }
             if (b.text == null) b.text = "STAFF";
             else b.text = b.text.trim();
-            if (b.text.length() > 32) b.text = b.text.substring(0, 32);
+            if (b.text.codePointCount(0, b.text.length()) > 32) {
+                b.text = b.text.substring(0, b.text.offsetByCodePoints(0, 32));
+            }
             if (b.brackets > 0 && b.text.startsWith("[") && b.text.endsWith("]")) {
                 b.text = b.text.substring(1, b.text.length() - 1);
             }

@@ -28,14 +28,22 @@ export default function LoginPage() {
       })
 
       if (!res.ok) {
-        setError("Invalid or expired code")
+        if (res.status === 429) {
+          setError("Zu viele Versuche – bitte kurz warten")
+        } else {
+          setError("Invalid or expired code")
+        }
         return
       }
 
       const data = await res.json()
       if (data.need_2fa) {
+        if (need2fa) {
+          // Zweiter Versuch mit falschem TOTP -> Feedback statt Stille.
+          setError("Falscher Authenticator-Code, bitte erneut versuchen")
+        }
         setNeed2fa(true)
-        setError("")
+        setTotp("")
         return
       }
       setAccessToken(data.access_token)

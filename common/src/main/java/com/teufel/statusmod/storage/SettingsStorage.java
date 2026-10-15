@@ -115,7 +115,10 @@ public class SettingsStorage {
         boolean changed = false;
         if (ps.statusWords <= 0) { ps.statusWords = 1; changed = true; }
         if (ps.status == null) { ps.status = ""; changed = true; }
-        if (ps.status.length() > MAX_STATUS_LENGTH) { ps.status = ps.status.substring(0, MAX_STATUS_LENGTH); changed = true; }
+        if (ps.status.codePointCount(0, ps.status.length()) > MAX_STATUS_LENGTH) {
+            ps.status = ps.status.substring(0, ps.status.offsetByCodePoints(0, MAX_STATUS_LENGTH));
+            changed = true;
+        }
         if (ps.color == null || ps.color.isEmpty()) {
             try {
                 ps.color = (StatusMod.getConfig() != null &&
