@@ -106,3 +106,4 @@ dist/multiversion/.gradle-user-home/
 # Internal agent docs (not for public repo)
 AGENTS.md
 
+__pycache__/

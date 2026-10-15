@@ -1,4 +1,5 @@
 import { ok, serverError, unauthorized, badRequest } from "@/lib/response"
+import { NextResponse } from "next/server"
 import { getServiceClient } from "@/lib/supabase"
 import { requireSession } from "@/lib/auth"
 import { encryptSecret, hashArgon2id, hashIp } from "@/lib/hash"
@@ -28,6 +29,9 @@ export async function POST(request: Request) {
     try { rawBody = (await request.json()) as Record<string, unknown> } catch { return badRequest() }
     const ip = request.headers.get("x-forwarded-for") ?? "unknown"
     const sf = await verifySecondFactor(sb, session.sub, rawBody, `totp-setup:${hashIp(ip)}`)
+    if (sf.rateLimited) {
+      return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 429 })
+    }
     if (!sf.ok) return unauthorized()
   }
 

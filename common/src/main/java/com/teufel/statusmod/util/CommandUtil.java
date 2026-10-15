@@ -39,6 +39,11 @@ public final class CommandUtil {
                 return;
             }
             src.getPlayer().sendSystemMessage(msg);
+            // Vanilla sendSuccess mit broadcast=true loggt zusaetzlich
+            // (Admin-Aktionen sichtbar); hier nachholen.
+            if (broadcast) {
+                System.out.println("[StatusMod] " + msg.getString());
+            }
             return;
         } catch (Throwable ignored) {}
         // Remapped runtimes (Fabric Intermediary, Forge/NeoForge renames) do not

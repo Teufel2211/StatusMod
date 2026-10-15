@@ -33,7 +33,16 @@ export async function GET(request: Request) {
   if (error) return serverError()
   const stored = data?.setup_secret ?? ""
   // "enc:" = verschlüsselt ablegen (s. PUT); Alt-Zeilen ohne Präfix roh lesen.
-  const setupSecret = stored.startsWith("enc:") ? (decryptSecret(stored.slice(4)) ?? "") : stored
+  let setupSecret = stored
+  if (stored.startsWith("enc:")) {
+    const dec = decryptSecret(stored.slice(4))
+    if (dec === null) {
+      console.error("[fleet-config] setup_secret nicht entschlüsselbar (SERVICE_ROLE_KEY rotiert? Config neu speichern!)")
+      setupSecret = ""
+    } else {
+      setupSecret = dec
+    }
+  }
   return ok({
     dashboard_url: data?.dashboard_url ?? "",
     setup_secret: setupSecret,
@@ -58,7 +67,8 @@ export async function PUT(request: Request) {
   let secretIsEncrypted = false
 
   // Rollback: Werte aus einem Historien-Eintrag übernehmen (dort bereits
-  // verschlüsselt abgelegt -> nicht doppelt verschlüsseln).
+  // verschlüsselt abgelegt -> nicht doppelt verschlüsseln). Leere Werte
+  // bedeuten "behalten" (nie still löschen).
   if (parsed.data.restore_id !== undefined) {
     const sb = getServiceClient()
     const { data: hist, error: histError } = await (sb as any)
@@ -67,9 +77,13 @@ export async function PUT(request: Request) {
       .eq("id", parsed.data.restore_id)
       .maybeSingle()
     if (histError || !hist) return badRequest()
-    dashboardUrl = typeof hist.dashboard_url === "string" ? hist.dashboard_url : ""
-    setupSecret = typeof hist.setup_secret === "string" ? hist.setup_secret : ""
-    secretIsEncrypted = true
+    if (typeof hist.dashboard_url === "string" && hist.dashboard_url !== "") {
+      dashboardUrl = hist.dashboard_url
+    }
+    if (typeof hist.setup_secret === "string" && hist.setup_secret !== "") {
+      setupSecret = hist.setup_secret
+      secretIsEncrypted = true
+    }
     restoredFrom = parsed.data.restore_id
   }
 

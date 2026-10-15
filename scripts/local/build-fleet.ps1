@@ -183,6 +183,7 @@ foreach ($mc in $McVersions) {
                 $mod = "fleet-$loader"
                 Write-Host "===== fleet $loader 1.21.11 (gradle) ====="
                 & (Join-Path $root "gradlew.bat") -p $root "-Ptarget_loader=$mod" clean build writeVersion --no-daemon 2>&1 | Select-Object -Last 2 | Out-String | Write-Output
+                if ($LASTEXITCODE -ne 0) { throw "gradle build failed for $mod (exit $LASTEXITCODE) - stale JARs werden nicht kopiert" }
                 $built = Get-ChildItem -LiteralPath (Join-Path $root "fleet\$mod\build\libs") -Filter "*.jar" |
                     Where-Object { $_.Name -notlike "*sources*" } | Select-Object -First 1
                 if (-not $built) { throw "no jar built for $mod" }
@@ -238,6 +239,7 @@ foreach ($mc in $McVersions) {
 if ($Loaders -contains "forge" -and @($McVersions | Where-Object { $_ -ne "1.21.11" }).Count -gt 0) {
     Write-Host "===== fleet forge 26.x (ForgeGradle standalone) ====="
     & (Join-Path $root "gradlew.bat") -p (Join-Path $root "Loader\fleet-forge26.1") clean build --no-daemon 2>&1 | Select-Object -Last 2 | Out-String | Write-Output
+    if ($LASTEXITCODE -ne 0) { throw "gradle build failed for fleet-forge26.1 (exit $LASTEXITCODE) - stale JARs werden nicht kopiert" }
     $src = Get-ChildItem -LiteralPath (Join-Path $root "Loader\fleet-forge26.1\build\libs") -Filter "*.jar" |
         Where-Object { $_.Name -notlike "*sources*" -and $_.Name -notlike "*slim*" } | Select-Object -First 1
     if (-not $src) { throw "no fleet forge26.1 jar built" }

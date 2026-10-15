@@ -63,7 +63,9 @@ export async function POST(
     const row: Record<string, unknown> = {
       server_id: params.server_id,
       uuid: p.uuid,
-      updated_at: nowIso,
+      // updated_at bewusst NICHT gesetzt: Dashboard-Edits (PATCH/PUT)
+      // stempeln selbst, und der Pull sieht so nur echte Aenderungen
+      // statt jeden Push-Zyklus alle Zeilen (DB-Default now() bei Insert).
       is_online: p.online ?? false,
     }
     if (p.online) row.last_seen = nowIso

@@ -51,13 +51,16 @@ public final class StatusColorUtil {
         double blend = (now % RAINBOW_STEP_MILLIS) / (double) RAINBOW_STEP_MILLIS;
         int paletteSize = RAINBOW_RGB.length;
 
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            if (c == ' ') {
+        // Codepoints statt chars: Surrogate-Paare (Emojis) duerfen nicht
+        // zerrissen werden, sonst entstehen defekte Halbglyphen.
+        int[] codePoints = text.codePoints().toArray();
+        for (int idx = 0; idx < codePoints.length; idx++) {
+            int cp = codePoints[idx];
+            if (cp == ' ') {
                 out.append(Component.literal(" "));
                 continue;
             }
-            long charPhase = phase + i;
+            long charPhase = phase + idx;
             int baseIdx = floorMod(charPhase, paletteSize);
             int nextIdx = (baseIdx + 1) % paletteSize;
             int start = RAINBOW_RGB[baseIdx];
@@ -66,7 +69,7 @@ public final class StatusColorUtil {
             int g = lerp((start >> 8) & 0xFF, (end >> 8) & 0xFF, blend);
             int b = lerp(start & 0xFF, end & 0xFF, blend);
             TextColor color = TextColor.fromRgb((r << 16) | (g << 8) | b);
-            out.append(Component.literal(String.valueOf(c)).withStyle(s -> s.withColor(color)));
+            out.append(Component.literal(new String(Character.toChars(cp))).withStyle(s -> s.withColor(color)));
         }
         return out;
     }

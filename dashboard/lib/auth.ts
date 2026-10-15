@@ -52,6 +52,8 @@ export async function resolveApiKeyServer(request: Request, scope: string): Prom
     if (valid) {
       if (key.revoked) return null
       if (key.expires_at && new Date(key.expires_at) < new Date()) return null
+      // scopes NULL (Altdaten) -> kein Zugriff statt 500er-Crash.
+      if (!Array.isArray(key.scopes)) return null
       if (!key.scopes.includes("*") && !key.scopes.includes(scope)) return null
       return key.server_id as string
     }

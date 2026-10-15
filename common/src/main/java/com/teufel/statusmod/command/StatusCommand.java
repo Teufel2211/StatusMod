@@ -505,6 +505,16 @@ public class StatusCommand {
             }
             final String endpoint = base + "/api/players/" + sid;
             final net.minecraft.server.MinecraftServer server = src.getServer();
+            // Online-Spieler hier snapshotten (Befehlsthread): getPlayerList
+            // ist nicht threadsicher und darf nicht im Worker laufen.
+            final java.util.Map<String, ServerPlayer> onlineSnapshot = new java.util.HashMap<>();
+            if (server != null) {
+                try {
+                    for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+                        onlineSnapshot.put(p.getUUID().toString(), p);
+                    }
+                } catch (Throwable ignored) {}
+            }
             CommandUtil.sendSuccess(src, Component.literal("Transfer gestartet (Hintergrund)..."), false);
             Thread t = new Thread(() -> {
                 try {
@@ -569,21 +579,19 @@ public class StatusCommand {
                                 s.avatar = StatusTextUtil.sanitizePlayerText(o.get("avatar").getAsString(), 160);
                             }
                             StatusMod.getStorage().put(uuid, s);
-                            if (server != null) {
-                                ServerPlayer online = server.getPlayerList().getPlayer(UUID.fromString(uuid));
-                                if (online != null) {
-                                    final PlayerSettings fs = s;
-                                    final ServerPlayer fo = online;
-                                    final net.minecraft.server.MinecraftServer fserver = server;
-                                    applies.add(() -> {
-                                        try {
-                                            String st = StatusTextUtil.resolveStatusForPlayer(fs, fo);
-                                            String ck = StatusTextUtil.resolveColorForPlayer(fs, fo);
-                                            StatusTeamUtil.applyStatus(fserver.getScoreboard(), fo, fs, st, ck,
-                                                PermissionUtil.hasAdminPermission(fo));
-                                        } catch (Throwable ignored) {}
-                                    });
-                                }
+                            ServerPlayer online = onlineSnapshot.get(uuid);
+                            if (online != null) {
+                                final PlayerSettings fs = s;
+                                final ServerPlayer fo = online;
+                                final net.minecraft.server.MinecraftServer fserver = server;
+                                applies.add(() -> {
+                                    try {
+                                        String st = StatusTextUtil.resolveStatusForPlayer(fs, fo);
+                                        String ck = StatusTextUtil.resolveColorForPlayer(fs, fo);
+                                        StatusTeamUtil.applyStatus(fserver.getScoreboard(), fo, fs, st, ck,
+                                            PermissionUtil.hasAdminPermission(fo));
+                                    } catch (Throwable ignored) {}
+                                });
                             }
                             count++;
                         } catch (Throwable ignored) {}
