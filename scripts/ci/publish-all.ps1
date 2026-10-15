@@ -179,16 +179,22 @@ foreach ($group in $jarGroups.Values) {
     if ($versionNumber.Length -gt 32) { throw "version_number zu lang ($($versionNumber.Length)): $versionNumber" }
     $vType = if ($modVersion -match '-') { "beta" } else { "release" }
 
-    # Skip if already published on Modrinth
+    # Skip if already published on Modrinth (CF wird trotzdem versucht,
+    # sonst bliebe eine halbfertige Gruppe ewig halbfertig).
+    $mrSkipped = $false
     if ($existingVersionNumbers.Contains($versionNumber)) {
         Write-Host "==> $versionName (already published, skipping)"
         $skipped++
-        continue
+        $mrSkipped = $true
     }
 
     Write-Host "==> $versionName"
 
     # --- Modrinth (v2 API: POST /v2/version) ---
+    $mrOk = $false
+    if ($mrSkipped) {
+        Write-Host "   Modrinth: bereits vorhanden"
+    } else {
     $body = @{
         project_id = $modrinthProjectId
         file_parts = @("file")
@@ -211,6 +217,7 @@ foreach ($group in $jarGroups.Values) {
                 file = $jar
             }
         Write-Host "   OK id=$($response.id)"
+        $mrOk = $true
     } catch {
         # pwsh7 wirft HttpResponseException (mit .Response); das alte
         # WebException-Muster (.GetResponseStream) liefert hier immer $null.
@@ -225,11 +232,13 @@ foreach ($group in $jarGroups.Values) {
         Write-Warning "   Modrinth FAILED: $detail"
         Write-Warning "   Request war: version_number=$versionNumber loaders=$loader game_versions=$($mcList -join ',') datei=$($jar.Name) ($([int]($jar.Length/1KB))KB)"
         $fail++
-        continue
+        # Kein continue: CurseForge ist unabhaengig Pflicht und wird trotzdem versucht.
+    }
     }
 
     # --- CurseForge (Pflicht seit 1.4.0) ---
 
+    $cfOk = $false
     $cfGameVersions = New-Object System.Collections.Generic.List[int]
     foreach ($mcVersion in $mcList) {
         # Diagnose: alle Treffer pro Name zeigen (CF-Liste hat Dubletten).
@@ -286,6 +295,7 @@ foreach ($group in $jarGroups.Values) {
                 file = $jar
             }
         Write-Host "   CurseForge OK"
+        $cfOk = $true
     } catch {
         $detail = $_.Exception.Message
         try {
@@ -305,7 +315,7 @@ foreach ($group in $jarGroups.Values) {
         Write-Warning "   CurseForge FAILED: $detail"
         continue
     }
-    $ok++
+    if (($mrOk -or $mrSkipped) -and $cfOk) { $ok++ }
 }
 
 Write-Host "Published: $ok, Skipped: $skipped, Failed: $fail"
