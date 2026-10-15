@@ -1,13 +1,15 @@
 # Security Policy
 
-## Wer darf rein
+## Wer darf rein (Owner-Wunsch 2026-10-15: keine PR-Pflicht fuer eigene Aenderungen)
 
-* Einziger Maintainer: **@Teufel2211**. Nur er kann mergen und releasen.
-* Externe Beitraege nur als **Pull Request vom Fork** (kein direkter Push):
-  Merge erst nach **Owner-Review + gruenem CI** (`Build & Verify`).
-* `main` und `development` sind per Branch Protection geschuetzt
-  (einmalig einrichten, s. unten): kein Force-Push, kein Loeschen,
-  kein direkter Push ohne PR, Admins eingeschlossen (`enforce_admins`).
+* Einziger Maintainer: **@Teufel2211**. Er pusht direkt auf
+  `development` und mergt nach `main` — **ohne Pull Request**.
+* Externe Beitraege nur als **Pull Request vom Fork** (kein direkter Push,
+  keine Schreibrechte): Merge erst nach **Owner-Review + gruenem CI**.
+* Branch-Schutz auf `main` + `development` (kein Force-Push, kein Loeschen,
+  Admins eingeschlossen) — aber **keine PR-Pflicht**, damit der Owner
+  arbeiten kann. Einrichten/pruefen:
+  `.\scripts\ci\protect-branches.ps1` (Dry-Run) bzw. `-Apply`.
 
 ## Branch Protection einrichten (einmalig, eigene Shell)
 
@@ -19,9 +21,8 @@
 ```
 
 GitHub-UI-Alternative: Repo Settings → Branches → Add rule fuer `main`
-und `development`: `Require a pull request before merging` (1 Approval,
-`Require review from Code Owners`), `Require status checks to pass`,
-`Do not allow bypassing the above settings`, `Restrict deletions`,
+und `development`: **ohne** `Require a pull request before merging`,
+dafuer `Do not allow bypassing the above settings`, `Restrict deletions`,
 `Block force pushes`.
 
 ## Melden von Luecken
@@ -35,11 +36,17 @@ und `development`: `Require a pull request before merging` (1 Approval,
 | Mechanismus | Wo | Was |
 |---|---|---|
 | Secret-Scan | `supply-chain.yml` | Gitleaks ueber jeden Push/PR; Build bricht bei Treffer ab |
-| Dependency-Review | `supply-chain.yml` | Blockt PRs mit bekannten CVEs in Abhaengigkeiten |
-| Dependency-Updates | `dependabot.yml` | Woechentliche PRs fuer GitHub Actions + Gradle |
+| Dependency-Review | `supply-chain.yml` | Blockt PRs mit bekannten CVEs in Abhaengigkeiten (nur bei PRs aktiv) |
 | Least-Privilege-Token | `build.yml` | `GITHUB_TOKEN` nur `contents:read` (Publish-Job: `contents:write`), Checkouts ohne Credential-Persistenz |
 | Release-Pruefsummen | `build.yml` Publish-Job | `SHA256SUMS.txt` wird erzeugt und ans GitHub Release gehaengt |
 | JAR-Verifikation | `verify-jars.ps1` | Dateinamen-, Versions- und Metadaten-Check vor jedem Publish |
+
+## Automatik-Regel (Owner-Wunsch 2026-10-15)
+
+Es werden **keine automatischen Update-Pull-Requests** geoeffnet
+(kein Dependabot, keine anderen Bots). Updates von Actions/Gradle macht
+der Owner manuell. Versehentlich geoeffnete Bot-PRs werden kommentarlos
+geschlossen + Branch geloescht.
 
 ## Release-Regeln
 
