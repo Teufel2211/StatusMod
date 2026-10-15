@@ -113,13 +113,13 @@ jobs:
         run: .\scripts\ci\verify-jars.ps1
 
       - name: Upload JARs
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: statusmod-jars
           path: dist/multiversion/**/*.jar
 
       - name: Upload build report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: build-report
           path: dist/multiversion/build-report.*
@@ -199,7 +199,7 @@ jobs:
 
       - name: Upload runtime logs
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: runtime-${{ matrix.loader }}-${{ matrix.mc }}
           path: ${{ runner.temp }}/rt
