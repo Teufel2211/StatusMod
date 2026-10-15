@@ -133,7 +133,7 @@ jobs:
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: statusmod-jars
           path: jars
@@ -181,7 +181,7 @@ jobs:
           distribution: temurin
           java-version: 25
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: statusmod-jars
           path: dist/multiversion
@@ -216,7 +216,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: statusmod-jars
           path: dist/multiversion
