@@ -219,15 +219,26 @@ foreach ($group in $jarGroups.Values) {
         Write-Host "   OK id=$($response.id)"
         $mrOk = $true
     } catch {
-        # pwsh7 wirft HttpResponseException (mit .Response); das alte
-        # WebException-Muster (.GetResponseStream) liefert hier immer $null.
+        # Body aus drei Kanaelen ziehen (PS7: ErrorDetails, sonst
+        # HttpResponseMessage direkt oder in InnerExceptions bei EAP=Stop).
         $detail = $_.Exception.Message
         try {
-            $resp = $_.Exception.Response
-            if ($resp -is [System.Net.Http.HttpResponseMessage]) {
-                $rbody = $resp.Content.ReadAsStringAsync().GetAwaiter().GetResult()
-                $detail = "HTTP $([int]$resp.StatusCode): $rbody"
+            $errBody = $null
+            if ($null -ne $_.ErrorDetails -and -not [string]::IsNullOrWhiteSpace([string]$_.ErrorDetails.Message)) {
+                $errBody = [string]$_.ErrorDetails.Message
+            } else {
+                $ex = $_.Exception
+                while ($null -ne $ex) {
+                    if ($ex.Response -is [System.Net.Http.HttpResponseMessage]) {
+                        $r = $ex.Response
+                        $b = $r.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                        $errBody = "HTTP $([int]$r.StatusCode): $b"
+                        break
+                    }
+                    $ex = $ex.InnerException
+                }
             }
+            if (-not [string]::IsNullOrWhiteSpace($errBody)) { $detail = $errBody }
         } catch { }
         Write-Warning "   Modrinth FAILED: $detail"
         Write-Warning "   Request war: version_number=$versionNumber loaders=$loader game_versions=$($mcList -join ',') datei=$($jar.Name) ($([int]($jar.Length/1KB))KB)"
@@ -299,11 +310,22 @@ foreach ($group in $jarGroups.Values) {
     } catch {
         $detail = $_.Exception.Message
         try {
-            $resp = $_.Exception.Response
-            if ($resp -is [System.Net.Http.HttpResponseMessage]) {
-                $rbody = $resp.Content.ReadAsStringAsync().GetAwaiter().GetResult()
-                $detail = "HTTP $([int]$resp.StatusCode): $rbody"
+            $errBody = $null
+            if ($null -ne $_.ErrorDetails -and -not [string]::IsNullOrWhiteSpace([string]$_.ErrorDetails.Message)) {
+                $errBody = [string]$_.ErrorDetails.Message
+            } else {
+                $ex = $_.Exception
+                while ($null -ne $ex) {
+                    if ($ex.Response -is [System.Net.Http.HttpResponseMessage]) {
+                        $r = $ex.Response
+                        $b = $r.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                        $errBody = "HTTP $([int]$r.StatusCode): $b"
+                        break
+                    }
+                    $ex = $ex.InnerException
+                }
             }
+            if (-not [string]::IsNullOrWhiteSpace($errBody)) { $detail = $errBody }
         } catch { }
         # Datei steht bereits auf CF (Retry nach Teilerfolg) -> Skip statt Fail.
         if ($detail -match '(?i)duplicat') {
