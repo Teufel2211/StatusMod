@@ -14,5 +14,5 @@ dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
     mappings loom.officialMojangMappings()
     compileOnly "dev.architectury:architectury:${architectury_version}"
-    implementation "com.google.code.gson:gson:2.11.0"
+    implementation "com.google.code.gson:gson:2.14.0"
 }

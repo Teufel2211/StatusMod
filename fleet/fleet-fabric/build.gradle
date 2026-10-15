@@ -30,5 +30,5 @@ dependencies {
     mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:${loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
-    implementation "com.google.code.gson:gson:2.11.0"
+    implementation "com.google.code.gson:gson:2.14.0"
 }

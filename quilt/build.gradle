@@ -33,5 +33,5 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
     modImplementation "dev.architectury:architectury-fabric:${architectury_version}"
     compileOnly "dev.architectury:architectury:${architectury_version}"
-    implementation "com.google.code.gson:gson:2.11.0"
+    implementation "com.google.code.gson:gson:2.14.0"
 }
