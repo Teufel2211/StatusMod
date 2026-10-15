@@ -119,13 +119,6 @@ public final class StatusLifecycle {
             if (status != null && !status.isEmpty()) {
                 reapplyStatus(server, player, uuid, settings);
             }
-            if (StatusMod.isMc26_3()) {
-                try {
-                    if (PermissionUtil.hasAdminPermission(player)) {
-                        player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§c[StatusMod] MC 26.3 ist nicht Bedrock-kompatibel."));
-                    }
-                } catch (Throwable ignored) {}
-            }
         } catch (Exception e) {
             System.err.println("[StatusMod] Error restoring status for player " + player.getScoreboardName());
             e.printStackTrace();

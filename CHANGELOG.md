@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## 1.4.1 - 2026-10-15
+
+- Geyser support for MC 26.3: the Bedrock-incompatibility warnings are gone (console, join ping, `/status version`).
+- Console commands answer again on Fabric/Quilt 1.21.11 (`/modinfo`, `/status preset list`, `/status config show` were silently swallowed).
+- Dashboard unmute/unblock now applies in game (previously re-added by the next sync).
+- Login with two-factor authentication is now actually enforced; codes are single-use even under parallel requests.
+- Dashboard session handling fixed (no more instant logout after registering, refresh rotation hardened).
+- Many small stability fixes (sync, permissions, audit log, config handling).
+
 ## 1.4.0 - 2026-10-12
 
 - Self-status GUI: bare `/status` opens a beginner-friendly menu (colored wool presets including own customs, live status display, next/clear buttons).

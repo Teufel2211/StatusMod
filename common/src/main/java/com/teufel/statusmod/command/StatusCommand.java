@@ -635,10 +635,7 @@ public class StatusCommand {
      * Helps diagnosing 401s (wrong key/server) without touching files.
      */
     private static void showVersion(CommandSourceStack src) {
-        CommandUtil.sendSuccess(src, Component.literal("StatusMod 1.4.0 (build " + StatusMod.BUILD + ")"), false);
-        if (StatusMod.isMc26_3()) {
-            CommandUtil.sendSuccess(src, Component.literal("§cWarnung: MC 26.3 ist nicht Bedrock-kompatibel. Nur Java."), false);
-        }
+        CommandUtil.sendSuccess(src, Component.literal("StatusMod 1.4.1 (build " + StatusMod.BUILD + ")"), false);
     }
 
     private static void showSyncStatus(CommandSourceStack src) {

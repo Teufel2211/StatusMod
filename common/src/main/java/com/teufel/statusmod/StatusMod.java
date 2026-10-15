@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class StatusMod {
     public static final String MOD_ID = "statusmod";
     /** Bump on every GUI-fix round so running builds are identifiable via log + /status version. */
-    public static final String BUILD = "bedrock263";
+    public static final String BUILD = "geyser263";
     private static final AtomicBoolean initialized = new AtomicBoolean(false);
     public static volatile ModConfig config;
     public static volatile SettingsStorage storage;
@@ -43,9 +43,6 @@ public final class StatusMod {
         if (com.teufel.statusmod.util.BedrockUtil.isFloodgatePresent()) {
             System.out.println("[StatusMod] Floodgate detected - Bedrock support enabled.");
         }
-        if (isMc26_3()) {
-            System.out.println("[StatusMod] WARNING: MC 26.3 is NOT Bedrock-compatible. Bedrock players cannot join reliably. Java only.");
-        }
 
         if (platform.isDedicatedServer()) {
             SetupManager.runIfNeeded();
@@ -55,15 +52,6 @@ public final class StatusMod {
 
     public static ModConfig getConfig() {
         return config;
-    }
-
-    /** True on MC 26.3 (direct refs: old name reflection failed on intermediary). */
-    public static boolean isMc26_3() {
-        try {
-            return net.minecraft.SharedConstants.getCurrentVersion().name().trim().startsWith("26.3");
-        } catch (Throwable ignored) {
-            return false;
-        }
     }
 
     public static SettingsStorage getStorage() {
