@@ -56,8 +56,9 @@ geschlossen + Branch geloescht.
 * Secrets (`MODRINTH_TOKEN`, `CURSEFORGE_TOKEN`, …) nur als
   GitHub-Actions-Secrets. Niemals in Repo, Logs oder Chat (nur Masken
   wie `abcd...wxyz`, s. `scripts/ci/check-release-tokens.ps1`).
-* Der alte Workflow `fabric-release.yml` feuert nur noch manuell
-  (`workflow_dispatch`); Tag-Pushes loesen keinen Build mehr aus.
+* Der tote Workflow `fabric-release.yml` ist geloescht (2026-10-16):
+  er trug falsche Secret-Namen, einen toten Publish-Pfad und hat bei
+  Pushes als Geister-Run gefailt. Releases laufen nur ueber `build.yml`.
 
 ## Bekannter Historien-Treffer (kein Handlungsbedarf)
 
