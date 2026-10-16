@@ -98,7 +98,7 @@ function Get-MavenJar([string]$repo, [string]$groupPath, [string]$artifact, [str
 }
 
 function Test-MojangNamedJar([string]$path) {
-    # True, wenn das Jar Mojang-benannte MC-Klassen enthaelt. Schuetzt vor
+    # True, wenn das Jar Mojang-benannte MC-Klassen enthält. Schützt vor
     # Loom-Cache-Kontamination (anderer Loader legte intermediary/SRG-jar ab).
     if (-not (Test-FileExists $path)) { return $false }
     Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue

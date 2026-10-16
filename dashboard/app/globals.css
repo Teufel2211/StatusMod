@@ -288,8 +288,8 @@
 }
 
 /* ============ FLEET: eigene Welt (Smaragd Ops-Deck, immer dunkel) ============
-   Wrapper-Klasse auf der Fleet-Seite: ueberschreibt das Farb-System lokal.
-   Alle card/input/badge-Komponenten uebernehmen die Palette automatisch. */
+   Wrapper-Klasse auf der Fleet-Seite: überschreibt das Farb-System lokal.
+   Alle card/input/badge-Komponenten übernehmen die Palette automatisch. */
 .fleet-theme {
   --bg-primary: #04080c;
   --bg-card: #0a1216;

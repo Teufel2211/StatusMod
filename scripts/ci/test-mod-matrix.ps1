@@ -4,16 +4,16 @@
     und Versionen als echte Minecraft-Server (Smoke-Test) und berichtet.
 
 .DESCRIPTION
-    Standard: NUR Server (keine Spiele-Fenster). Fuer jede Kombination
+    Standard: NUR Server (keine Spiele-Fenster). Für jede Kombination
     Mod x Loader x MC-Version wird ein isolierter Server installiert
     (Fabric-/Quilt-/Forge-/NeoForge-Installer), die Mod-JAR (+ Fabric-API
     bei Fabric/Quilt) in mods/ gelegt und der Server gebootet.
     Erfolg = Mod-Init-Marker im Log + "Done (".
 
     Clients werden per Default NICHT gestartet (siehe
-    docs/modrinth-client-test.md fuer manuelle Client-Tests in der
-    Modrinth App). Mit -WithClient zusaetzlich Singleplayer-Client-Tests
-    (Fenster oeffnen sich, brauchen GPU + Zeit).
+    docs/modrinth-client-test.md für manuelle Client-Tests in der
+    Modrinth App). Mit -WithClient zusätzlich Singleplayer-Client-Tests
+    (Fenster öffnen sich, brauchen GPU + Zeit).
 
     Aufruf aus StatusMod-Repo:
       .\scripts\ci\test-mod-matrix.ps1 -DryRun
@@ -55,7 +55,7 @@ $Mods = @($Mods | ForEach-Object { ($_ -split ',') } | ForEach-Object { $_.Trim(
 $Loaders = @($Loaders | ForEach-Object { ($_ -split ',') } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" })
 $McVersions = @($McVersions | ForEach-Object { ($_ -split ',') } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" })
 
-# Clients sind per Default AUS (Server-only; Clients laufen manuell ueber die
+# Clients sind per Default AUS (Server-only; Clients laufen manuell über die
 # Modrinth App, siehe docs/modrinth-client-test.md). -WithClient schaltet sie
 # ein, explizites -SkipClient / -SkipClient:$false hat Vorrang.
 if ($PSBoundParameters.ContainsKey('WithClient')) {
@@ -86,7 +86,7 @@ if (Test-Path -LiteralPath $loaderVersionsPath) {
 $script:logOffsets = @{}
 
 # ---------------------------------------------------------------------------
-# Helpers (aus test-runtime.ps1 uebernommen, MP-Teil)
+# Helpers (aus test-runtime.ps1 übernommen, MP-Teil)
 # ---------------------------------------------------------------------------
 
 function Invoke-Download {
@@ -238,7 +238,7 @@ function Get-MatrixLibraryClasspath {
         if ($lib.PSObject.Properties['downloads']) { $downloads = $lib.downloads }
         if ($null -ne $downloads -and $downloads.PSObject.Properties['artifact']) { $artifact = $downloads.artifact }
         if (-not $artifact -or -not $artifact.path) { continue }
-        # Natives (Fremd-OS eingeschlossen) gehoeren nie auf den Classpath.
+        # Natives (Fremd-OS eingeschlossen) gehören nie auf den Classpath.
         if ($artifact.path -like "*natives*") { continue }
         if ($key -ne "") { $ExcludeKeys[$key] = $true }
         $target = Join-Path $libDir ($artifact.path -replace "/", "\")
@@ -274,7 +274,7 @@ function Install-ClientBase {
         }
         if ($Loader -in @("forge", "neoforge", "quilt")) {
             # forge/neoforge/quilt-Installer verlangen ein Launcher-Profil,
-            # forge/neoforge zusaetzlich die Vanilla-Version im versions-Ordner.
+            # forge/neoforge zusätzlich die Vanilla-Version im versions-Ordner.
             if ($Loader -in @("forge", "neoforge")) {
                 $mf = Invoke-RestMethod -Uri "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" -TimeoutSec 60
                 $me = $mf.versions | Where-Object { $_.id -eq $EnvMc } | Select-Object -First 1
@@ -329,7 +329,7 @@ function Install-ClientBase {
     }
 
     # Natives flach in EIN Verzeichnis (Launcher-Layout).
-    # Modernes Mojang-Format: eigene Library-Eintraege "…:natives-windows"
+    # Modernes Mojang-Format: eigene Library-Einträge "…:natives-windows"
     # (downloads.classifiers ist Legacy und leer).
     $nativesDir = Join-Path $vanillaDir "natives"
     $nativesMarker = Join-Path $vanillaDir "natives.ok"
@@ -481,7 +481,7 @@ function Invoke-MatrixClientTest {
         $cp = New-Object System.Collections.Generic.List[string]
         $libsBase = Split-Path (Split-Path (Split-Path $Base.clientJar))
         if ($null -ne $Base.profileJson) {
-            # forge/neoforge: Profil-Libs (exakt), ergaenzt um Vanilla-Libs fuer
+            # forge/neoforge: Profil-Libs (exakt), ergänzt um Vanilla-Libs für
             # Koordinaten, die das Profil nicht hat (z.B. log4j). Profil gewinnt.
             $seen = @{}
             foreach ($e in @(Get-ProfileLibraryPaths -ProfileJson $Base.profileJson -LibBase (Join-Path $libsBase "libraries"))) {
@@ -497,7 +497,7 @@ function Invoke-MatrixClientTest {
             }
             $installedLibs = @(Get-ChildItem -Path (Join-Path $libsBase "libraries") -Recurse -Filter *.jar -File -ErrorAction SilentlyContinue)
             foreach ($lj in $installedLibs) {
-                # Natives kommen ueber librarypath (flach extrahiert), nicht auf den Classpath.
+                # Natives kommen über librarypath (flach extrahiert), nicht auf den Classpath.
                 if ($lj.Name -like "*-natives-*") { continue }
                 if (-not $cp.Contains($lj.FullName)) { $cp.Add($lj.FullName) }
             }
@@ -654,7 +654,7 @@ function Get-LibKey {
 function Get-ProfileLibraryPaths {
     # Launcher-treue Classpath aus Installer-Profil (forge/neoforge):
     # genau EINE Version pro Artefakt, Regeln ausgewertet, keine Natives.
-    # Gibt @{ Key; Path }-Eintraege zurueck (Key = group:artifact).
+    # Gibt @{ Key; Path }-Einträge zurück (Key = group:artifact).
     param($ProfileJson, [string]$LibBase)
     $out = @()
     foreach ($lib in $ProfileJson.libraries) {
@@ -787,8 +787,8 @@ function Find-ModJar {
 # Parallel-Support: Mutex + Slice-Orchestrierung + Merge
 # ---------------------------------------------------------------------------
 
-# Serialisiert prozessuebergreifend alles, was geteilte Verzeichnisse
-# anfasst (Client-Basen in shared/, Repo-Builds).Rueckgabe von $Action.
+# Serialisiert prozessübergreifend alles, was geteilte Verzeichnisse
+# anfasst (Client-Basen in shared/, Repo-Builds).Rückgabe von $Action.
 function Invoke-WithMatrixLock {
     param([scriptblock]$Action, [string]$Name = "StatusModMatrixShared")
     $m = New-Object System.Threading.Mutex($false, "Global\$Name")
@@ -827,7 +827,7 @@ function Write-MatrixReport {
     $md += ""
     $md += "Zeitpunkt: $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
     $md += ""
-    $md += "Server: **$mpPass/$($Results.Count)** ($failCount Kombis mit Fehlern, $skipCount uebersprungen); Client: **$spPass** passed, $spFail failed"
+    $md += "Server: **$mpPass/$($Results.Count)** ($failCount Kombis mit Fehlern, $skipCount übersprungen); Client: **$spPass** passed, $spFail failed"
     $md += ""
     $md += "| Mod | Loader | MC | Server | Client | JAR / Fehler |"
     $md += "|-----|--------|----|--------|--------|--------------|"
@@ -1003,7 +1003,7 @@ if ($DryRun) {
 # ---------------------------------------------------------------------------
 # Parallel-Modus: Kombis in Slices aufteilen, je ein Prozess pro Slice.
 # Ports/Dirs sind pro Kombi-Index eindeutig, geteilte Client-Basen und
-# Repo-Builds laufen ueber Mutex. Danach: Reports mergen.
+# Repo-Builds laufen über Mutex. Danach: Reports mergen.
 # ---------------------------------------------------------------------------
 
 if ($Parallel -gt 1 -and -not $IsSlice -and -not $DryRun) {
@@ -1101,7 +1101,7 @@ foreach ($r in $results) {
             Write-Host ""
             Write-Host "[$idx/$($results.Count)] Baue fehlende JAR: $($r.mod) $($r.loader) $($r.mc) ..."
             try {
-                # Repo-Builds laufen prozessuebergreifend exklusiv (Parallel-Slices!).
+                # Repo-Builds laufen prozessübergreifend exklusiv (Parallel-Slices!).
                 if (Invoke-WithMatrixLock -Action { Build-MissingJar -Combo $combo } -Name "StatusModMatrixBuild") {
                     $jar = Find-ModJar -Dir $combo.jarDir -Pattern $combo.jarPattern
                     if ($jar) { $r.jar = $jar; $r.status = "ready"; $r.error = "" }
@@ -1159,12 +1159,12 @@ foreach ($r in $results) {
             }
             "forge" {
                 $cfg = Get-LoaderVersionConfig -Loader "forge" -Mc $r.mc -Map $loaderVersionMap
-                if ($null -eq $cfg -or [string]::IsNullOrWhiteSpace($cfg.forge_version)) { throw "Keine forge_version fuer MC $($r.mc) in loader-versions.json" }
+                if ($null -eq $cfg -or [string]::IsNullOrWhiteSpace($cfg.forge_version)) { throw "Keine forge_version für MC $($r.mc) in loader-versions.json" }
                 $installerUrl = "https://maven.minecraftforge.net/net/minecraftforge/forge/$($r.mc)-$($cfg.forge_version)/forge-$($r.mc)-$($cfg.forge_version)-installer.jar"
             }
             "neoforge" {
                 $cfg = Get-LoaderVersionConfig -Loader "neoforge" -Mc $r.mc -Map $loaderVersionMap
-                if ($null -eq $cfg -or [string]::IsNullOrWhiteSpace($cfg.neoforge_version)) { throw "Keine neoforge_version fuer MC $($r.mc) in loader-versions.json" }
+                if ($null -eq $cfg -or [string]::IsNullOrWhiteSpace($cfg.neoforge_version)) { throw "Keine neoforge_version für MC $($r.mc) in loader-versions.json" }
                 # Builds nutzen die 1.21.11-NeoForge (Mojang-Mappings sind versionsstabil),
                 # der Lauf testet aber auf echtem Ziel-MC, sobald runtime_neoforge_version gesetzt ist.
                 $nfVer = [string]$cfg.neoforge_version
@@ -1251,7 +1251,7 @@ foreach ($r in $results) {
             Write-Host "  Starte Client (warte max. ${SpTimeoutSec}s auf Init+Join) ..."
             $spMarker = if ($r.mod -eq "mapswitch") { "Loaded maps:" } else { $combo.initMarker }
             $clientBaseDir = Join-Path $sharedDir ("client-" + $r.loader + "-" + ($r.envMc -replace '\.', '_'))
-            # Client-Basen sind pro (Loader, MC) geteilt - installs prozessuebergreifend exklusiv.
+            # Client-Basen sind pro (Loader, MC) geteilt - installs prozessübergreifend exklusiv.
             $clientBase = Invoke-WithMatrixLock -Name "StatusModMatrixClientBase" -Action {
                 Install-ClientBase -Loader $r.loader -EnvMc $r.envMc -LoaderVer $loaderVer -InstallerUrl $installerUrl -JavaExe $javaExe -BaseDir $clientBaseDir
             }
@@ -1274,7 +1274,7 @@ foreach ($r in $results) {
     } finally {
         if ($proc) { Stop-McProcess -Process $proc }
     }
-    # Client-Game-Logs sichern, dann schwere Dirs loeschen (Kombi-Root-Logs bleiben).
+    # Client-Game-Logs sichern, dann schwere Dirs löschen (Kombi-Root-Logs bleiben).
     $cliDir = Join-Path $workDir "client"
     foreach ($lf in @(Get-ChildItem -LiteralPath $cliDir -Filter "hs_err_pid*.log" -File -ErrorAction SilentlyContinue | ForEach-Object { $_.Name })) {
         Copy-Item -LiteralPath (Join-Path $cliDir $lf) -Destination (Join-Path $workDir $lf) -Force -ErrorAction SilentlyContinue
@@ -1326,7 +1326,7 @@ if (-not $DryRun -and -not $NoCleanup) {
     foreach ($d in @(Get-ChildItem -LiteralPath $WorkRoot -Directory -ErrorAction SilentlyContinue)) {
         if ($d.Name -like "failed-*") { continue }
         if ($d.Name -eq "shared") {
-            Write-Host "  loesche shared/ ..."
+            Write-Host "  lösche shared/ ..."
         }
         Remove-Item -LiteralPath $d.FullName -Recurse -Force -ErrorAction SilentlyContinue
     }

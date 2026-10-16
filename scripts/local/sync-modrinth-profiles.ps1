@@ -106,11 +106,11 @@ foreach ($dir in @(Get-ChildItem -LiteralPath $ProfilesRoot -Directory -ErrorAct
                 Write-Output "   + FAPI: $wantName"
             }
         } else {
-            Write-Output "   ! FAPI fuer $mc nicht gefunden"
+            Write-Output "   ! FAPI für $mc nicht gefunden"
         }
     }
 }
 
 Write-Output ""
-Write-Output "$done Profile aktualisiert, $($skipped.Count) uebersprungen."
+Write-Output "$done Profile aktualisiert, $($skipped.Count) übersprungen."
 foreach ($s in $skipped) { Write-Output "  SKIP: $s" }

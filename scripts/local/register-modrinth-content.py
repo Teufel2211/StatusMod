@@ -5,10 +5,10 @@
 # bleiben NULL = lokaler Upload ohne Online-Metadaten).
 #
 # Ablauf: erst Backup (sqlite backup API), dann pro "Status Mod *"-Profil:
-# Statusmod-JAR in mods/ suchen, Datei-Zeile upserten, alte Statusmod-Eintraege
+# Statusmod-JAR in mods/ suchen, Datei-Zeile upserten, alte Statusmod-Einträge
 # entfernen, Content-Eintrag + Store-Zeilen sicherstellen.
 # Die Modrinth App MUSS vorher komplett beendet sein (Quit), sonst Abbruch
-# im aufrufenden PS-Skript. Idempotent: erneutes Laufen aendert nichts.
+# im aufrufenden PS-Skript. Idempotent: erneutes Laufen ändert nichts.
 import hashlib
 import os
 import shutil
@@ -138,8 +138,8 @@ def main():
                 (file_id, iid, rel, current, fsha1, fsize, now, now),
             )
 
-        # Alte Statusmod-Eintraege entfernen (nur unsere Dateien, nie fremde Mods).
-        # Verwaiste Eintraege (Datei-Zeile fehlt) bleiben unangetastet.
+        # Alte Statusmod-Einträge entfernen (nur unsere Dateien, nie fremde Mods).
+        # Verwaiste Einträge (Datei-Zeile fehlt) bleiben unangetastet.
         for (eid, fid, rpath) in con.execute(
             "SELECT e.id, e.file_id, f.relative_path FROM instance_content_entries e"
             " JOIN instance_files f ON f.id=e.file_id"
@@ -181,7 +181,7 @@ def main():
                 (fsha512, fsize, now_ns, now, now, now),
             )
         else:
-            # Wie save_file der App: vorhandene Zeile auf ready zuruecksetzen
+            # Wie save_file der App: vorhandene Zeile auf ready zurücksetzen
             # (Blob-Datei liegt vor, siehe oben) + Zeitstempel auffrischen.
             con.execute(
                 "UPDATE store_blobs SET status='ready', verified_at=?, last_used_at=?"
@@ -203,14 +203,14 @@ def main():
         done += 1
 
     con.commit()
-    # Verifikation: Eintraege pro Status-Mod-Profil zaehlen.
+    # Verifikation: Einträge pro Status-Mod-Profil zählen.
     n = con.execute(
         "SELECT COUNT(*) FROM instance_content_entries e JOIN instances i ON i.id=e.instance_id"
         " WHERE i.name LIKE 'Status Mod %'"
     ).fetchone()[0]
     con.close()
     print("")
-    print("%d Profile registriert, %d uebersprungen, %d Content-Eintraege total." % (done, len(skipped), n))
+    print("%d Profile registriert, %d übersprungen, %d Content-Einträge total." % (done, len(skipped), n))
     for s in skipped:
         print("  SKIP: %s" % s)
 

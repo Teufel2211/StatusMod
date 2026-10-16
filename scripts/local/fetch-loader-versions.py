@@ -141,7 +141,7 @@ def parse_neoforge_versions(index_html: str) -> dict[str, str]:
         if len(parts) < 3:
             continue
         # Neues Schema ab MC 26: "26.3.0.80" -> MC 26.3 (kein 1.-Prefix!).
-        # Hinweis: Die 21.11.x-Linie laeuft unified ueber mehrere MCs und muss
+        # Hinweis: Die 21.11.x-Linie läuft unified über mehrere MCs und muss
         # ggf. manuell zugeordnet werden (s. loader-versions.json).
         if parts[0].isdigit() and int(parts[0]) >= 26:
             mc = f"{parts[0]}.{parts[1]}"

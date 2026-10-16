@@ -39,7 +39,7 @@ public final class CommandUtil {
                 return;
             }
             src.getPlayer().sendSystemMessage(msg);
-            // Vanilla sendSuccess mit broadcast=true loggt zusaetzlich
+            // Vanilla sendSuccess mit broadcast=true loggt zusätzlich
             // (Admin-Aktionen sichtbar); hier nachholen.
             if (broadcast) {
                 System.out.println("[StatusMod] " + msg.getString());

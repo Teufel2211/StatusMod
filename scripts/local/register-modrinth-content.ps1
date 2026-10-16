@@ -5,7 +5,7 @@
 #
 # VORAUSSETZUNG: Modrinth App komplett beendet (Taskleiste -> Quit).
 # Das Skript legt vorher ein Backup (app.db.register-bak-*) an und ist
-# idempotent (erneutes Laufen aendert nichts).
+# idempotent (erneutes Laufen ändert nichts).
 param(
     [string]$RepoRoot = "",
     [string]$ModVersion = ""

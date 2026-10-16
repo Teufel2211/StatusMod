@@ -14,7 +14,7 @@
 ## Branch Protection einrichten (einmalig, eigene Shell)
 
 ```powershell
-# Nur anzeigen, was gesetzt wuerde:
+# Nur anzeigen, was gesetzt würde:
 .\scripts\ci\protect-branches.ps1
 # Wirklich setzen (braucht Repo-Admin = Owner):
 .\scripts\ci\protect-branches.ps1 -Apply
@@ -36,9 +36,9 @@ dafür `Do not allow bypassing the above settings`, `Restrict deletions`,
 | Mechanismus | Wo | Was |
 |---|---|---|
 | Secret-Scan | `supply-chain.yml` | Gitleaks über jeden Push/PR; Build bricht bei Treffer ab |
-| Dependency-Review | `supply-chain.yml` | Blockt PRs mit bekannten CVEs in Abhaengigkeiten (nur bei PRs aktiv) |
+| Dependency-Review | `supply-chain.yml` | Blockt PRs mit bekannten CVEs in Abhängigkeiten (nur bei PRs aktiv) |
 | Least-Privilege-Token | `build.yml` | `GITHUB_TOKEN` nur `contents:read` (Publish-Job: `contents:write`), Checkouts ohne Credential-Persistenz |
-| Release-Pruefsummen | `build.yml` Publish-Job | `SHA256SUMS.txt` wird erzeugt und ans GitHub Release gehaengt |
+| Release-Prüfsummen | `build.yml` Publish-Job | `SHA256SUMS.txt` wird erzeugt und ans GitHub Release gehängt |
 | JAR-Verifikation | `verify-jars.ps1` | Dateinamen-, Versions- und Metadaten-Check vor jedem Publish |
 
 ## Automatik-Regel (Owner-Wunsch 2026-10-15)
@@ -56,11 +56,12 @@ geschlossen + Branch gelöscht.
 * Secrets (`MODRINTH_TOKEN`, `CURSEFORGE_TOKEN`, …) nur als
   GitHub-Actions-Secrets. Niemals in Repo, Logs oder Chat (nur Masken
   wie `abcd...wxyz`, s. `scripts/ci/check-release-tokens.ps1`).
-* Der alte Workflow `fabric-release.yml` feuert nur noch manuell
-  (`workflow_dispatch`); Tag-Pushes lösen keinen Build mehr aus.
+* Der tote Workflow `fabric-release.yml` ist gelöscht (2026-10-16):
+  er trug falsche Secret-Namen, einen toten Publish-Pfad und hat bei
+  Pushes als Geister-Run gefailt. Releases laufen nur über `build.yml`.
 
 ## Bekannter Historien-Treffer (kein Handlungsbedarf)
 
 Blob `c2fd862…` (`ModConfig.java`, Aug 2026) enthält einen alten,
 **rotierten** `setupSecret`-Default. Schaden 0, kein Rewrite der Historie.
-Bei Secret-Scans als bekannt ueberspringen.
+Bei Secret-Scans als bekannt überspringen.

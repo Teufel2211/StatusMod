@@ -46,7 +46,7 @@ public final class SyncManager {
     private static volatile MinecraftServer serverRef = null;
     // UUIDs des letzten erfolgreichen Pushs: nur diese darf der Pull bei
     // Fehlen im Dashboard-Report lokal entfernen. Schuetzt frische lokale
-    // Aktionen (noch nicht gepusht) vor sofortigem Zuruecksetzen.
+    // Aktionen (noch nicht gepusht) vor sofortigem Zurücksetzen.
     // Nur Sync-Thread nutzt sie (kein Lock noetig).
     private static final java.util.Set<String> lastPushedMuted = new java.util.HashSet<>();
     private static final java.util.Set<String> lastPushedBlocked = new java.util.HashSet<>();
@@ -219,7 +219,7 @@ public final class SyncManager {
                 System.out.println("[StatusMod] Sync push status " + code);
             } else {
                 lastPushInfo = "ok";
-                // Erfolgreich uebertragener Stand merken (fuer Pull-Reconcile).
+                // Erfolgreich übertragener Stand merken (für Pull-Reconcile).
                 lastPushedMuted.clear();
                 if (StatusMod.mutedPlayers != null) lastPushedMuted.addAll(StatusMod.mutedPlayers.getAllMuted().keySet());
                 lastPushedBlocked.clear();
@@ -289,8 +289,8 @@ public final class SyncManager {
                 reportedMuted.add(uuid);
             } catch (Exception ignored) {}
         }
-        // Dashboard-Unmute uebernehmen: Bekannte (gepushte) Mutes, die nicht
-        // mehr gemeldet werden, lokal entfernen - sonst legt der naechste
+        // Dashboard-Unmute übernehmen: Bekannte (gepushte) Mutes, die nicht
+        // mehr gemeldet werden, lokal entfernen - sonst legt der nächste
         // Push sie wieder an.
         for (String uuid : new java.util.HashSet<>(lastPushedMuted)) {
             if (!reportedMuted.contains(uuid) && StatusMod.mutedPlayers != null) {
@@ -357,7 +357,7 @@ public final class SyncManager {
             long wm = java.time.Instant.parse(json.get("server_time").getAsString()).toEpochMilli();
             // Reload-merge: die Platte ist die Wahrheit (manuelle Edits, Feature-
             // Commands). Blindes Speichern des (ggf. veralteten) Memory-Objekts
-            // wuerde fremde Aenderungen still zuruecksetzen.
+            // würde fremde Änderungen still zurücksetzen.
             com.teufel.statusmod.storage.ModConfig fresh =
                 com.teufel.statusmod.storage.ModConfig.load();
             fresh.lastSyncAtMs = wm;

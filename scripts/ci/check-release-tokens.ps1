@@ -63,7 +63,7 @@ if (-not [string]::IsNullOrWhiteSpace($mrToken) -and -not [string]::IsNullOrWhit
         $vers = Invoke-RestMethod -Uri "https://api.modrinth.com/v2/project/$mrProject/version" -Method Get `
             -Headers @{ "Authorization" = $mrToken } -TimeoutSec 30 -ErrorAction Stop
         $n = if ($vers -is [array]) { $vers.Count } else { 0 }
-        Write-Ok "Versionsliste lesbar ($n Eintraege)"
+        Write-Ok "Versionsliste lesbar ($n Einträge)"
     } catch { Write-Fail "Versions-Abfrage: $($_.Exception.Message)" }
 }
 
@@ -79,7 +79,7 @@ if (-not [string]::IsNullOrWhiteSpace($cfToken) -and -not [string]::IsNullOrWhit
     try {
         $vers = Invoke-RestMethod -Uri "https://minecraft.curseforge.com/api/game/versions" -Method Get `
             -Headers @{ "X-Api-Token" = $cfToken } -TimeoutSec 30 -ErrorAction Stop
-        Write-Ok "Game-Versions lesbar ($($vers.Count) Eintraege)"
+        Write-Ok "Game-Versions lesbar ($($vers.Count) Einträge)"
     } catch { Write-Fail "Game-Versions: $($_.Exception.Message)" }
     try {
         $p = Invoke-RestMethod -Uri "https://minecraft.curseforge.com/api/projects/$cfProject" -Method Get `
@@ -105,7 +105,7 @@ try {
 try {
     $repo = gh repo view --json nameWithOwner -q .nameWithOwner 2>$null
     if ($repo) { Write-Ok "Repo-Zugriff: $repo" } else { Write-Warn "Repo nicht ermittelbar (CI nutzt GITHUB_TOKEN, lokal egal)" }
-} catch { Write-Warn "Repo-Check uebersprungen" }
+} catch { Write-Warn "Repo-Check übersprungen" }
 
 Write-Host "=== Supabase (Dashboard-Deploy) ==="
 $sbUrl = $dashboardEnv["NEXT_PUBLIC_SUPABASE_URL"]
@@ -125,4 +125,4 @@ if (-not [string]::IsNullOrWhiteSpace($sbUrl) -and -not [string]::IsNullOrWhiteS
 Write-Host ""
 if ($fail -gt 0) { Write-Host "ERGEBNIS: $fail FEHLER, $warn Warnungen - Release NICHT starten" -ForegroundColor Red; exit 1 }
 elseif ($warn -gt 0) { Write-Host "ERGEBNIS: alles Pflichtige OK, $warn Warnungen" -ForegroundColor Yellow; exit 0 }
-else { Write-Host "ERGEBNIS: alles OK - bereit fuer Release" -ForegroundColor Green; exit 0 }
+else { Write-Host "ERGEBNIS: alles OK - bereit für Release" -ForegroundColor Green; exit 0 }

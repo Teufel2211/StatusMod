@@ -38,7 +38,7 @@ public class PermissionUtil {
     }
 
     // Laedt LP nach, falls es erst nach StatusMod startet (sonst faellt
-    // die Erkennung dauerhaft auf OP-Fallback zurueck). Retry max. 1x/Min,
+    // die Erkennung dauerhaft auf OP-Fallback zurück). Retry max. 1x/Min,
     // da hasAdminPermission auch pro Tick laeuft (teure Miss-Exceptions).
     private static volatile long lastLpRetryMs = 0L;
     private static void ensureLuckyPerms() {

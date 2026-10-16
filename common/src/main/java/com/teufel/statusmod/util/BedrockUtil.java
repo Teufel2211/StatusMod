@@ -4,7 +4,7 @@ import java.lang.reflect.Method;
 import java.util.UUID;
 
 /**
- * Bedrock-Spieler-Erkennung ueber die Floodgate-API - bewusst nur via
+ * Bedrock-Spieler-Erkennung über die Floodgate-API - bewusst nur via
  * Reflection, damit StatusMod auch OHNE installiertes Floodgate laeuft.
  *
  * <p>Hintergrund: Floodgate vergibt Bedrock-Spielern stabile Java-UUIDs, alle
