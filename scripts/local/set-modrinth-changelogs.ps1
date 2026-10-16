@@ -17,7 +17,7 @@ if ([string]::IsNullOrWhiteSpace($ModVersion)) { $ModVersion = (Get-Content (Joi
 
 $clText = Get-Content -LiteralPath (Join-Path $root "CHANGELOG.md") -Raw
 $m = [regex]::Match($clText, "(?ms)^## " + [regex]::Escape($ModVersion) + "\b.*?\r?\n([\s\S]*?)(?=^## |\z)")
-if (-not $m.Success) { throw "Kein CHANGELOG.md-Abschnitt fuer $ModVersion" }
+if (-not $m.Success) { throw "Kein CHANGELOG.md-Abschnitt für $ModVersion" }
 $changelog = $m.Groups[1].Value.Trim()
 Write-Host ("Changelog: " + $changelog.Length + " Zeichen")
 

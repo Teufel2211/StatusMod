@@ -85,7 +85,7 @@ $cfGameVersionCache = $null
 function Get-CfVersionId {
     param([string]$Name)
     if ($null -eq $cfGameVersionCache) { return $null }
-    # Die CF-Liste enthaelt doppelte Namen -> genau EINEN Eintrag nehmen,
+    # Die CF-Liste enthält doppelte Namen -> genau EINEN Eintrag nehmen,
     # sonst liefert $entry.id ein Array und List[int].Add() bricht ab.
     $entry = @($cfGameVersionCache | Where-Object { $_ -is [pscustomobject] -and $_.name -eq $Name }) | Select-Object -First 1
     if ($null -eq $entry) { return $null }
@@ -138,7 +138,7 @@ foreach ($jar in @($jars | Sort-Object Name)) {
 # (labrinth InitialVersionData), ausgeschriebene Merge-Listen sprengen das.
 function Get-CompressedMcLabel([string[]]$sorted) {
     # Benachbarte Versionen (Patch+1 oder Minor+1 bei Patch 0) werden zu
-    # Ranges ("26.1-26.3"), Luecken trennen mit "_" ("1.21.11_26.1-26.3").
+    # Ranges ("26.1-26.3"), Lücken trennen mit "_" ("1.21.11_26.1-26.3").
     $parts = New-Object System.Collections.Generic.List[string]
     $start = $null; $prev = $null; $pr = $null
     foreach ($v in $sorted) {
@@ -271,7 +271,7 @@ foreach ($group in $jarGroups.Values) {
     # Env-Eintrag: exakter Name variiert ("Client and Server" existiert nicht
     # in der CF-Liste) -> erst Kombi-Namen, sonst Client+Server einzeln
     # (Superset-Deklaration). Fehlt alles, wirft der Code unten mit
-    # aehnlichen Namen zur Selbstdiagnose.
+    # ähnlichen Namen zur Selbstdiagnose.
     $envIds = @()
     foreach ($cand in @("Client and Server", "Client & Server", "Server and Client")) {
         $eid = Get-CfVersionId -Name $cand
@@ -285,7 +285,7 @@ foreach ($group in $jarGroups.Values) {
     }
     if ($envIds.Count -eq 0) {
         $similar = @($cfGameVersionCache | Where-Object { $_ -is [pscustomobject] -and ($_.name -match 'client|server') } | ForEach-Object { "$($_.name)=$($_.id)" } | Select-Object -Unique | Sort-Object | Select-Object -First 20) -join ', '
-        Write-Warning "CurseForge: keine Env-Version gefunden (Kandidaten probiert). Aehnliche Eintraege: $similar - Gruppe uebersprungen"
+        Write-Warning "CurseForge: keine Env-Version gefunden (Kandidaten probiert). Ähnliche Einträge: $similar - Gruppe übersprungen"
         $fail++
         continue
     }
@@ -293,7 +293,7 @@ foreach ($group in $jarGroups.Values) {
     if ($null -eq $envId) { $envId = ($envIds -join ',') }
 
     if ($cfGameVersions.Count -lt 3) {
-        Write-Warning "CurseForge: game version IDs unvollstaendig (gefunden $($cfGameVersions.Count)/3; MC=$mcId, Loader=$loaderId, Env=$envId) - Gruppe uebersprungen"
+        Write-Warning "CurseForge: game version IDs unvollständig (gefunden $($cfGameVersions.Count)/3; MC=$mcId, Loader=$loaderId, Env=$envId) - Gruppe übersprungen"
         $fail++
         continue
     }
@@ -336,7 +336,7 @@ foreach ($group in $jarGroups.Values) {
             if (-not [string]::IsNullOrWhiteSpace($errBody)) { $detail = $errBody }
         } catch { }
         # Datei steht bereits auf CF (Retry nach Teilerfolg) -> Skip statt Fail.
-        # War Modrinth in DIESEM Lauf neu oben, zaehlt die Gruppe als ok.
+        # War Modrinth in DIESEM Lauf neu oben, zählt die Gruppe als ok.
         if ($detail -match '(?i)duplicat') {
             Write-Host "   CurseForge: bereits vorhanden, skipping"
             if ($mrOk) { $ok++ } else { $skipped++ }

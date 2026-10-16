@@ -1,4 +1,4 @@
-# Richtet Branch Protection fuer main + development ein.
+# Richtet Branch Protection für main + development ein.
 # Nur Owner (Repo-Admin) kann das setzen. In der EIGENEN Shell laufen lassen
 # (braucht gh mit Admin-Rechten), NICHT im Agent-Sandbox-Token.
 #
@@ -6,7 +6,7 @@
 #   .\scripts\ci\protect-branches.ps1 -Apply   # Setzt den Schutz wirklich
 #
 # Schutz: KEINE PR-Pflicht (Owner arbeitet direkt), aber kein Force-Push,
-# kein Loeschen, Admins eingeschlossen. Externe kommen nur per Fork-PR rein
+# kein Löschen, Admins eingeschlossen. Externe kommen nur per Fork-PR rein
 # (sie haben eh keine Schreibrechte) — Owner-Review vor Merge.
 
 param(
@@ -39,7 +39,7 @@ foreach ($branch in @("main", "development")) {
     Set-Content -LiteralPath $tmp -Value $body
     gh api -X PUT "repos/$Owner/$Repo/branches/$branch/protection" --input $tmp | Out-Host
     Remove-Item -LiteralPath $tmp -Force
-    Write-Host "Schutz gesetzt fuer $branch"
+    Write-Host "Schutz gesetzt für $branch"
 }
 
 if (-not $Apply) {

@@ -5,7 +5,7 @@ Server installiert ist. Alle UUID-basierten Features (Status, Sync, Mutes,
 Blocks, Avatare, Presets) funktionieren unveraendert, weil Floodgate
 Bedrock-Spielern stabile Java-UUIDs gibt.
 
-## Benoetigte Mods (Server-seitig, zusätzlich zu StatusMod + Fabric API)
+## Benötigte Mods (Server-seitig, zusätzlich zu StatusMod + Fabric API)
 
 | MC-Version | Geyser-Fabric | Floodgate-Fabric | Stand |
 |------------|---------------|------------------|---------|
@@ -20,16 +20,16 @@ Beim ersten Start erzeugen Geyser/Floodgate ihre Configs (u.a. Floodgate-Key).
 - **UDP-Port freigeben:** Bedrock verbindet per UDP, Standard-Port **19132**
   (Geyser-Config `bedrock.port`). TCP reicht NICHT (das ist nur Java).
 - **online-mode:** Der Server kann auf `online-mode=true` bleiben (empfohlen).
-  Floodgate laesst Bedrock-Spieler ueber Xbox-Auth herein, Java-Spieler
-  werden normal ueber Mojang verifiziert.
+  Floodgate laesst Bedrock-Spieler über Xbox-Auth herein, Java-Spieler
+  werden normal über Mojang verifiziert.
 - **Namen:** Floodgate kann Bedrock-Namen ein Prefix geben
-  (`username-prefix` in der Floodgate-Config). Der Sync uebernimmt den Namen
+  (`username-prefix` in der Floodgate-Config). Der Sync übernimmt den Namen
   so, wie der Server ihn meldet.
 
 ## Was StatusMod bei Bedrock-Spielern anders macht
 
-- **Erkennung:** `BedrockUtil` prueft per Floodgate-API (Reflection, keine
-  harte Abhaengigkeit), ob eine UUID zu einem Bedrock-Spieler gehoert.
+- **Erkennung:** `BedrockUtil` prüft per Floodgate-API (Reflection, keine
+  harte Abhängigkeit), ob eine UUID zu einem Bedrock-Spieler gehört.
   Ohne Floodgate ist das immer `false` – der Mod laeuft unveraendert.
 - **Spielerkoepfe im Admin-GUI:** Bedrock-Skins sind keine Mojang-Texturen,
   daher zeigen Bedrock-Koepfe das Steve-Standardgesicht. Betroffene Heads
@@ -40,7 +40,7 @@ Beim ersten Start erzeugen Geyser/Floodgate ihre Configs (u.a. Floodgate-Key).
 - **Dashboard:** Avatare/Heads dort nutzen dieselbe Avatar-Logik wie bei
   Java-Spielern (Name -> Mojang-Heads, URL -> Face-Crop, sonst Fallback).
 - **Commands:** `/status`, `/status gui`, `/status avatar` usw. funktionieren
-  fuer Bedrock-Spieler ueber den Chat wie bei Java (Berechtigungen wie
+  für Bedrock-Spieler über den Chat wie bei Java (Berechtigungen wie
   gehabt, z.B. OP-Level oder LuckPerms).
 - **Server-Log:** Bei installiertem Floodgate meldet StatusMod beim Start
   `Floodgate detected - Bedrock support enabled.`
@@ -50,12 +50,12 @@ Beim ersten Start erzeugen Geyser/Floodgate ihre Configs (u.a. Floodgate-Key).
 - **Kein Bedrock-Client zum Testen:** Server-Boot mit Geyser+Floodgate ist
   verifiziert (kein Crash, beide Mods initialisieren). Ein echter
   Bedrock-Join (Handy/Konsole/Windows-Edition) muss ingame getestet werden:
-  `/status hallo`, Farbe setzen, `/status gui` oeffnen, Avatar setzen.
-- **GUI auf Bedrock:** Geyser uebersetzt Container-Menues in Bedrock-Formen.
-  Klick-Aktionen (Links = Status, Shift = Farbe) koennen sich auf Bedrock
+  `/status hallo`, Farbe setzen, `/status gui` öffnen, Avatar setzen.
+- **GUI auf Bedrock:** Geyser übersetzt Container-Menüs in Bedrock-Formen.
+  Klick-Aktionen (Links = Status, Shift = Farbe) können sich auf Bedrock
   anders anfuehlen – bitte ingame gegenpruefen.
-- **Tablist/Scoreboard:** Status-Texte laufen ueber Scoreboard-Teams; wie
-  viel davon Bedrock anzeigt, haengt von Geyser ab.
-- **Geyser-Fabric folgt nur der neuesten MC-Version.** Fuer aeltere
+- **Tablist/Scoreboard:** Status-Texte laufen über Scoreboard-Teams; wie
+  viel davon Bedrock anzeigt, hängt von Geyser ab.
+- **Geyser-Fabric folgt nur der neuesten MC-Version.** Für ältere
   MC-Versionen (hier: 1.21.11) den passenden alten Geyser-Build aus der
   Tabelle oben nehmen.

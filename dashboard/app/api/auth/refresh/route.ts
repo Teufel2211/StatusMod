@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic"
 
 export async function POST(request: Request) {
   const ip = request.headers.get("x-forwarded-for") ?? "unknown"
-  // Erhoehtes Limit: Browser-Session-Restore oeffnet viele Tabs parallel,
+  // Erhöhtes Limit: Browser-Session-Restore öffnet viele Tabs parallel,
   // jeder refresht einmal (Rotation mit Grace, s. unten).
   const rl = checkRateLimit(`refresh:${hashIp(ip)}`, { windowMs: 60_000, max: 30 })
   if (!rl.allowed) {
@@ -65,8 +65,8 @@ export async function POST(request: Request) {
   }
 
   // Rotation mit Grace: Der alte Token bleibt 60s gueltig statt sofort revoked.
-  // Grund: Session-Restore oeffnet N Tabs parallel mit demselben Cookie —
-  // bei sofortigem Revoke wuerde der erste Tab alle anderen ausloggen (401 ->
+  // Grund: Session-Restore öffnet N Tabs parallel mit demselben Cookie —
+  // bei sofortigem Revoke würde der erste Tab alle anderen ausloggen (401 ->
   // clearSession leert das geteilte localStorage). UA-Binding bleibt als
   // Diebstahlschutz bestehen (Mismatch -> sofort revoke + 401).
   // Grace nur EINMAL vergeben: ein bereits verkürzter Token wird nicht erneut

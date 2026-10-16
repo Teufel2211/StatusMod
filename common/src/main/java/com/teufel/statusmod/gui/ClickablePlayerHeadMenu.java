@@ -176,7 +176,7 @@ public class ClickablePlayerHeadMenu extends AbstractContainerMenu {
                     sp.setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
                 }
             } catch (Throwable ignored) {}
-            // Offhand hat keinen Slot in diesem Menue: ohne explizites Paket
+            // Offhand hat keinen Slot in diesem Menü: ohne explizites Paket
             // bleibt ein per F getauschter (serverseitig geloschter) Kopf
             // clientseitig als Ghost sichtbar.
             syncOffhand();

@@ -64,7 +64,7 @@ export async function POST(
       server_id: params.server_id,
       uuid: p.uuid,
       // updated_at bewusst NICHT gesetzt: Dashboard-Edits (PATCH/PUT)
-      // stempeln selbst, und der Pull sieht so nur echte Aenderungen
+      // stempeln selbst, und der Pull sieht so nur echte Änderungen
       // statt jeden Push-Zyklus alle Zeilen (DB-Default now() bei Insert).
       is_online: p.online ?? false,
     }

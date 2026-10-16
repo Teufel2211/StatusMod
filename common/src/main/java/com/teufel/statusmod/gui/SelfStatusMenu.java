@@ -302,12 +302,12 @@ public class SelfStatusMenu extends AbstractContainerMenu {
                     sp.setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
                 }
             } catch (Throwable ignored) {}
-            // Offhand hat keinen Slot in diesem Menue: broadcastChanges()
+            // Offhand hat keinen Slot in diesem Menü: broadcastChanges()
             // synct sie nie. Ohne explizites Paket bleibt ein per F getauschtes
             // (serverseitig geloschtes) Item clientseitig als Ghost sichtbar.
             syncOffhand();
-            // Gedroppte Menue-Items (Q-Taste) als Entities einsammeln.
-            // Einmal sofort, einmal verzoegert: Die Entity spawnt moeglicherweise
+            // Gedroppte Menü-Items (Q-Taste) als Entities einsammeln.
+            // Einmal sofort, einmal verzögert: Die Entity spawnt möglicherweise
             // erst NACH dem Slot-Event (clicked()), der erste Sweep liefe ins Leere.
             purgeEntities(sp);
             scheduleEntitySweep();
@@ -539,7 +539,7 @@ public class SelfStatusMenu extends AbstractContainerMenu {
                 resync(this);
                 logGui("shift", index, saved[index]);
             } else {
-                // Eigene Slots: Shift wird geblockt (Vanilla wuerde bewegen).
+                // Eigene Slots: Shift wird geblockt (Vanilla würde bewegen).
                 // Ohne Resync behaelt der Client seine falsche Vorhersage.
                 resync(this);
             }
@@ -557,7 +557,7 @@ public class SelfStatusMenu extends AbstractContainerMenu {
             clearCursor(this, ItemStack.EMPTY);
             purgeMenuItems();
             // Drop-and-close (Q, dann sofort ESC): Entity-Sweep, sonst bleibt
-            // das gedroppte Menue-Item liegen und kann aufgesammelt werden.
+            // das gedroppte Menü-Item liegen und kann aufgesammelt werden.
             if (viewer instanceof ServerPlayer sp) purgeEntities(sp);
         } catch (Throwable ignored) {}
         super.removed(player);

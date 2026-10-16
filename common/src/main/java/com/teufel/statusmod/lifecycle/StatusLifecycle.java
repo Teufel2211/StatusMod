@@ -65,7 +65,7 @@ public final class StatusLifecycle {
             com.google.gson.JsonObject root = new com.google.gson.JsonObject();
             root.add("players", arr);
             // Vergleich OHNE updatedAt (sonst waere der Skip tot und die
-            // Datei wuerde bei jedem Tick neu geschrieben).
+            // Datei würde bei jedem Tick neu geschrieben).
             String fingerprint = new com.google.gson.Gson().toJson(root);
             if (fingerprint.equals(lastOverviewJson)) return;
             lastOverviewJson = fingerprint;

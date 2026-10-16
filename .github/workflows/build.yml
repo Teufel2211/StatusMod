@@ -192,7 +192,7 @@ jobs:
           $jar = Get-ChildItem -Path dist/multiversion -Recurse -Filter "${{ matrix.jar }}" -File | Select-Object -First 1
           if (-not $jar) { throw "JAR not found: ${{ matrix.jar }}" }
           Write-Host "Runtime-testing $($jar.FullName)"
-          # Push-Events haben keine Inputs (""), GPU-lose Runner koennen SP nicht:
+          # Push-Events haben keine Inputs (""), GPU-lose Runner können SP nicht:
           # SP nur bei explizitem runtime_sp=true (Dispatch-Default), sonst MP-only.
           $skipSp = "${{ inputs.runtime_sp }}" -ne "true"
           & .\scripts\ci\test-runtime.ps1 -JarPath $jar.FullName -Loader "${{ matrix.loader }}" -McVersion "${{ matrix.mc }}" -JavaHome "$env:JAVA_HOME" -WorkDir "${{ runner.temp }}\rt" -SkipSinglePlayer:$skipSp
@@ -276,7 +276,7 @@ jobs:
           # rekursiv expandiert (fabric-JARs liegen eine Ebene tiefer).
           $assetFiles = @(Get-ChildItem -Path dist/multiversion -Recurse -Filter *.jar -File | ForEach-Object { $_.FullName })
           if ($assetFiles.Count -eq 0) { throw "No JARs found for release $tag" }
-          # Pruefsummen: beweist, dass Release-Assets == CI-gebaute JARs sind.
+          # Prüfsummen: beweist, dass Release-Assets == CI-gebaute JARs sind.
           $sumsFile = Join-Path $env:RUNNER_TEMP "SHA256SUMS.txt"
           $assetFiles | Sort-Object | ForEach-Object {
             $h = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant()

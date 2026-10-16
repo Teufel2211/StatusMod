@@ -152,7 +152,7 @@ public final class StatusSidebar {
             }
         } catch (Throwable ignored) {}
         // Codepoint-sicher kuerzen (keine halben Emojis) und nicht mitten in
-        // einer §X-Farbsequenz schneiden (kein haengendes §).
+        // einer §X-Farbsequenz schneiden (kein hängendes §).
         if (entry.codePointCount(0, entry.length()) > MAX_ENTRY_LENGTH) {
             int cut = entry.offsetByCodePoints(0, MAX_ENTRY_LENGTH);
             if (cut > 0 && entry.charAt(cut - 1) == '§') cut--;
