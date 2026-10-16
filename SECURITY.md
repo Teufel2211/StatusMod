@@ -1,6 +1,6 @@
 # Security Policy
 
-## Wer darf rein (Owner-Wunsch 2026-10-15: keine PR-Pflicht fürr eigene Änderungen)
+## Wer darf rein (Owner-Wunsch 2026-10-15: keine PR-Pflicht für eigene Änderungen)
 
 * Einziger Maintainer: **@Teufel2211**. Er pusht direkt auf
   `development` und mergt nach `main` — **ohne Pull Request**.
