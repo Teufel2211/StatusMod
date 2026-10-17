@@ -27,7 +27,7 @@ dafür `Do not allow bypassing the above settings`, `Restrict deletions`,
 
 ## Melden von Lücken
 
-* Bitte **kein öffentliches Issue** für Sicherheitsluecken.
+* Bitte **kein öffentliches Issue** für Sicherheitslücken.
 * Melden via **GitHub → Security → Report a vulnerability**
   (Private Vulnerability Reporting). Antwortziel: 7 Tage.
 
